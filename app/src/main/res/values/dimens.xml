@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="home_card_top_over_head">24dp</dimen>
+    <dimen name="home_card_corner_radius">16dp</dimen>
+    <dimen name="home_card_overhead_distance">40dp</dimen>
+    <dimen name="home_card_min_width">320dp</dimen>
+    <dimen name="home_card_max_width">460dp</dimen>
+    <dimen name="home_card_max_height">296dp</dimen>
+    <dimen name="home_card_clock_round">32dp</dimen>
+    <dimen name="home_card_bottom_border">32dp</dimen>
+    <dimen name="home_card_icons_radius">20dp</dimen>
+
+    <dimen name="home_card_spacing">16dp</dimen>
+    <dimen name="weather_item_data_height">110dp</dimen>
+    <dimen name="day_display_height">32dp</dimen>
+    <dimen name="day_display_item_height">31dp</dimen>
+    <dimen name="clock_gauge_reset_size">40dp</dimen>
+    <dimen name="clock_manipulator_height">88dp</dimen>
+    <dimen name="detail_screen_padding">16dp</dimen>
+    <dimen name="detail_screen_subtitle_vertical_padding">8dp</dimen>
+    <dimen name="detail_screen_subtitle_height">40dp</dimen>
+    <dimen name="detail_screen_section_separation">32dp</dimen>
+    <dimen name="connector_corner_radius">8dp</dimen>
+    <dimen name="connector_line_width">2dp</dimen>
+    <dimen name="current_condition_param_height">40dp</dimen>
+    <dimen name="current_condition_value_height">52dp</dimen>
+    <dimen name="current_condition_value_width">100dp</dimen>
+    <dimen name="current_condition_gauge_width">124dp</dimen>
+    <dimen name="current_condition_icon_size">48dp</dimen>
+    <dimen name="diagram_corner_radius">8dp</dimen>
+
+    <dimen name="hourly_curve_point_size">6dp</dimen>
+    <dimen name="daily_curve_point_size">4dp</dimen>
+
+    <dimen name="detail_screen_subtitle_font_size">16sp</dimen>
+    <dimen name="diagram_slider_thumb_size">24dp</dimen>
+    <dimen name="diagram_slider_height">12dp</dimen>
+    <dimen name="diagram_slider_gap_height">4dp</dimen>
+    <dimen name="diagram_frame_hor_padding">16dp</dimen>
+    <dimen name="diagram_frame_ver_padding">48dp</dimen>
+    <dimen name="diagram_curve_width">2dp</dimen>
+    <dimen name="whole_diagram_hor_padding">8dp</dimen>
+
+</resources>

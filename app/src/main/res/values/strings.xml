@@ -1,0 +1,60 @@
+<resources>
+    <string name="app_name">Weatherer</string>
+
+    <string name="loading">Loading</string>
+    <string name="retry">Retry</string>
+    <string name="settings">Settings</string>
+
+    <string name="show_weather_condition_icon">Show/Hide weather condition icon</string>
+    <string name="show_curve_dots">Show/Hide curve dots</string>
+    <string name="show_curve_shadow">Show/Hide curve shadow</string>
+    <string name="show_sun_rise_set_icon">Show/Hide sun rise/set icon</string>
+    <string name="show_hide_grids">Show/Hide grids</string>
+    <string name="theme">Theme</string>
+
+    <string name="temperature">Temperature</string>
+    <string name="humidity">Relative humidity</string>
+    <string name="dew_point">Dew point</string>
+    <string name="apparent_temp">Feeling temperature</string>
+    <string name="precipitation_probability">Precipitation probability</string>
+    <string name="precipitation">Precipitation</string>
+    <string name="rain">Rain</string>
+    <string name="showers">Showers</string>
+    <string name="snowfall">Snowfall</string>
+    <string name="cloud_cover">Cloud coverage</string>
+    <string name="weather_code">Weather condition</string>
+    <string name="surface_pressure">Surface pressure</string>
+    <string name="visibility">Visibility</string>
+    <string name="wind_speed">Wind speed</string>
+    <string name="wind_direction">Wind direction</string>
+    <string name="uv_index">UV index</string>
+    <string name="freezing_level_height">Freezing level height</string>
+    <string name="direct_radiation">Direct radiation</string>
+    <string name="direct_normal_irradiance">Direct normal irradiance</string>
+
+    <string name="AQI">Air quality</string>
+    <string name="CO">Carbon monoxide (CO)</string>
+
+    <string name="temperature_MIN_MAX">Temperature min/max</string>
+    <string name="sun_rise_set">Sun rise/set</string>
+    <string name="uv_index_MAX">UV index max</string>
+    <string name="precipitation_sum">Precipitation sum</string>
+    <string name="precipitation_probability_MAX">Precipitation probability max</string>
+    <string name="wind_speed_MAX">Wind speed max</string>
+
+    <string name="choose_diagram_theme">Choose diagram theme</string>
+    <string name="light_theme">Light</string>
+    <string name="dark_theme">Dark</string>
+    <string name="app_theme">App theme</string>
+    <string name="day_night">Day/Night</string>
+    
+    <string-array name="air_quality_description">
+        <item>Good</item>
+        <item>Moderate</item>
+        <item>Unhealthy for Sensitive Groups</item>
+        <item>Unhealthy</item>
+        <item>Very Unhealthy</item>
+        <item>Hazardous</item>
+    </string-array>
+
+</resources>
