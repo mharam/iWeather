@@ -1,16 +1,15 @@
 package com.takaapoo.weatherer.ui.screens.add_location
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.ktx.utils.sphericalDistance
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.MapState
+import com.takaapoo.weatherer.ui.theme.customColorScheme
 
 @Composable
 fun MapFAB(
@@ -29,10 +28,7 @@ fun MapFAB(
                 Icon(
                     painter = painterResource(R.drawable.location_disabled_24px),
                     contentDescription = "My location",
-                    tint = colorResource(
-                        if (isSystemInDarkTheme()) android.R.color.holo_red_light
-                        else android.R.color.holo_red_dark
-                    )
+                    tint = MaterialTheme.customColorScheme.mapFabRed
                 )
             }
             mapState.userLocationLatLng.sphericalDistance(screenCenter) > 20 -> {
@@ -45,10 +41,7 @@ fun MapFAB(
                 Icon(
                     painter = painterResource(R.drawable.my_location_24px),
                     contentDescription = "My location",
-                    tint = colorResource(
-                        if (isSystemInDarkTheme()) android.R.color.holo_blue_bright
-                        else android.R.color.holo_blue_dark
-                    )
+                    tint = MaterialTheme.customColorScheme.mapFabBlue
                 )
             }
         }

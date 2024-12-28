@@ -17,5 +17,9 @@ interface AirQualityRepository {
 
 
     // Remote server functions
-    suspend fun getAirQualityFromServer(latitude: Float, longitude: Float): MyResult<WholeAirQuality>
+    suspend fun getAirQualityFromServer(
+        latitude: Float,
+        longitude: Float,
+        pastDays: Int
+    ): MyResult<WholeAirQuality>
 }

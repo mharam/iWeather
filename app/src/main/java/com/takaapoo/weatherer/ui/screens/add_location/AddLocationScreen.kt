@@ -1,6 +1,7 @@
 package com.takaapoo.weatherer.ui.screens.add_location
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.Point
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -11,13 +12,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -36,22 +37,19 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.rememberCameraPositionState
-import com.google.maps.android.compose.widgets.DisappearingScaleBar
 import com.google.maps.android.compose.widgets.ScaleBar
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.MyResult
+import com.takaapoo.weatherer.domain.model.MapState
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
-import com.takaapoo.weatherer.ui.viewModels.AddLocationViewModel
 
 val indicatingCircleDiameter = 200.dp
 
@@ -59,11 +57,23 @@ val indicatingCircleDiameter = 200.dp
 @Composable
 fun AddLocationScreen(
     modifier: Modifier = Modifier,
-    addViewModel: AddLocationViewModel = hiltViewModel(),
-    navController: NavController
+    mapState: MapState,
+    onUpdateLocationPermissionGranted: (Boolean) -> Unit,
+    onUpdateDeviceLocationEnabled: (Boolean) -> Unit,
+    onUpdateTriggerMapRelocation: (Int) -> Unit,
+    onShowIndicatingCircle: () -> Unit,
+    onResetAddResult: () -> Unit,
+    onUpdateShowLocationState: (Boolean) -> Unit,
+    onGoToMyLocation: (Context) -> Unit,
+    onUpdateSearchQuery: (String, Boolean) -> Unit,
+    onGoToLocation: (LatLng, DoubleArray?) -> Unit,
+    onUpdateSelectedLocationLatLng: (LatLng) -> Unit,
+    onUpdateAddLocationDialogVisibility: (Boolean) -> Unit,
+    onAddLocationToDB: (Location) -> Unit,
+    onUpdateSelectedLocationName: (String) -> Unit,
+    onNavigateUp: () -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    val mapState by addViewModel.mapState.collectAsStateWithLifecycle()
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(mapState.destinationLocationLatLng, 1f)
@@ -77,7 +87,7 @@ fun AddLocationScreen(
             ?: initialCircleCenter)
     }
     val radius by animateFloatAsState(
-        targetValue = if (mapState.indicatingCircleVisible) 1f else 0f,
+        targetValue = if (mapState.indicatingCircleVisible) 1f else -0.3f,
         animationSpec = repeatable(
             iterations = if (mapState.indicatingCircleVisible) 5 else 1,
             animation = TweenSpec(
@@ -94,22 +104,18 @@ fun AddLocationScreen(
     val defaultOffset = with(density){ indicatingCircleDiameter.toPx() / 2}.toInt()
 
     LaunchedEffect(Unit) {
-        addViewModel.updateLocationPermissionGranted(
-            isLocationPermissionGranted(context)
-        )
-        addViewModel.updateDeviceLocationEnabled(
-            isLocationEnabled(context)
-        )
-        addViewModel.triggerMapRelocation = 0
+        onUpdateLocationPermissionGranted(isLocationPermissionGranted(context))
+        onUpdateDeviceLocationEnabled(isLocationEnabled(context))
+        onUpdateTriggerMapRelocation(0)
     }
-    LaunchedEffect(key1 = addViewModel.triggerMapRelocation){
-        val useBoundingBox = mapState.boundingBox != null && mapState.boundingBox!!.size == 4
+    LaunchedEffect(key1 = mapState.triggerMapRelocation){
+        val useBoundingBox = mapState.boundingBox != null && mapState.boundingBox.size == 4
         cameraPositionState.animate(
             update = if (useBoundingBox)
                 CameraUpdateFactory.newLatLngBounds(
                     LatLngBounds(
-                        LatLng(mapState.boundingBox!![1], mapState.boundingBox!![0]),
-                        LatLng(mapState.boundingBox!![3], mapState.boundingBox!![2])
+                        LatLng(mapState.boundingBox[1], mapState.boundingBox[0]),
+                        LatLng(mapState.boundingBox[3], mapState.boundingBox[2])
                     ),
                     0
                 )
@@ -120,8 +126,8 @@ fun AddLocationScreen(
                 ),
             durationMs = 2000
         )
-        if (addViewModel.triggerMapRelocation > 0)
-            addViewModel.showIndicatingCircle()
+        if (mapState.triggerMapRelocation > 0)
+            onShowIndicatingCircle()
     }
     LaunchedEffect(mapState.addResult){
         when(mapState.addResult){
@@ -129,7 +135,7 @@ fun AddLocationScreen(
                 snackbarHostState.showSnackbar(
                     (mapState.addResult as MyResult.Success<*>).data as String
                 )
-                addViewModel.resetAddResult()
+                onResetAddResult()
             }
             is MyResult.Error -> {
                 val exception = (mapState.addResult as MyResult.Error).exception
@@ -141,18 +147,21 @@ fun AddLocationScreen(
                         else -> "Some error occurred"
                     }
                 )
-                addViewModel.resetAddResult()
+                onResetAddResult()
             }
             is MyResult.Loading -> {}
         }
     }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        onResetAddResult()
+    }
 
     if (mapState.handleShowingLocation){
         HandleLocationRequest(
-            onDismiss = { addViewModel.onMyLocationPressed(false) },
-            goToMyLocation = { addViewModel.goToMyLocation(context) },
+            onDismiss = { onUpdateShowLocationState(false) },
+            goToMyLocation = { onGoToMyLocation(context) },
             updateLocationPermissionGrant = { granted:Boolean ->
-                addViewModel.updateLocationPermissionGranted(granted)
+                onUpdateLocationPermissionGranted(granted)
             }
         )
     }
@@ -163,7 +172,7 @@ fun AddLocationScreen(
         floatingActionButton = {
             MapFAB(
                 onMyLocationPressed = {
-                    addViewModel.onMyLocationPressed(it)
+                    onUpdateShowLocationState(it)
                 },
                 mapState = mapState,
                 screenCenter = cameraPositionState.position.target
@@ -173,11 +182,11 @@ fun AddLocationScreen(
             MapTopBar(
                 mapState = mapState,
                 onSearchQueryChange = { query: String, getLocation: Boolean ->
-                    addViewModel.onSearchQueryChange(query, getLocation)
+                    onUpdateSearchQuery(query, getLocation)
                 },
-                navigateUp = navController::navigateUp,
+                navigateUp = onNavigateUp,
                 goToLocation = { latLng: LatLng, boundingBox: DoubleArray? ->
-                    addViewModel.goToLocation(latLng, boundingBox)
+                    onGoToLocation(latLng, boundingBox)
                 }
             )
         }
@@ -189,8 +198,8 @@ fun AddLocationScreen(
                 properties = mapState.properties,
                 uiSettings = mapState.uiSettings,
                 onMapLongClick = {
-                    addViewModel.updateSelectedLocationLatLng(it)
-                    addViewModel.updateShowAddLocationDialog(true)
+                    onUpdateSelectedLocationLatLng(it)
+                    onUpdateAddLocationDialogVisibility(true)
                 }
             )
             ScaleBar(
@@ -198,15 +207,14 @@ fun AddLocationScreen(
                     .windowInsetsPadding(WindowInsets.systemBars)
                     .padding(bottom = 8.dp, start = 8.dp)
                     .align(Alignment.BottomStart),
-//                height = 60.dp,
                 cameraPositionState = cameraPositionState,
 //                visibilityDurationMillis = 2000
             )
             if (mapState.indicatingCircleVisible) {
                 val colorStops = arrayOf(
-                    radius - 0.2f to Color.Transparent,
-                    radius to Color(red = 1f, green = 0.3f, blue = 0f, alpha = 1-radius),
-                    radius + 0.2f to Color.Transparent,
+                    radius - 0.05f to Color.Transparent,
+                    radius to MaterialTheme.colorScheme.primary.copy(alpha = (1 - radius)),
+                    radius + 0.3f to Color.Transparent,
                 )
                 Box(
                     modifier = Modifier
@@ -225,25 +233,25 @@ fun AddLocationScreen(
                 )
             }
         }
-        if (mapState.showAddLocationDialog){
+        if (mapState.addLocationDialogVisibility){
             AddLocationDialog(
                 onDismissRequest = {
-                    addViewModel.updateShowAddLocationDialog(false)
+                    onUpdateAddLocationDialogVisibility(false)
                 },
                 onConfirmation = {
-                    addViewModel.addLocationToDB(
+                    onAddLocationToDB(
                         Location(
                             name = mapState.selectedLocationName,
                             latitude = mapState.selectedLocationLatLng.latitude.toFloat(),
                             longitude = mapState.selectedLocationLatLng.longitude.toFloat()
                         )
                     )
-                    addViewModel.updateShowAddLocationDialog(false)
+                    onUpdateAddLocationDialogVisibility(false)
                 },
                 latLng = mapState.selectedLocationLatLng,
                 locationName = mapState.selectedLocationName,
-                onLocationNameChange = {
-                    addViewModel.updateSelectedLocationName(it)
+                onUpdateLocationName = {
+                    onUpdateSelectedLocationName(it)
                 },
                 nameAlreadyExists = mapState.nameAlreadyExists
             )
@@ -258,6 +266,23 @@ fun AddLocationScreen(
 @Composable
 fun AddLocationScreenPreview() {
     WeathererTheme {
-        AddLocationScreen(navController = rememberNavController())
+        AddLocationScreen(
+            onNavigateUp = {},
+            modifier = TODO(),
+            mapState = TODO(),
+            onUpdateLocationPermissionGranted = TODO(),
+            onUpdateDeviceLocationEnabled = TODO(),
+            onUpdateTriggerMapRelocation = TODO(),
+            onShowIndicatingCircle = TODO(),
+            onResetAddResult = TODO(),
+            onUpdateShowLocationState = TODO(),
+            onGoToMyLocation = TODO(),
+            onUpdateSearchQuery = TODO(),
+            onGoToLocation = TODO(),
+            onUpdateSelectedLocationLatLng = TODO(),
+            onUpdateAddLocationDialogVisibility = TODO(),
+            onAddLocationToDB = TODO(),
+            onUpdateSelectedLocationName = TODO()
+        )
     }
 }

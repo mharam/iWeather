@@ -18,12 +18,12 @@ plugins {
 
 android {
     namespace = "com.takaapoo.weatherer"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.takaapoo.weatherer"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -93,6 +93,7 @@ dependencies {
     implementation(project(":renderscript-toolkit"))
     implementation(libs.androidx.foundation.android)
     implementation(libs.core)
+    implementation(libs.androidx.runner)
     testImplementation("junit:junit:4.12")
     testImplementation("junit:junit:4.12")
     testImplementation("junit:junit:4.12")
@@ -170,6 +171,17 @@ dependencies {
     //Reorderable List
     implementation(libs.reorderable)
 
+    // Adaptive Screen
+    implementation("androidx.compose.material3.adaptive:adaptive:1.1.0-alpha01")
+//    implementation("androidx.compose.material3.adaptive:adaptive-layout:1.1.0-alpha01")
+//    implementation("androidx.compose.material3.adaptive:adaptive-navigation:1.1.0-alpha01")
+
+    // Immutable Collections
+    implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.8")
+
+    // Splash Screen
+    implementation(libs.androidx.core.splashscreen)
+
 
 
 
@@ -190,6 +202,7 @@ dependencies {
 
     //Hilt testing
     androidTestImplementation(libs.hilt.android.testing)
+    androidTestImplementation(libs.androidx.rules)
     kspAndroidTest(libs.hilt.android.compiler)
 }
 

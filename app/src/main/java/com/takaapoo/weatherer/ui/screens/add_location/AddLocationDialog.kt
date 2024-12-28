@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -39,6 +39,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.google.android.gms.maps.model.LatLng
 import com.takaapoo.weatherer.R
+import com.takaapoo.weatherer.ui.theme.Cmu
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -50,7 +51,7 @@ fun AddLocationDialog(
     onConfirmation: () -> Unit,
     latLng: LatLng,
     locationName: String,
-    onLocationNameChange: (String) -> Unit,
+    onUpdateLocationName: (String) -> Unit,
     nameAlreadyExists: Boolean
 ) {
     Dialog(
@@ -84,10 +85,10 @@ fun AddLocationDialog(
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    text = "Choose a name for this location",
+                    text = "Name this location",
                     modifier = Modifier.align(Alignment.Start),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontSize = 16.sp
+                    fontFamily = FontFamily.Default,
+                    fontSize = 18.sp
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
@@ -103,8 +104,8 @@ fun AddLocationDialog(
                         append("${latLng.latitude.roundTo(decimalDigits = 3)}")
                     },
                     modifier = Modifier.align(Alignment.Start),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontSize = 14.sp
+                    fontFamily = Cmu,
+                    fontSize = 16.sp
                 )
                 Text(
                     text = buildAnnotatedString {
@@ -119,16 +120,19 @@ fun AddLocationDialog(
                         append("${latLng.longitude.roundTo(decimalDigits = 3)}")
                     },
                     modifier = Modifier.align(Alignment.Start),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontSize = 14.sp
+                    fontFamily = Cmu,
+                    fontSize = 16.sp
                 )
                 Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
                     value = locationName,
                     onValueChange = {
-                        onLocationNameChange(it)
+                        onUpdateLocationName(it)
                     },
-                    label = { Text(text = "Location Name") },
+                    label = { Text(
+                        text = "Location Name",
+                        fontFamily = FontFamily.Default
+                    ) },
                     modifier = Modifier.fillMaxWidth(),
                     isError = nameAlreadyExists,
                     supportingText = {
@@ -159,14 +163,20 @@ fun AddLocationDialog(
                     TextButton(
                         onClick = { onDismissRequest() },
                     ) {
-                        Text("Dismiss")
+                        Text(
+                            text = "Dismiss",
+                            fontFamily = FontFamily.Default
+                        )
                     }
                     Spacer(Modifier.width(8.dp))
                     TextButton(
                         onClick = { onConfirmation() },
                         enabled = locationName.isNotEmpty()
                     ) {
-                        Text("Add Location")
+                        Text(
+                            text = "Add Location",
+                            fontFamily = FontFamily.Default
+                        )
                     }
                 }
             }
@@ -188,7 +198,7 @@ fun AddLocationDialogPreview() {
             onConfirmation = {},
             latLng = LatLng(35.44879, 51.4478214),
             locationName = "",
-            onLocationNameChange = {},
+            onUpdateLocationName = {},
             nameAlreadyExists = true
         )
     }

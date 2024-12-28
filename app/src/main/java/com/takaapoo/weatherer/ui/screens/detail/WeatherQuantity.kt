@@ -16,6 +16,7 @@ import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.unit.Length
 import com.takaapoo.weatherer.domain.unit.Pressure
+import com.takaapoo.weatherer.domain.unit.Speed
 import com.takaapoo.weatherer.domain.unit.Temperature
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.GraphTypes
 import com.takaapoo.weatherer.ui.theme.BarBlue
@@ -36,29 +37,28 @@ enum class WeatherQuantity(
     @StringRes val nameId: Int? = null,
     val title: AnnotatedString? = null,
     val airQuality: Boolean = false,
-    @DrawableRes val iconId: Int,
-    val floatingPointDigits: Int = 1
+    @DrawableRes val iconId: Int
 ) {
     TEMPERATURE(nameId = R.string.temperature, iconId = R.drawable.temperature),
-    HUMIDITY(nameId = R.string.humidity, iconId = R.drawable.humidity, floatingPointDigits = 0),
+    HUMIDITY(nameId = R.string.humidity, iconId = R.drawable.humidity),
     DEWPOINT(nameId = R.string.dew_point, iconId = R.drawable.dew_point),
     APPARENTTEMP(nameId = R.string.apparent_temp, iconId = R.drawable.temperature),
-    PRECIPITATIONPROBABILITY(nameId = R.string.precipitation_probability, iconId = R.drawable.precipitation, floatingPointDigits = 0),
+    PRECIPITATIONPROBABILITY(nameId = R.string.precipitation_probability, iconId = R.drawable.precipitation),
     PRECIPITATION(nameId = R.string.precipitation, iconId = R.drawable.precipitation),
     RAIN(nameId = R.string.rain, iconId = R.drawable.precipitation),
     SHOWERS(nameId = R.string.showers, iconId = R.drawable.precipitation),
     SNOWFALL(nameId = R.string.snowfall, iconId = R.drawable.precipitation),
-    CLOUDCOVER(nameId = R.string.cloud_cover, iconId = R.drawable.cloud_cover, floatingPointDigits = 0),
-    SURFACEPRESSURE(nameId = R.string.surface_pressure, iconId = R.drawable.pressure, floatingPointDigits = 0),
+    CLOUDCOVER(nameId = R.string.cloud_cover, iconId = R.drawable.cloud_cover),
+    SURFACEPRESSURE(nameId = R.string.surface_pressure, iconId = R.drawable.pressure),
     VISIBILITY(nameId = R.string.visibility, iconId = R.drawable.visibility),
     WINDSPEED(nameId = R.string.wind_speed, iconId = R.drawable.wind),
-    WINDDIRECTION(nameId = R.string.wind_direction, iconId = R.drawable.wind, floatingPointDigits = 0),
+    WINDDIRECTION(nameId = R.string.wind_direction, iconId = R.drawable.wind),
     UVINDEX(nameId = R.string.uv_index, iconId = R.drawable.uv),
-    FREEZINGLEVELHEIGHT(nameId = R.string.freezing_level_height, iconId = R.drawable.freeze_height, floatingPointDigits = 0),
-    DIRECTRADIATION(nameId = R.string.direct_radiation, iconId = R.drawable.solar_radiation, floatingPointDigits = 0),
-    DIRECTNORMALIRRADIANCE(nameId = R.string.direct_normal_irradiance, iconId = R.drawable.solar_radiation, floatingPointDigits = 0),
+    FREEZINGLEVELHEIGHT(nameId = R.string.freezing_level_height, iconId = R.drawable.freeze_height),
+    DIRECTRADIATION(nameId = R.string.direct_radiation, iconId = R.drawable.solar_radiation),
+    DIRECTNORMALIRRADIANCE(nameId = R.string.direct_normal_irradiance, iconId = R.drawable.solar_radiation),
 
-    AQI(nameId = R.string.AQI, iconId = R.drawable.mask, airQuality = true, floatingPointDigits = 0),
+    AQI(nameId = R.string.AQI, iconId = R.drawable.mask, airQuality = true),
     PM10(title = buildAnnotatedString {
         append("PM")
         withStyle(
@@ -77,7 +77,7 @@ enum class WeatherQuantity(
             )
         ){ append("2.5") }
     }, iconId = R.drawable.mask, airQuality = true),
-    CO(nameId = R.string.CO, iconId = R.drawable.mask, airQuality = true, floatingPointDigits = 0),
+    CO(nameId = R.string.CO, iconId = R.drawable.mask, airQuality = true),
     NO2(title = buildAnnotatedString {
         append("Nitrogen dioxide (NO")
         withStyle(
@@ -124,42 +124,43 @@ enum class WeatherQuantity(
                     append(" %")
                 PRECIPITATION, RAIN, SHOWERS -> append(
                     when (appSettings.lengthUnit){
-                        Length.METRIC -> " mm"
-                        Length.IMPERIAL -> " inch"
+                        Length.SI -> " mm"
+                        Length.IMPERIAL -> " in"
                     }
                 )
                 SNOWFALL -> append(
                     when (appSettings.lengthUnit){
-                        Length.METRIC -> " cm"
-                        Length.IMPERIAL -> " inch"
+                        Length.SI -> " cm"
+                        Length.IMPERIAL -> " in"
                     }
                 )
                 SURFACEPRESSURE -> append(
                     when (appSettings.pressureUnit){
-                        Pressure.HPa -> " hPa"
+                        Pressure.Pa -> " hPa"
                         Pressure.BAR -> " bar"
-                        Pressure.mmHg -> " mmHg"
+                        Pressure.ATM -> " atm"
                         Pressure.PSI -> " psi"
                     }
                 )
                 VISIBILITY -> append(
                     when (appSettings.lengthUnit){
-                        Length.METRIC -> " km"
+                        Length.SI -> " km"
                         Length.IMPERIAL -> " mi"
                     }
                 )
                 WINDSPEED -> append(
-                    when (appSettings.lengthUnit){
-                        Length.METRIC -> " km/h"
-                        Length.IMPERIAL -> " mph"
+                    when (appSettings.speedUnit){
+                        Speed.KMPH -> " km/h"
+                        Speed.MPH -> " mph"
+                        Speed.MPS -> " m/s"
                     }
                 )
                 WINDDIRECTION -> append("°")
                 UVINDEX, AQI -> append("")
                 FREEZINGLEVELHEIGHT -> append(
                     when (appSettings.lengthUnit){
-                        Length.METRIC -> " m"
-                        Length.IMPERIAL -> " mi"
+                        Length.SI -> " m"
+                        Length.IMPERIAL -> " ft"
                     }
                 )
                 DIRECTRADIATION, DIRECTNORMALIRRADIANCE -> {
@@ -191,6 +192,28 @@ enum class WeatherQuantity(
         }
     }
 
+    fun floatingPointDigits(appSettings: AppSettings) =
+        when (this@WeatherQuantity){
+            TEMPERATURE, DEWPOINT, APPARENTTEMP, VISIBILITY, WINDSPEED, UVINDEX, PM10, PM2_5, NO2, SO2, Ozone -> 1
+            PRECIPITATION, RAIN, SHOWERS -> when (appSettings.lengthUnit){
+                Length.SI -> 1
+                Length.IMPERIAL -> 3
+            }
+            SNOWFALL -> when (appSettings.lengthUnit){
+                Length.SI -> 1
+                Length.IMPERIAL -> 2
+            }
+            SURFACEPRESSURE -> when (appSettings.pressureUnit){
+                Pressure.Pa -> 0
+                Pressure.BAR -> 3
+                Pressure.ATM -> 3
+                Pressure.PSI -> 2
+            }
+            else -> 0
+        }
+
+
+
     fun graphType() = when (this){
         PRECIPITATION, RAIN, SHOWERS, SNOWFALL -> GraphTypes.STEP
         CLOUDCOVER, VISIBILITY, WINDDIRECTION, AQI -> GraphTypes.LINEAR
@@ -212,7 +235,6 @@ enum class WeatherQuantity(
         Ozone -> listOf(55, 125, 165, 205, 405, 605)
         else -> emptyList()
     }
-
 }
 
 
@@ -271,14 +293,15 @@ enum class DailyWeatherQuantity(
                 PRECIPITATIONPROBABILITYMAX -> append(" %")
                 PRECIPITATIONSUM -> append(
                     when (appSettings.lengthUnit){
-                        Length.METRIC -> " mm"
+                        Length.SI -> " mm"
                         Length.IMPERIAL -> " inch"
                     }
                 )
                 WINDSPEEDMAX -> append(
-                    when (appSettings.lengthUnit){
-                        Length.METRIC -> " km/h"
-                        Length.IMPERIAL -> " mph"
+                    when (appSettings.speedUnit){
+                        Speed.KMPH -> " km/h"
+                        Speed.MPH -> " mph"
+                        Speed.MPS -> " m/s"
                     }
                 )
             }

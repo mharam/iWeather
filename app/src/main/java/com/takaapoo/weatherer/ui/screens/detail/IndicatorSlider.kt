@@ -88,12 +88,6 @@ fun IndicatorSlider(
                 size = Size(width = railRect.width - 2 * gapMargin, height = gapHeight),
                 cornerRadius = CornerRadius(gapHeight / 2),
             )
-//            innerShadow(
-//                color = DiagramShadow,
-//                rect = railRect,
-//                cornersRadius = (railHeight/2).toDp(),
-//                blur = 3.dp
-//            )
         }
 
         Image(

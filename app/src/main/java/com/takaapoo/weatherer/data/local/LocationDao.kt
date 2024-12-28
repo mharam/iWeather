@@ -19,7 +19,10 @@ interface LocationDao {
     fun getAllLocations(): Flow<List<Location>>
 
     @Query("SELECT * FROM locations WHERE id = :locationId")
-    fun getLocation(locationId: Int): Flow<Location>
+    fun getLocationFlow(locationId: Int): Flow<Location>
+
+    @Query("SELECT * FROM locations WHERE id = :locationId")
+    suspend fun getLocation(locationId: Int): Location
 
     @Query("SELECT * FROM locations ORDER BY custom_id")
     suspend fun getAllLocationsList(): List<Location>
@@ -50,5 +53,8 @@ interface LocationDao {
 
     @Query("SELECT custom_id FROM locations WHERE id = :id")
     suspend fun getLocationCustomId(id: Int): Int
+
+    @Query("SELECT COUNT(*) FROM locations")
+    fun locationCount(): Flow<Int>
 
 }

@@ -1,12 +1,14 @@
 package com.takaapoo.weatherer.domain.model
 
+import androidx.compose.foundation.ScrollState
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.geometry.Rect
 import com.takaapoo.weatherer.data.local.LocalAirQuality
 import com.takaapoo.weatherer.data.local.LocalHourlyWeather
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-
+@Immutable
 data class DetailState(
     val maxTemperature: Float? = null,
     val minTemperature: Float? = null,
@@ -23,5 +25,6 @@ data class DetailState(
     val chooseDiagramThemeDialogVisible: Boolean = false,
     val hourlyDiagramSettingRectangle: Rect = Rect(0f, 0f, 0f, 0f),
     val dailyDiagramSettingRectangle: Rect = Rect(0f, 0f, 0f, 0f),
-    val scrollValue: Int = 0
+    val scrollState: ScrollState = ScrollState(initial = 0),
+    val chartsVisibility: Boolean = false,
 )

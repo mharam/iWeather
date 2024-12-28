@@ -11,7 +11,10 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import kotlin.math.sqrt
 
-class CirclePath(private val progress: Float, private val origin: Offset = Offset(0f, 0f)) : Shape {
+class CustomCircleShape(
+    private val progress: Float,
+    private val origin: Offset = Offset(0f, 0f)
+) : Shape {
     override fun createOutline(
         size: Size,
         layoutDirection: LayoutDirection,

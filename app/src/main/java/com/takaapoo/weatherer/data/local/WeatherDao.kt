@@ -4,7 +4,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.WeatherDto
 import kotlinx.coroutines.flow.Flow
 
@@ -70,6 +69,8 @@ interface WeatherDao {
 
     @Query("SELECT locations.id AS locationId , " +
             "locations.name AS locationName , " +
+            "locations.latitude AS latitude , " +
+            "locations.longitude AS longitude , " +
             "locations.utc_offset AS utcOffset , " +
             "hourly_weather.time AS time ," +
             "hourly_weather.temperature_2m AS currentTemperature , " +
@@ -95,6 +96,9 @@ interface WeatherDao {
     )
     suspend fun getAllLocationsWeather(startDate: String, endDate: String) : List<WeatherDto>
 
+//    @Query("SELECT time From air_quality WHERE location_id = :locationId " +
+//            "AND SUBSTR(air_quality.time, 1, 10) BETWEEN :startDate AND :endDate")
+//    suspend fun getLastTime(locationId: Int): String
 
 
 }

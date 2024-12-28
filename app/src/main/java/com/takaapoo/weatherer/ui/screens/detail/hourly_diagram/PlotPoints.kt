@@ -8,8 +8,6 @@ import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import com.takaapoo.weatherer.domain.model.initialXAxisEnd
-import com.takaapoo.weatherer.domain.model.initialXAxisStart
 import kotlin.math.log2
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -20,6 +18,7 @@ fun DrawScope.plotPoints(
     firstPointX: Float,
     diagramWidth: Float,
     diagramHeight: Float,
+    initialXAxisRange: ClosedFloatingPointRange<Float>,
     xAxisRange: ClosedFloatingPointRange<Float>,
     yAxisRange: ClosedFloatingPointRange<Float>,
     horizontalPadding: Float,
@@ -30,7 +29,7 @@ fun DrawScope.plotPoints(
 ) {
     val xAxisLength = xAxisRange.endInclusive - xAxisRange.start
     val yAxisLength = yAxisRange.endInclusive - yAxisRange.start
-    val step = 2f.pow(log2(2 * xAxisLength / (initialXAxisEnd - initialXAxisStart)).roundToInt())
+    val step = 2f.pow(log2(2 * xAxisLength / (initialXAxisRange.endInclusive - initialXAxisRange.start)).roundToInt())
         .coerceAtLeast(1f).roundToInt()
 
     var x = firstPointX

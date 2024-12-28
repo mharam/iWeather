@@ -23,36 +23,40 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.toFontFamily
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.takaapoo.weatherer.R
-import com.takaapoo.weatherer.domain.model.ChartState
-import com.takaapoo.weatherer.domain.model.DailyChartState
-import com.takaapoo.weatherer.domain.model.DetailState
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartGrids
-import com.takaapoo.weatherer.ui.screens.home.toSp
 import com.takaapoo.weatherer.ui.theme.customColorScheme
+import com.takaapoo.weatherer.ui.utility.toSp
 
 @Composable
 fun BoxScope.DailyDiagramTopBar(
     modifier: Modifier = Modifier,
-    dailyHeaderTop: Float,
-    barAlpha: Float,
-    detailState: DetailState,
-    chartState: ChartState,
-    dailyChartState: DailyChartState,
+    endPadding: Dp,
+    dailyDiagramSettingOpen: Boolean,
+    curveShadowVisible: Boolean,
+    chartGrid: ChartGrids,
+    weatherConditionIconsVisible: Boolean,
     onUpdateDailyDiagramSettingOpen: (open: Boolean) -> Unit,
     onUpdateChartWeatherConditionVisibility: (visible: Boolean) -> Unit,
     onUpdateChartCurveShadowVisibility: (visible: Boolean) -> Unit,
@@ -60,14 +64,16 @@ fun BoxScope.DailyDiagramTopBar(
     onUpdateChooseDiagramThemeDialogVisibility: () -> Unit,
     onUpdateDailyDiagramSettingRectangle: (rect: Rect) -> Unit
 ) {
+    var settingRectangle by remember {
+        mutableStateOf(Rect(0f, 0f, 0f, 0f))
+    }
+    LaunchedEffect(settingRectangle) {
+        onUpdateDailyDiagramSettingRectangle(settingRectangle)
+    }
     Row(
         modifier = modifier
             .fillMaxWidth()
             .align(Alignment.TopCenter)
-            .graphicsLayer {
-                translationY = dailyHeaderTop
-                alpha = barAlpha
-            }
             .padding(
                 horizontal = 8.dp,
                 vertical = dimensionResource(id = R.dimen.detail_screen_subtitle_vertical_padding)
@@ -81,56 +87,61 @@ fun BoxScope.DailyDiagramTopBar(
         )
         Column(
             modifier = Modifier
+                .padding(end = endPadding)
                 .width(48.dp)
-                .height(if (detailState.dailyDiagramSettingOpen) 240.dp else 48.dp)
+                .height(if (dailyDiagramSettingOpen) 240.dp else 48.dp)
                 .graphicsLayer {
                     shape = RoundedCornerShape(percent = 50)
-                    shadowElevation = 8.dp.toPx()
+                    shadowElevation = 4.dp.toPx()
                     clip = true
                 }
                 .zIndex(2f)
                 .onGloballyPositioned {
-                    onUpdateDailyDiagramSettingRectangle(it.boundsInRoot())
+                    val displace = it.parentLayoutCoordinates!!.parentLayoutCoordinates!!.positionInParent().y
+                    settingRectangle = it.boundsInParent().copy(
+                        top = it.boundsInParent().top + displace,
+                        bottom = it.boundsInParent().bottom + displace
+                    )
                 }
-                .background(color = MaterialTheme.customColorScheme.detailScreenSurface),
+                .background(color = MaterialTheme.customColorScheme.searchbarSurface),
             verticalArrangement = Arrangement.Top
         ) {
             IconToggleButton(
-                checked = detailState.dailyDiagramSettingOpen,
+                checked = dailyDiagramSettingOpen,
                 onCheckedChange = {
                     onUpdateDailyDiagramSettingOpen(it)
                 },
-                enabled = barAlpha > 0.9f
+//                enabled = barAlpha > 0.9f
             ) {
                 Icon(
-                    imageVector = if (detailState.dailyDiagramSettingOpen) Icons.Filled.Settings
+                    imageVector = if (dailyDiagramSettingOpen) Icons.Filled.Settings
                     else Icons.Outlined.Settings,
                     contentDescription = stringResource(id = R.string.settings)
                 )
             }
             IconToggleButton(
-                checked = chartState.curveShadowVisible,
+                checked = curveShadowVisible,
                 onCheckedChange = {
                     onUpdateChartCurveShadowVisibility(it)
                 }
             ) {
                 Icon(
                     painter = painterResource(
-                        id = if (chartState.curveShadowVisible) R.drawable.shadow_remove
-                        else R.drawable.shadow_add
+                        id = if (curveShadowVisible) R.drawable.shadow_on
+                        else R.drawable.shadow_off
                     ),
                     contentDescription = stringResource(id = R.string.show_curve_shadow)
                 )
             }
             IconToggleButton(
-                checked = dailyChartState.weatherConditionIconsVisible,
+                checked = weatherConditionIconsVisible,
                 onCheckedChange = {
                     onUpdateChartWeatherConditionVisibility(it)
                 }
             ) {
                 Icon(
                     painter = painterResource(
-                        id = if (dailyChartState.weatherConditionIconsVisible) R.drawable.partly_cloudy_day_fill_24px
+                        id = if (weatherConditionIconsVisible) R.drawable.partly_cloudy_day_fill_24px
                         else R.drawable.partly_cloudy_day_24px
                     ),
                     contentDescription = stringResource(id = R.string.show_weather_condition_icon)
@@ -139,7 +150,7 @@ fun BoxScope.DailyDiagramTopBar(
             IconButton(
                 onClick = {
                     onUpdateChartGrids(
-                        when (chartState.chartGrid){
+                        when (chartGrid){
                             ChartGrids.All -> ChartGrids.MAIN
                             ChartGrids.MAIN -> ChartGrids.NON
                             ChartGrids.NON -> ChartGrids.All
@@ -148,12 +159,12 @@ fun BoxScope.DailyDiagramTopBar(
                 }
             ) {
                 Icon(
-                    painter = painterResource(id = when (chartState.chartGrid){
+                    painter = painterResource(id = when (chartGrid){
                         ChartGrids.All -> R.drawable.grid_show
                         ChartGrids.MAIN -> R.drawable.grid_main_show
                         ChartGrids.NON -> R.drawable.grid_not_show
                     }),
-                    tint = when (chartState.chartGrid){
+                    tint = when (chartGrid){
                         ChartGrids.All -> MaterialTheme.colorScheme.primary
                         ChartGrids.MAIN -> LocalContentColor.current
                         ChartGrids.NON -> MaterialTheme.customColorScheme.noGridIcon
@@ -189,7 +200,7 @@ fun DailyDiagramsTitle(
                 .height(dimensionResource(id = R.dimen.detail_screen_subtitle_height))
                 .graphicsLayer {
                     shape = RoundedCornerShape(percent = 50)
-                    shadowElevation = 8.dp.toPx()
+                    shadowElevation = 4.dp.toPx()
                     clip = true
                 }
                 .background(color = MaterialTheme.colorScheme.tertiaryContainer)

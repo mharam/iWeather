@@ -1,6 +1,5 @@
 package com.takaapoo.weatherer.data.repository
 
-import android.util.Log
 import androidx.room.withTransaction
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.data.local.LocationDao
@@ -26,7 +25,11 @@ class LocationRepositoryImpl @Inject constructor(
         return locationDao.getAllLocations()
     }
 
-    override fun getLocation(locationId: Int): Flow<Location> {
+    override fun getLocationFlow(locationId: Int): Flow<Location> {
+        return locationDao.getLocationFlow(locationId)
+    }
+
+    override suspend fun getLocation(locationId: Int): Location {
         return locationDao.getLocation(locationId)
     }
 
@@ -69,16 +72,15 @@ class LocationRepositoryImpl @Inject constructor(
     override suspend fun swapLocationCustomId(id1: Int, id2: Int) {
         val customId1 = locationDao.getLocationCustomId(id1)
         val customId2 = locationDao.getLocationCustomId(id2)
-        Log.i("drag1","Custom Ids read")
         weatherDatabase.withTransaction {
             locationDao.updateLocationCustomId(id1, customId2)
             locationDao.updateLocationCustomId(id2, customId1)
         }
-        Log.i("drag1","Custom Ids updated")
     }
 
-
-
+    override fun locationCount(): Flow<Int> {
+        return locationDao.locationCount()
+    }
 
 
     // Remote server functions

@@ -86,38 +86,26 @@ fun HourlyWeather.toLocalHourlyWeather(
             )
     } else this.copy(visibility = visibility.map { it?.div(1000f) })
 
-    val (temperatureControl1, temperatureControl2) =
-        generateControlPoints2(extendedData.temperature)
-    val (humidityControl1, humidityControl2) =
-        generateControlPoints2(extendedData.humidity)
-    val (dewPointControl1, dewPointControl2) =
-        generateControlPoints2(extendedData.dewPoint)
-    val (apparentTemperatureControl1, apparentTemperatureControl2) =
-        generateControlPoints2(extendedData.apparentTemperature)
+    val (temperatureControl1, temperatureControl2) = generateControlPoints2(extendedData.temperature)
+    val (humidityControl1, humidityControl2) = generateControlPoints2(extendedData.humidity)
+    val (dewPointControl1, dewPointControl2) = generateControlPoints2(extendedData.dewPoint)
+    val (apparentTemperatureControl1, apparentTemperatureControl2) = generateControlPoints2(extendedData.apparentTemperature)
     val (precipitationProbabilityControl1, precipitationProbabilityControl2) =
         generateControlPoints2(extendedData.precipitationProbability)
-    val (cloudCoverControl1, cloudCoverControl2) =
-        generateControlPoints2(extendedData.cloudCover)
-    val (surfacePressureControl1, surfacePressureControl2) =
-        generateControlPoints2(extendedData.surfacePressure)
-    val (visibilityControl1, visibilityControl2) =
-        generateControlPoints2(extendedData.visibility)
-    val (windSpeedControl1, windSpeedControl2) =
-        generateControlPoints2(extendedData.windSpeed)
-    val (windDirectionControl1, windDirectionControl2) =
-        generateControlPoints2(extendedData.windDirection)
-    val (uvIndexControl1, uvIndexControl2) =
-        generateControlPoints2(extendedData.uvIndex)
-    val (freezingLevelHeightControl1, freezingLevelHeightControl2) =
-        generateControlPoints2(extendedData.freezingLevelHeight)
-    val (directRadiationControl1, directRadiationControl2) =
-        generateControlPoints2(extendedData.directRadiation)
+    val (cloudCoverControl1, cloudCoverControl2) = generateControlPoints2(extendedData.cloudCover)
+    val (surfacePressureControl1, surfacePressureControl2) = generateControlPoints2(extendedData.surfacePressure)
+    val (visibilityControl1, visibilityControl2) = generateControlPoints2(extendedData.visibility)
+    val (windSpeedControl1, windSpeedControl2) = generateControlPoints2(extendedData.windSpeed)
+    val (windDirectionControl1, windDirectionControl2) = generateControlPoints2(extendedData.windDirection)
+    val (uvIndexControl1, uvIndexControl2) = generateControlPoints2(extendedData.uvIndex)
+    val (freezingLevelHeightControl1, freezingLevelHeightControl2) = generateControlPoints2(extendedData.freezingLevelHeight)
+    val (directRadiationControl1, directRadiationControl2) = generateControlPoints2(extendedData.directRadiation)
     val (directNormalIrradianceControl1, directNormalIrradianceControl2) =
         generateControlPoints2(extendedData.directNormalIrradiance)
 
 
-
-    return List(size = time.size){ i ->
+//Log.i("data1", "times $locationId = ${extendedData.time.last()}")
+    return List(size = extendedData.time.size){ i ->
         LocalHourlyWeather(
             locationId = locationId,
             time = extendedData.time[i],
@@ -227,6 +215,7 @@ fun generateControlPoints2(data: List<Float?>): Pair<List<Offset?>, List<Offset?
     }
 
     val n = p.size - 1
+    if (p.size < 2) return listOf(null) to listOf(null)
     if (p.size == 2) return listOf((p[0] * 2f + p[1]) / 3f) to listOf((p[0] + p[1] * 2f)/3f)
 
     val a = List(size = n){
@@ -397,7 +386,6 @@ fun generateControlPointsForNullableData(data: List<Float?>): Pair<List<Offset?>
     }
     return controlPoint1 to controlPoint2
 }
-
 
 private fun generateControlPointsWithInitialCondition(
     data: List<Float?>,

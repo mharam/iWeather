@@ -3,8 +3,11 @@ package com.takaapoo.weatherer.data.repository
 import android.content.Context
 import com.takaapoo.weatherer.dataStore
 import com.takaapoo.weatherer.domain.model.AppSettings
+import com.takaapoo.weatherer.domain.model.AppTheme
 import com.takaapoo.weatherer.domain.repository.PreferenceRepository
 import com.takaapoo.weatherer.domain.unit.Length
+import com.takaapoo.weatherer.domain.unit.Pressure
+import com.takaapoo.weatherer.domain.unit.Speed
 import com.takaapoo.weatherer.domain.unit.Temperature
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartGrids
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
@@ -18,15 +21,27 @@ class PreferenceRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context
 ): PreferenceRepository {
 
-    override suspend fun setPreferredTempUnit(unit: Temperature) {
+    override suspend fun setTemperatureUnit(unit: Temperature) {
         context.dataStore.updateData {
             it.copy(temperatureUnit = unit)
         }
     }
 
-    override suspend fun setPreferredLengthUnit(unit: Length) {
+    override suspend fun setLengthUnit(unit: Length) {
         context.dataStore.updateData {
             it.copy(lengthUnit = unit)
+        }
+    }
+
+    override suspend fun setPressureUnit(unit: Pressure) {
+        context.dataStore.updateData {
+            it.copy(pressureUnit = unit)
+        }
+    }
+
+    override suspend fun setSpeedUnit(unit: Speed) {
+        context.dataStore.updateData {
+            it.copy(speedUnit = unit)
         }
     }
 
@@ -71,6 +86,37 @@ class PreferenceRepositoryImpl @Inject constructor(
             it.copy(hourlyChartTheme = theme)
         }
     }
+
+    override suspend fun setSilent(silent: Boolean) {
+        context.dataStore.updateData {
+            it.copy(silent = silent)
+        }
+    }
+
+    override suspend fun setScreenOn(screenOn: Boolean) {
+        context.dataStore.updateData {
+            it.copy(screenOn = screenOn)
+        }
+    }
+
+    override suspend fun setTheme(theme: AppTheme) {
+        context.dataStore.updateData {
+            it.copy(theme = theme)
+        }
+    }
+
+    override suspend fun setClockGaugeVisibility(visible: Boolean) {
+        context.dataStore.updateData {
+            it.copy(clockGaugeVisibility = visible)
+        }
+    }
+
+    override suspend fun setClockGaugeLock(lock: Boolean) {
+        context.dataStore.updateData {
+            it.copy(clockGaugeLock = lock)
+        }
+    }
+
 
     override fun getSettingsFlow(): Flow<AppSettings> {
         return context.dataStore.data

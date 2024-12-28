@@ -8,9 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.LocationOn
@@ -22,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -36,8 +34,8 @@ import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.MapState
 import com.takaapoo.weatherer.ui.theme.Gray40
 import com.takaapoo.weatherer.ui.theme.Lato
+import com.takaapoo.weatherer.ui.theme.customColorScheme
 
-@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MapTopBar(
     mapState: MapState,
@@ -58,12 +56,12 @@ fun MapTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(horizontal = 12.dp),
+                .padding(start = 8.dp, end = 8.dp, top = 4.dp),
             query = mapState.searchQuery,
             onQueryChange = { onSearchQueryChange(it, true) },
             placeholder = { Text(
                 style = MaterialTheme.typography.titleSmall,
-                color = Gray40,
+                color = MaterialTheme.customColorScheme.lowEmphasisText,
                 text = "Search here!"
             ) },
             leadingIcon = {
@@ -84,7 +82,7 @@ fun MapTopBar(
                         )
                     else
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                 }
@@ -122,7 +120,7 @@ fun MapTopBar(
                     )
                 }
             },
-            shape = RoundedCornerShape(size = 28.dp),
+            standardHeight = 48.dp,
             onBackPressed = {
                 focusManager.clearFocus()
                 onSearchQueryChange("", true)

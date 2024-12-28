@@ -1,5 +1,11 @@
 package com.takaapoo.weatherer.ui.screens.detail.daily_diagram
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
@@ -8,22 +14,76 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.unit.Dp
 import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.mainGridWidthDp
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.minorGridWidthDp
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.normalizedX
 import com.takaapoo.weatherer.ui.theme.DiagramDarkTheme
-import com.takaapoo.weatherer.ui.theme.DiagramDarkThemeSecondary
+import com.takaapoo.weatherer.ui.theme.DiagramGrid
 import com.takaapoo.weatherer.ui.theme.DiagramLightTheme
-import com.takaapoo.weatherer.ui.theme.DiagramLightThemeSecondary
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.TransparentGray5
+import com.takaapoo.weatherer.ui.theme.customColorScheme
 import kotlin.math.abs
 import kotlin.math.roundToInt
+
+@Composable
+fun DailyDiagramFrameCanvas(
+    modifier: Modifier = Modifier,
+    xAxisStart: Float,
+    xAxisEnd: Float,
+    yAxesStarts: Float,
+    yAxesEnds: Float,
+    minorBarVisible: Boolean,
+    majorBarVisible: Boolean,
+    cornerRadius: Dp,
+    diagramHorPadding: Float,
+    diagramVertPadding: Float,
+    chartTheme: ChartTheme,
+    chartQuantity: DailyWeatherQuantity,
+    textMeasurer: TextMeasurer,
+    verticalDashLinePhase: Float,
+    horizontalDashLinePhase: Float,
+    onCalculateHorizontalBarSeparation:
+        (start: Float, end: Float, diagramHeight: Float, textMeasurer: TextMeasurer) -> Pair<Float, Float>,
+    onCalculateVerticalBarSeparation:
+        (start: Float, end: Float, diagramWidth: Float, textMeasurer: TextMeasurer) -> Pair<Int, Float>
+) {
+    val appThemeDiagramSurfaceColor = MaterialTheme.customColorScheme.appThemeDiagramSurfaceColor
+
+    Canvas(
+        modifier = modifier.fillMaxSize()
+            .clip(RectangleShape)   // This is to prevent DrawScope call unnecessarily
+    ) {
+//        Log.i("chart1", "dailyDiagramFrame")
+
+        dailyDiagramFrame(
+            xAxisRange = xAxisStart .. xAxisEnd,
+            yAxesRanges = yAxesStarts .. yAxesEnds,
+            cornerRadius = cornerRadius.toPx(),
+            horizontalPadding = diagramHorPadding,
+            verticalPadding = diagramVertPadding,
+            mainBarColor = DiagramGrid,
+            minorBarColor = DiagramGrid,
+            minorBarVisible = minorBarVisible,
+            majorBarVisible = majorBarVisible,
+            theme = chartTheme,
+            chartQuantity = chartQuantity,
+            appSurfaceColor = appThemeDiagramSurfaceColor,
+//            appSurfaceColorSecondary = appThemeDiagramSurfaceColorSecondary,
+            textMeasurer = textMeasurer,
+            horizontalDashLinePhase = horizontalDashLinePhase,
+            verticalDashLinePhase = verticalDashLinePhase,
+            onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
+            onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation
+        )
+    }
+}
 
 fun DrawScope.dailyDiagramFrame(
     xAxisRange: ClosedFloatingPointRange<Float>,
@@ -38,7 +98,7 @@ fun DrawScope.dailyDiagramFrame(
     theme: ChartTheme,
     chartQuantity: DailyWeatherQuantity,
     appSurfaceColor: Color,
-    appSurfaceColorSecondary: Color,
+//    appSurfaceColorSecondary: Color,
     textMeasurer: TextMeasurer,
     verticalDashLinePhase: Float,
     horizontalDashLinePhase: Float,

@@ -1,6 +1,5 @@
 package com.takaapoo.weatherer.ui.screens.detail.hourly_diagram
 
-import android.util.Log
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 
@@ -8,7 +7,7 @@ enum class GraphTypes{
     STEP, LINEAR, CUBIC
 }
 
-fun generateCubicGraph2(
+/*fun generateCubicGraph2(
     data: List<Float?>,
     controlPoints1: List<Offset?>,
     controlPoints2: List<Offset?>,
@@ -53,7 +52,7 @@ fun generateCubicGraph2(
         allPaths.add(path)
     }
     return allPaths
-}
+}*/
 
 fun <E> Iterable<E>.indicesOf(e: E) = mapIndexedNotNull{ index, elem -> index.takeIf{ elem == e } }
 fun List<Float?>.nonNullDataSegments(): Map<Int, List<Float>>{
@@ -105,18 +104,66 @@ fun generateCubicGraph(
         y = normalizedY(firstPointY, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight)
     )
     data.forEachIndexed { i, y ->
-        if (y != null && i != firstNonNullIndex){
-            val x = firstPointX + i
-            path.cubicTo(
-                x1 = normalizedX(controlPoints1[i-1]!!.x + x - 1, xAxisRange.start,xAxisLength,
-                    horizontalPadding, diagramWidth),
-                y1 = normalizedY(controlPoints1[i-1]!!.y, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight),
-                x2 = normalizedX(controlPoints2[i-1]!!.x + x - 1, xAxisRange.start,xAxisLength,
-                    horizontalPadding, diagramWidth),
-                y2 = normalizedY(controlPoints2[i-1]!!.y, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight),
-                x3 = normalizedX(x, xAxisRange.start,xAxisLength, horizontalPadding, diagramWidth),
-                y3 = normalizedY(y, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight)
-            )
+        val x = firstPointX + i
+        if (y != null && i > firstNonNullIndex) {
+            if (controlPoints1[i - 1] != null) {
+                path.cubicTo(
+                    x1 = normalizedX(
+                        controlPoints1[i - 1]!!.x + x - 1, xAxisRange.start, xAxisLength,
+                        horizontalPadding, diagramWidth
+                    ),
+                    y1 = normalizedY(
+                        controlPoints1[i - 1]!!.y,
+                        yAxisRange.start,
+                        yAxisLength,
+                        verticalPadding,
+                        diagramHeight
+                    ),
+                    x2 = normalizedX(
+                        controlPoints2[i - 1]!!.x + x - 1, xAxisRange.start, xAxisLength,
+                        horizontalPadding, diagramWidth
+                    ),
+                    y2 = normalizedY(
+                        controlPoints2[i - 1]!!.y,
+                        yAxisRange.start,
+                        yAxisLength,
+                        verticalPadding,
+                        diagramHeight
+                    ),
+                    x3 = normalizedX(
+                        x,
+                        xAxisRange.start,
+                        xAxisLength,
+                        horizontalPadding,
+                        diagramWidth
+                    ),
+                    y3 = normalizedY(
+                        y,
+                        yAxisRange.start,
+                        yAxisLength,
+                        verticalPadding,
+                        diagramHeight
+                    )
+                )
+            }
+            else {
+                path.moveTo(
+                    x = normalizedX(
+                        x,
+                        xAxisRange.start,
+                        xAxisLength,
+                        horizontalPadding,
+                        diagramWidth
+                    ),
+                    y = normalizedY(
+                        y,
+                        yAxisRange.start,
+                        yAxisLength,
+                        verticalPadding,
+                        diagramHeight
+                    )
+                )
+            }
         }
     }
     return path
@@ -142,21 +189,29 @@ fun generateStepGraph(
     val path = Path()
     val xAxisLength = xAxisRange.endInclusive - xAxisRange.start
     val yAxisLength = yAxisRange.endInclusive - yAxisRange.start
-    val firstPointY = newData[firstNonNullIndex + 1] as Float
+    val firstPointY = newData[firstNonNullIndex] as Float
     path.moveTo(
-        x = normalizedX((if (reverse) lastPointX + phase else firstPointX - phase) + firstNonNullIndex,
+        x = normalizedX((if (reverse) lastPointX+phase+1 else firstPointX-phase-1) + firstNonNullIndex,
             xAxisRange.start, xAxisLength, horizontalPadding, diagramWidth),
         y = normalizedY(firstPointY, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight)
     )
     val oneStepDx = diagramWidth / xAxisLength
     val oneStepDy = diagramHeight / yAxisLength
     newData.forEachIndexed { i, y ->
-        if (i < newData.size - 1 && i > firstNonNullIndex){
-            path.relativeLineTo(dx = if (reverse) -oneStepDx else oneStepDx, dy = 0f)
-            path.relativeLineTo(
-                dx = 0f,
-                dy = ((y?:0f) - (newData[i+1]?:0f)) * oneStepDy
-            )
+        if (i < newData.size - 1 && i >= firstNonNullIndex){
+            if (y != null) {
+                path.relativeLineTo(dx = if (reverse) -oneStepDx else oneStepDx, dy = 0f)
+                newData[i + 1]?.let {
+                    path.relativeLineTo(dx = 0f, dy = (y - it) * oneStepDy)
+                }
+            } else {
+                path.moveTo(
+                    x = normalizedX(if (reverse) lastPointX+phase+1-i else firstPointX-phase-1+i,
+                        xAxisRange.start, xAxisLength, horizontalPadding, diagramWidth),
+                    y = normalizedY((newData[i + 1] ?: 0f), yAxisRange.start, yAxisLength,
+                        verticalPadding, diagramHeight)
+                )
+            }
         }
     }
     path.relativeLineTo(dx = if (reverse) -oneStepDx else oneStepDx, dy = 0f)
@@ -190,11 +245,16 @@ fun generateLinearGraph(
         y = normalizedY(firstPointY, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight)
     )
     var x = if (reverse) lastPointX else firstPointX
-    newData.forEach { y ->
+    newData.forEachIndexed { i, y ->
         if (y != null) {
             path.lineTo(
                 x = normalizedX(x, xAxisRange.start, xAxisLength, horizontalPadding, diagramWidth),
                 y = normalizedY(y, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight)
+            )
+        } else if (newData.getOrNull(i+1) != null) {
+            path.moveTo(
+                x = normalizedX(x + 1, xAxisRange.start, xAxisLength, horizontalPadding, diagramWidth),
+                y = normalizedY(newData[i + 1]!!, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight)
             )
         }
         if (reverse) x-- else x++
@@ -202,52 +262,6 @@ fun generateLinearGraph(
     return path
 }
 
-//fun generateWindDirectionLinearGraph(
-//    data: List<Float?>,
-//    firstPointX: Float,
-//    diagramWidth: Float,
-//    diagramHeight: Float,
-//    xAxisRange: ClosedFloatingPointRange<Float>,
-//    yAxisRange: ClosedFloatingPointRange<Float>,
-//    horizontalPadding: Float,
-//    verticalPadding: Float,
-//    reverse: Boolean = false,
-//    lastPointX: Float = 0f
-//): Path? {
-//    val newData = if (reverse) data.reversed() else data
-//    val firstNonNullIndex = newData.indexOfFirst { it != null }
-//    if (newData.isEmpty() || firstNonNullIndex == -1) return null
-//
-//    val path = Path()
-//    val xAxisLength = xAxisRange.endInclusive - xAxisRange.start
-//    val yAxisLength = yAxisRange.endInclusive - yAxisRange.start
-//    val firstPointY = newData[firstNonNullIndex]!!
-//
-//    path.moveTo(
-//        x = normalizedX(if (reverse) lastPointX else firstPointX, xAxisRange.start, xAxisLength,
-//            horizontalPadding, diagramWidth),
-//        y = normalizedY(firstPointY, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight)
-//    )
-//    var x = if (reverse) lastPointX else firstPointX
-//    var previousY = firstPointY
-//    var displace = 0f
-//    newData.subList(firstNonNullIndex+1, newData.size).forEachIndexed { index, y ->
-//        if (y != null) {
-//            displace = (y - previousY)
-//            while (displace > 180) displace -= 360
-//            while (displace < -180) displace += 360
-//
-//            path.lineTo(
-//                x = normalizedX(x, xAxisRange.start, xAxisLength, horizontalPadding, diagramWidth),
-//                y = normalizedY(previousY + displace, yAxisRange.start, yAxisLength,
-//                    verticalPadding, diagramHeight)
-//            )
-//            previousY += displace
-//        }
-//        if (reverse) x-- else x++
-//    }
-//    return path
-//}
 
 fun normalizedX(
     rawX: Float,
@@ -288,21 +302,31 @@ fun generateDailyStepGraph(
     val yAxisLength = yAxisRange.endInclusive - yAxisRange.start
     val firstPointY = newData[firstNonNullIndex] as Float
     path.moveTo(
-        x = normalizedX((if (reverse) lastPointX + phase else firstPointX - phase) + firstNonNullIndex,
+        x = normalizedX(if (reverse) lastPointX + phase - firstNonNullIndex
+        else firstPointX - phase + firstNonNullIndex,
             xAxisRange.start, xAxisLength, horizontalPadding, diagramWidth),
         y = normalizedY(firstPointY, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight)
     )
     val oneStepDx = diagramWidth / xAxisLength
     val oneStepDy = diagramHeight / yAxisLength
     newData.forEachIndexed { i, y ->
-        if (i < newData.size - 1 && i >= firstNonNullIndex){
-            path.relativeLineTo(dx = if (reverse) -oneStepDx else oneStepDx, dy = 0f)
-            path.relativeLineTo(
-                dx = 0f,
-                dy = ((y?:0f) - (newData[i+1]?:0f)) * oneStepDy
-            )
+        if (i < newData.size && i >= firstNonNullIndex){
+            if (y != null) {
+                path.relativeLineTo(dx = if (reverse) -oneStepDx else oneStepDx, dy = 0f)
+                newData.getOrNull(i + 1)?.let {
+                    path.relativeLineTo(dx = 0f, dy = (y - it) * oneStepDy)
+                }
+            } else {
+                newData.getOrNull(i + 1)?.let {
+                    path.moveTo(
+                        x = normalizedX(if (reverse) lastPointX+phase-i-1 else firstPointX-phase+i+1,
+                            xAxisRange.start, xAxisLength, horizontalPadding, diagramWidth),
+                        y = normalizedY(it, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight)
+                    )
+                }
+            }
         }
     }
-    path.relativeLineTo(dx = if (reverse) -oneStepDx else oneStepDx, dy = 0f)
+//    path.relativeLineTo(dx = if (reverse) -oneStepDx else oneStepDx, dy = 0f)
     return path
 }

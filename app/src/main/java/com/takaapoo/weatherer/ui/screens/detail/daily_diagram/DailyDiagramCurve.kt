@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.divide
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -28,24 +29,12 @@ import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.drawIndicatorPoint
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.generateDailyStepGraph
+import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.nonNullDataSegments
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.normalizedX
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.normalizedY
-import com.takaapoo.weatherer.ui.theme.BarBlue
-import com.takaapoo.weatherer.ui.theme.BarOrange
-import com.takaapoo.weatherer.ui.theme.BarRed
-import com.takaapoo.weatherer.ui.theme.BarYellow
 import com.takaapoo.weatherer.ui.theme.OnDiagramDarkTheme
 import com.takaapoo.weatherer.ui.theme.OnDiagramLightTheme
 import com.takaapoo.weatherer.ui.theme.Transparent
-import com.takaapoo.weatherer.ui.theme.UVGreen
-import com.takaapoo.weatherer.ui.theme.UVMagenta
-import com.takaapoo.weatherer.ui.theme.UVOrange
-import com.takaapoo.weatherer.ui.theme.UVRed
-import com.takaapoo.weatherer.ui.theme.UVYellow
-import com.takaapoo.weatherer.ui.theme.curveBlue
-import com.takaapoo.weatherer.ui.theme.curveGreen
-import com.takaapoo.weatherer.ui.theme.curvePink
-import kotlin.math.roundToInt
 
 
 @Composable
@@ -71,6 +60,7 @@ fun DailyDiagramCurve(
     barOrCurveGraph: Boolean,
     sliderPosition: Float,
 ) {
+//    Log.i("chart1", "DailyDiagramCurve")
     firstPointX ?: return
     val curveValueColor = when (chartTheme){
         ChartTheme.LIGHT, ChartTheme.DAYNIGHT -> OnDiagramLightTheme
@@ -546,7 +536,8 @@ fun DrawScope.diagramCurve(
     var pathMin: Path? = null
     val pathMax: Path?
     val filledPath = Path()
-    val lastPointX = firstPointX + data.indexOfLast { it != null }
+    val lastPointX = firstPointX + data.size - 1
+//    Log.i("first1", "data = ${data.map { it?.start }}")
     val yAxisLength = yAxisRange.endInclusive - yAxisRange.start
     val xAxisLength = xAxisRange.endInclusive - xAxisRange.start
     val curveBrush = curveBrush(weatherQuantity, dataMin, dataMax, diagramHeight,
@@ -579,43 +570,41 @@ fun DrawScope.diagramCurve(
                 verticalPadding = verticalPadding,
                 phase = phase
             )
-            if (pathMin != null && pathMax != null) {
+            val curveMinSegments = pathMin?.divide()
+            val curveMaxSegments = pathMax?.divide()
+            val minCurveData = data.map { it?.start }.nonNullDataSegments().values.toList()
+            val maxCurveData = data.map { it?.endInclusive }.nonNullDataSegments().values.toList()
+//Log.i("size1", "size = ${curveMinSegments?.size} , ${minCurveData.size} , data = ${data.map { it?.start }}")
+            if (pathMin != null && pathMax != null && curveMinSegments?.size == curveMaxSegments?.size) {
+                val size = curveMinSegments!!.size
                 filledPath.apply {
-                    addPath(pathMax)
-                    lineTo(
-                        x = normalizedX(
-                            lastPointX + phase,
-                            xAxisRange.start,
-                            xAxisLength,
-                            horizontalPadding,
-                            diagramWidth
-                        ),
-                        y = normalizedY(
-                            data.last { it != null }!!.start,
-                            yAxisRange.start,
-                            yAxisLength,
-                            verticalPadding,
-                            diagramHeight
+                    curveMaxSegments!!.forEachIndexed { i, curve ->
+                        val curveMinBounds = curveMinSegments[size-1 - i].getBounds()
+                        val curveMaxBounds = curveMaxSegments[i].getBounds()
+                        addPath(curve)
+                        lineTo(
+                            x = curveMinBounds.right,
+                            y = normalizedY(
+                                minCurveData[i].last(),
+                                yAxisRange.start,
+                                yAxisLength,
+                                verticalPadding,
+                                diagramHeight
+                            )
                         )
-                    )
-                    addPath(pathMin)
-                    lineTo(
-                        x = normalizedX(
-                            firstPointX - phase,
-                            xAxisRange.start,
-                            xAxisLength,
-                            horizontalPadding,
-                            diagramWidth
-                        ),
-                        y = normalizedY(
-                            data.first { it != null }!!.endInclusive,
-                            yAxisRange.start,
-                            yAxisLength,
-                            verticalPadding,
-                            diagramHeight
+                        addPath(curveMinSegments[size-1 - i])
+                        lineTo(
+                            x = curveMaxBounds.left,
+                            y = normalizedY(
+                                maxCurveData[i].first(),
+                                yAxisRange.start,
+                                yAxisLength,
+                                verticalPadding,
+                                diagramHeight
+                            )
                         )
-                    )
-                    close()
+                        close()
+                    }
                 }
             }
         }
@@ -632,41 +621,22 @@ fun DrawScope.diagramCurve(
                 phase = phase
             )
             if (pathMax != null) {
+                val curveMaxSegments = pathMax.divide()
                 filledPath.apply {
-                    addPath(pathMax)
-                    lineTo(
-                        x = normalizedX(
-                            lastPointX + phase,
-                            xAxisRange.start,
-                            xAxisLength,
-                            horizontalPadding,
-                            diagramWidth
-                        ),
-                        y = normalizedY(
+                    curveMaxSegments.forEach { curve ->
+                        val curveBounds = curve.getBounds()
+                        val yZero = normalizedY(
                             0f,
                             yAxisRange.start,
                             yAxisLength,
                             verticalPadding,
                             diagramHeight
                         )
-                    )
-                    lineTo(
-                        x = normalizedX(
-                            firstPointX - phase,
-                            xAxisRange.start,
-                            xAxisLength,
-                            horizontalPadding,
-                            diagramWidth
-                        ),
-                        y = normalizedY(
-                            0f,
-                            yAxisRange.start,
-                            yAxisLength,
-                            verticalPadding,
-                            diagramHeight
-                        )
-                    )
-                    close()
+                        addPath(curve)
+                        filledPath.lineTo(x = curveBounds.right, y = yZero)
+                        filledPath.lineTo(x = curveBounds.left, y = yZero)
+                        filledPath.close()
+                    }
                 }
             }
         }
@@ -683,7 +653,6 @@ fun DrawScope.diagramCurve(
                     DailyWeatherQuantity.TEMPERATUREMINMAX, DailyWeatherQuantity.SUNRISESET -> {
                         listOf(Color(0x4FFFFFFF), Transparent, Color(0x4FFFFFFF))
                     }
-
                     else -> listOf(Color(0x4FFFFFFF), Transparent)
                 },
                 startY = normalizedY(

@@ -11,7 +11,7 @@ data class HourlyWeatherPack(
     @SerialName(value = "timezone") val timeZone: String,
     @SerialName(value = "timezone_abbreviation") val timeZoneAbbreviation: String,
     val elevation: Float,
-    @SerialName(value = "current_weather") val currentWeather: CurrentWeather,
+//    @SerialName(value = "current") val currentWeather: CurrentWeather,
     @SerialName(value = "hourly") val hourlyWeather: HourlyWeather,
 )
 

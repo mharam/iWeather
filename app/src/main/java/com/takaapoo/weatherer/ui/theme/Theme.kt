@@ -10,30 +10,52 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.takaapoo.weatherer.domain.model.AppTheme
+import com.takaapoo.weatherer.ui.viewModels.PreferenceViewModel
 
 private val DarkCustomColorScheme = CustomColorsPalette(
-    cardSurface = Green40,
+    searchbarSurface = Gray50,
+    statusBarScrimColor = StatusBarDarkScrim,
+    mapFabRed = fabLightRed,
+    mapFabBlue = fabLightBlue,
     cardBorder = Green80,
     noGridIcon = Gray40,
-    detailScreenSurface = DetailScreenDarkSurface
+    detailScreenSurface = DetailScreenDarkSurface,
+    lowEmphasisText = Gray20,
+    minTemperature = BarBlueLight,
+    railBackground = RailDarkBackground,
+    onDetailScreenSurface = onDetailScreenDarkSurface,
+    appThemeDiagramSurfaceColor = DiagramDarkTheme,
+    appThemeDiagramOnSurfaceColor = OnDiagramDarkTheme,
 )
 private val LightCustomColorScheme = CustomColorsPalette(
-    cardSurface = Green80,
+    searchbarSurface = Color.White,
+    statusBarScrimColor = StatusBarLightScrim,
+    mapFabRed = fabDarkRed,
+    mapFabBlue = fabDarkBlue,
     cardBorder = Green40,
     noGridIcon = Gray10,
-    detailScreenSurface = DetailScreenLightSurface
+    detailScreenSurface = DetailScreenLightSurface,
+    lowEmphasisText = Gray50,
+    minTemperature = BarBlue,
+    railBackground = RailLightBackground,
+    onDetailScreenSurface = onDetailScreenLightSurface,
+    appThemeDiagramSurfaceColor = DiagramLightTheme,
+    appThemeDiagramOnSurfaceColor = OnDiagramLightTheme,
 )
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
     secondary = PurpleGrey80,
-    tertiary = Pink80
+    tertiary = Pink80,
+    surface = Purple80
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -54,31 +76,40 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun WeathererTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    systemDarkTheme: Boolean = isSystemInDarkTheme(),
+    preferenceViewModel: PreferenceViewModel = hiltViewModel(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val appSettings by preferenceViewModel.appSettings.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val darkTheme = (systemDarkTheme && appSettings.theme != AppTheme.LIGHT) ||
+            appSettings.theme == AppTheme.DARK
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
     val customColorScheme = if (darkTheme) DarkCustomColorScheme else LightCustomColorScheme
 
     val view = LocalView.current
+    val window = (context as Activity).window
+//    if (!view.isInEditMode) {
+//        SideEffect {
+//            window.statusBarColor = /*colorScheme.primary.toArgb()*/ Transparent.toArgb()
+//            window.navigationBarColor = Transparent99.toArgb()
+//            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+//            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
+//        }
+//    }
     if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as Activity).window
-            window.statusBarColor = /*colorScheme.primary.toArgb()*/ Transparent.toArgb()
-            window.navigationBarColor = Transparent99.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
-            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
-        }
+//        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
     }
 
     CompositionLocalProvider(

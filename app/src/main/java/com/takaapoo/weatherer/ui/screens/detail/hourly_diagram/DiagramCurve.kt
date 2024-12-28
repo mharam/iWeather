@@ -14,16 +14,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.divide
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.res.dimensionResource
-import androidx.compose.ui.unit.dp
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
-import com.takaapoo.weatherer.ui.screens.home.toPx
 import com.takaapoo.weatherer.ui.theme.Transparent
 
 @Composable
@@ -33,6 +32,7 @@ fun DiagramCurve(
     timeData: List<Int>,
     weatherQuantity: WeatherQuantity,
     modifier: Modifier = Modifier,
+    initialXAxisRange: ClosedFloatingPointRange<Float>,
     xAxisRange: ClosedFloatingPointRange<Float>,
     yAxisRange: ClosedFloatingPointRange<Float>,
     cornerRadius: Float,
@@ -43,10 +43,10 @@ fun DiagramCurve(
     shadowVisible: Boolean,
     dotType: DotType,
     sliderPosition: Float,
-    onUpdateCurveValueAtIndicator: (value: Float) -> Unit
+    onUpdateCurveValueAtIndicator: (value: Float?) -> Unit
 ) {
-    if (weatherQuantity.airQuality && hourlyData[0]?.airQuality?.time == null) return
-    if (!weatherQuantity.airQuality && hourlyData[0]?.hourlyWeather?.time == null) return
+    if (weatherQuantity.airQuality && hourlyData.getOrNull(0)?.airQuality?.time == null) return
+    if (!weatherQuantity.airQuality && hourlyData.getOrNull(0)?.hourlyWeather?.time == null) return
 
     val firstPointX = timeToX(
         time = if (weatherQuantity.airQuality) hourlyData[0]!!.airQuality!!.time
@@ -92,9 +92,7 @@ fun DiagramCurve(
             targetX = indicatorX
         )
     }
-    curveValueAtIndicator?.let {
-        onUpdateCurveValueAtIndicator(it)
-    }
+    onUpdateCurveValueAtIndicator(curveValueAtIndicator)
 
     val pointSize = dimensionResource(id = R.dimen.hourly_curve_point_size)
     val curveWidth = dimensionResource(id = R.dimen.diagram_curve_width)
@@ -143,18 +141,15 @@ fun DiagramCurve(
                         verticalPadding = verticalPadding
                     )
                 }?.also { curvePath ->
+                    val curveSegments = curvePath.divide()
+                    curveSegments.forEach { curve ->
+                        val curveBounds = curve.getBounds()
+                        filledPath.addPath(curve)
+                        filledPath.lineTo(x = curveBounds.right, y = size.height)
+                        filledPath.lineTo(x = curveBounds.left, y = size.height)
+                        filledPath.close()
+                    }
                     val curvePathBounds = curvePath.getBounds()
-//                    val y0 = normalizedY(0f, yAxisRange.start,
-//                        yAxisRange.endInclusive - yAxisRange.start, verticalPadding,
-//                        size.height - 2 * verticalPadding)
-//                    val limit = max(
-//                        (curvePathBounds.top - y0).absoluteValue,
-//                        (curvePathBounds.bottom - y0).absoluteValue
-//                    )
-                    filledPath.addPath(curvePath)
-                    filledPath.lineTo(x = curvePathBounds.right, y = size.height)
-                    filledPath.lineTo(x = curvePathBounds.left, y = size.height)
-                    filledPath.close()
                     filledPathBrush = Brush.verticalGradient(
                         0f to curveColor.copy(alpha = 0.3f),
                         1f to Transparent,
@@ -170,6 +165,7 @@ fun DiagramCurve(
                         startY = y0 - limit,
                         endY = y0 + limit
                     )*/
+//                    Log.i("path1", "size = ${curvePath.divide().size}")
                 }
 
                 onDrawBehind {
@@ -209,6 +205,7 @@ fun DiagramCurve(
                                 firstPointX = firstPointX,
                                 diagramWidth = diagramWidth,
                                 diagramHeight = diagramHeight,
+                                initialXAxisRange = initialXAxisRange,
                                 xAxisRange = xAxisRange,
                                 yAxisRange = yAxisRange,
                                 horizontalPadding = horizontalPadding,

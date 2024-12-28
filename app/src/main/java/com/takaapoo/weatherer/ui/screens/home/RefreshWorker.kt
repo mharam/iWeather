@@ -17,12 +17,20 @@ class RefreshWorker @AssistedInject constructor(
 ): CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
+//        Log.i("refresh1", "doWork")
         return try {
             updateWeatherUseCase.updateAllLocationsWeather()
             Result.success()
-        } catch (throwable: Throwable) {
+        } catch (_: Throwable) {
             Result.failure()
         }
     }
+
+//    override suspend fun getForegroundInfo(): ForegroundInfo {
+//        return ForegroundInfo(
+//            NOTIFICATION_ID, createNotification()
+//        )
+//    }
+
 
 }

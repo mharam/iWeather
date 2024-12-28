@@ -1,29 +1,13 @@
 package com.takaapoo.weatherer.ui.screens.home
 
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.graphics.ExperimentalAnimationGraphicsApi
-import androidx.compose.animation.graphics.res.animatedVectorResource
-import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
-import androidx.compose.animation.graphics.vector.AnimatedImageVector
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.AnchoredDraggableState
-import androidx.compose.foundation.gestures.DraggableAnchors
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.anchoredDraggable
-import androidx.compose.foundation.gestures.animateScrollBy
-import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -31,11 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,24 +25,11 @@ import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
@@ -70,21 +37,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.toFontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.WeatherType
-import com.takaapoo.weatherer.domain.model.AppSettings
-import com.takaapoo.weatherer.domain.model.LocationsState
 import com.takaapoo.weatherer.domain.unit.Temperature
 import com.takaapoo.weatherer.ui.theme.Lato
 import com.takaapoo.weatherer.ui.theme.customColorScheme
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+
+/*
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalAnimationGraphicsApi::class)
 @Composable
@@ -134,14 +98,20 @@ fun WeatherItem(
     val velocityThreshold = { 100.dp.toPx(density) }
     val animationSpec = tween<Float>()
     val dragState = rememberSaveable(
-        saver = AnchoredDraggableState.Saver(animationSpec, positionalThreshold, velocityThreshold)
+        saver = AnchoredDraggableState.Saver(
+            snapAnimationSpec = animationSpec,
+            decayAnimationSpec = exponentialDecay(),
+            positionalThreshold = positionalThreshold,
+            velocityThreshold = velocityThreshold
+        )
     ) {
         AnchoredDraggableState(
 //            anchors = anchors,
             initialValue = DragValue.Center,
             positionalThreshold = positionalThreshold,
             velocityThreshold = velocityThreshold,
-            animationSpec = animationSpec
+            snapAnimationSpec = animationSpec,
+            decayAnimationSpec = exponentialDecay()
         )
     }.apply { updateAnchors(anchors) }
     val coroutineScope = rememberCoroutineScope()
@@ -150,7 +120,6 @@ fun WeatherItem(
         if (dialogDisplayed) {
             dragState.animateTo(
                 targetValue = DragValue.Center,
-                velocity = DRAG_MAX_DISPLACE.toPx(density) / 2
             )
         }
     }
@@ -275,7 +244,7 @@ fun WeatherItem(
                     enabled = zoom == 1f
                 ),
             shape = cardShape,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.customColorScheme.cardSurface),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.customColorScheme.searchbarSurface),
         ){
             Box(
                 modifier = Modifier.fillMaxSize()
@@ -404,6 +373,7 @@ fun WeatherItem(
         }
     }
 }
+*/
 
 @Composable
 fun RoomClock(
@@ -567,7 +537,7 @@ fun WeatherItemData(
         modifier = modifier
             .fillMaxWidth()
             .height(dimensionResource(R.dimen.weather_item_data_height))
-            .background(color = MaterialTheme.customColorScheme.cardSurface)
+            .background(color = MaterialTheme.customColorScheme.searchbarSurface)
             .padding(top = 16.dp),
         verticalAlignment = Alignment.Top,
     ) {

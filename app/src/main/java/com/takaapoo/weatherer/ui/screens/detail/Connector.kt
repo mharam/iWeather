@@ -14,7 +14,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.unit.dp
 import com.takaapoo.weatherer.R
-import com.takaapoo.weatherer.ui.screens.home.toPx
+import com.takaapoo.weatherer.ui.utility.toPx
 
 @Composable
 fun MultiConnectorLeft (

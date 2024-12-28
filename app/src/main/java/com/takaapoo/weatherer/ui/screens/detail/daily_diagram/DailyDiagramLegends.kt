@@ -9,7 +9,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -17,20 +16,14 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.toFontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.customToString
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.innerShadow
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.mainGridWidthDp
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.normalizedY
-import com.takaapoo.weatherer.ui.theme.DiagramDarkTheme
-import com.takaapoo.weatherer.ui.theme.DiagramLightTheme
 import com.takaapoo.weatherer.ui.theme.DiagramShadow
 import com.takaapoo.weatherer.ui.theme.Gray20
 import com.takaapoo.weatherer.ui.theme.OnDiagramDarkTheme
@@ -49,7 +42,7 @@ import kotlin.math.roundToLong
 
 
 fun DrawScope.dailyDiagramLegends(
-    data: List<ClosedFloatingPointRange<Float>?>,
+//    data: List<ClosedFloatingPointRange<Float>?>,
     xAxisRange: ClosedFloatingPointRange<Float>,
     yAxesRanges: ClosedFloatingPointRange<Float>,
     chartTheme: ChartTheme,
@@ -65,7 +58,7 @@ fun DrawScope.dailyDiagramLegends(
     barOrCurveGraph: Boolean,
     indicatorPosition: Float,
     onAppSurfaceColor: Color,
-    appSurfaceColor: Color,
+//    appSurfaceColor: Color,
     textMeasurer: TextMeasurer,
     timeFontFamily: FontFamily,
     onCalculateHorizontalBarSeparation:
@@ -73,6 +66,7 @@ fun DrawScope.dailyDiagramLegends(
     onCalculateVerticalBarSeparation:
         (start: Float, end: Float, diagramWidth: Float, textMeasurer: TextMeasurer) -> Pair<Int, Float>
 ) {
+//    Log.i("chart1", "dailyDiagramLegends")
     val diagramRectangle = RoundRect(
         left = horizontalPadding,
         top = verticalPadding,
@@ -91,16 +85,16 @@ fun DrawScope.dailyDiagramLegends(
         xAxisRange.endInclusive, diagramWidth, textMeasurer).first
     val now = LocalDate.now()
 
-    val curveValueColor = when (chartTheme){
+    val curveValueColor = /*when (chartTheme){
         ChartTheme.LIGHT, ChartTheme.DAYNIGHT -> OnDiagramLightTheme
         ChartTheme.DARK -> OnDiagramDarkTheme
         ChartTheme.APPTHEME -> onAppSurfaceColor
-    }
-    val textBackgroundColor = when (chartTheme){
+    }*/Color.Black
+    val textBackgroundColor = /*when (chartTheme){
         ChartTheme.LIGHT, ChartTheme.DAYNIGHT -> DiagramLightTheme
         ChartTheme.DARK -> DiagramDarkTheme
         ChartTheme.APPTHEME -> appSurfaceColor
-    }
+    }*/Color.White
 
     val indicatorLineX = (indicatorPosition * diagramWidth) + horizontalPadding
     val indicatorWidth = 1.4f * tickWidth
@@ -195,15 +189,18 @@ fun DrawScope.dailyDiagramLegends(
             ) < size.width - horizontalPadding) {
             drawText(
                 textLayoutResult = monthMeasuredText,
-                topLeft = Offset(x = monthTextLeft, y = monthTextTop)
+                topLeft = Offset(x = monthTextLeft, y = monthTextTop),
+                color = onAppSurfaceColor
             )
             drawText(
                 textLayoutResult = yearMeasuredText,
-                topLeft = Offset(x = monthTextLeft, y = yearTextTop)
+                topLeft = Offset(x = monthTextLeft, y = yearTextTop),
+                color = onAppSurfaceColor
             )
             drawText(
                 textLayoutResult = dayMeasuredText,
-                topLeft = Offset(x = dayTextLeft, y = dayTextTop)
+                topLeft = Offset(x = dayTextLeft, y = dayTextTop),
+                color = onAppSurfaceColor
             )
         }
         x += verticalBarSeparation
@@ -222,7 +219,8 @@ fun DrawScope.dailyDiagramLegends(
         textTop = size.height - verticalPadding / 2,
         fontSize = 16.sp,
         fontFamily = timeFontFamily,
-        borderWidth = 1f
+        borderWidth = 1f,
+        textColor = onAppSurfaceColor
     )
 
     val start = yAxesRanges.start
@@ -298,31 +296,30 @@ fun DrawScope.dailyDiagramLegends(
         degrees = -90f,
         pivot = Offset.Zero
     ) {
-        val measuredTitleOutline = textMeasurer.measure(
+//        val measuredTitleOutline = textMeasurer.measure(
+//            text = chartTitle,
+//            style = TextStyle(
+//                fontFamily = Font(R.font.cmu_serif).toFontFamily(),
+//                fontSize = 14.sp,
+//                drawStyle = Stroke(width = 1.5f)
+//            )
+//        )
+//        val measuredTitleFill = textMeasurer.measure(
+//            text = chartTitle,
+//            style = TextStyle(
+//                fontFamily = Font(R.font.cmu_serif).toFontFamily(),
+//                fontSize = 14.sp,
+//                drawStyle = Fill
+//            )
+//        )
+//        val titleLeft = -(diagramHeight / 2 + verticalPadding) - measuredTitleOutline.size.width / 2f
+//        val titleTop = size.width - horizontalPadding
+        drawThickText(
+            textMeasurer = textMeasurer,
             text = chartTitle,
-            style = TextStyle(
-                fontFamily = Font(R.font.cmu_serif).toFontFamily(),
-                fontSize = 14.sp,
-                drawStyle = Stroke(width = 1.5f)
-            )
-        )
-        val measuredTitleFill = textMeasurer.measure(
-            text = chartTitle,
-            style = TextStyle(
-                fontFamily = Font(R.font.cmu_serif).toFontFamily(),
-                fontSize = 14.sp,
-                drawStyle = Fill
-            )
-        )
-        val titleLeft = -(diagramHeight / 2 + verticalPadding) - measuredTitleOutline.size.width / 2f
-        val titleTop = size.width - horizontalPadding
-        drawText(
-            textLayoutResult = measuredTitleOutline,
-            topLeft = Offset(x = titleLeft, y = titleTop)
-        )
-        drawText(
-            textLayoutResult = measuredTitleFill,
-            topLeft = Offset(x = titleLeft, y = titleTop)
+            textCenter = -(diagramHeight / 2 + verticalPadding),
+            textTop = size.width - horizontalPadding,
+            textColor = onAppSurfaceColor
         )
     }
 
@@ -409,7 +406,7 @@ private fun DrawScope.drawCurveValues(
             textCenter = indicatorLineX,
             textTop = maxValueY,
             hasBackgroundRect = true,
-            backgroundColor = backgroundColor.copy(alpha = 0.5f),
+            backgroundColor = backgroundColor/*.copy(alpha = 0.5f)*/,
             backgroundBorderColor = backgroundBorderColor,
             backgroundBorderWidth = backgroundBorderWidth
         )
@@ -426,7 +423,7 @@ private fun DrawScope.drawCurveValues(
                 textCenter = indicatorLineX,
                 textBottom = minValueY,
                 hasBackgroundRect = true,
-                backgroundColor = backgroundColor.copy(alpha = 0.5f),
+                backgroundColor = backgroundColor/*.copy(alpha = 0.5f)*/,
                 backgroundBorderColor = backgroundBorderColor,
                 backgroundBorderWidth = backgroundBorderWidth
             )

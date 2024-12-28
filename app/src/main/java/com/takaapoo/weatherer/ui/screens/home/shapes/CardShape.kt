@@ -1,4 +1,4 @@
-package com.takaapoo.weatherer.ui.screens.home
+package com.takaapoo.weatherer.ui.screens.home.shapes
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect

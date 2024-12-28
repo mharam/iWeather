@@ -3,9 +3,6 @@ package com.takaapoo.weatherer.ui.viewModels
 import android.app.Activity
 import android.content.Context
 import android.content.IntentSender
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.common.api.ResolvableApiException
@@ -28,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.EmptyCoroutineContext.plus
 import kotlin.math.pow
 
 
@@ -40,7 +38,7 @@ class AddLocationViewModel @Inject constructor(
     private val origin = LatLng(0.0, 0.0)
     private val _mapState = MutableStateFlow(MapState(destinationLocationLatLng = origin))
     val mapState = _mapState.asStateFlow()
-    var triggerMapRelocation: Int by mutableIntStateOf(0)
+//    var triggerMapRelocation: Int by mutableIntStateOf(0)
 
     fun resetAddResult(){
         _mapState.update {
@@ -57,12 +55,7 @@ class AddLocationViewModel @Inject constructor(
                             addResult = MyResult.Success("${location.name} added successfully")
                         )
                     }
-                    launch {
-                        updateWeatherUseCase(location.copy(id = result.data))
-                    }
-//                    launch {
-//                        addLocationUseCase.setLocationTime(location)
-//                    }
+                    loadALocationWeatherData(location.copy(id = result.data))
                 }
                 is MyResult.Error -> {
                     _mapState.update {
@@ -100,10 +93,10 @@ class AddLocationViewModel @Inject constructor(
         }
     }
 
-    fun updateShowAddLocationDialog(state: Boolean){
+    fun updateAddLocationDialogVisibility(state: Boolean){
         _mapState.update {
             it.copy(
-                showAddLocationDialog = state,
+                addLocationDialogVisibility = state,
                 selectedLocationName = ""
             )
         }
@@ -118,10 +111,14 @@ class AddLocationViewModel @Inject constructor(
     }
 
     fun updateSelectedLocationName(name: String){
+        _mapState.update {
+            it.copy(
+                selectedLocationName = name,
+            )
+        }
         viewModelScope.launch {
             _mapState.update {
                 it.copy(
-                    selectedLocationName = name,
                     nameAlreadyExists = addLocationUseCase.countLocationWithName(name) > 0
                 )
             }
@@ -145,7 +142,7 @@ class AddLocationViewModel @Inject constructor(
         }
     }
 
-    fun onSearchQueryChange(newQuery: String, getLocation: Boolean = true){
+    fun updateSearchQuery(newQuery: String, getLocation: Boolean = true){
         _mapState.update {
             it.copy(searchQuery = newQuery)
         }
@@ -179,15 +176,40 @@ class AddLocationViewModel @Inject constructor(
             it.copy(
                 destinationLocationLatLng = latLng,
                 currentZoom = zoom,
-                boundingBox = okBoundingBox
+                boundingBox = okBoundingBox,
+                triggerMapRelocation = it.triggerMapRelocation + 1
             )
         }
-        triggerMapRelocation++
+//        triggerMapRelocation++
     }
 
-    fun onMyLocationPressed(state: Boolean){
+    fun updateTriggerMapRelocation(value: Int){
+        _mapState.update {
+            it.copy(
+                triggerMapRelocation = value
+            )
+        }
+    }
+
+    fun updateShowLocationState(state: Boolean){
         _mapState.update {
             it.copy(handleShowingLocation = state)
+        }
+    }
+
+    fun updateWeatherDataLoadingStatus(locationId: Int, status: MyResult<Unit>){
+        _mapState.update {
+            it.copy(
+                weatherDataLoadStatus = it.weatherDataLoadStatus.plus(locationId to status)
+            )
+        }
+    }
+
+    fun loadALocationWeatherData(location: Location){
+        viewModelScope.launch {
+            updateWeatherDataLoadingStatus(locationId = location.id, status = MyResult.Loading())
+            val weatherResult = updateWeatherUseCase(location)
+            updateWeatherDataLoadingStatus(locationId = location.id, status = weatherResult)
         }
     }
 

@@ -1,7 +1,6 @@
 package com.takaapoo.weatherer.domain
 
 import android.content.Context
-import android.util.Log
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -22,11 +21,9 @@ import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.moonPhaseMap
-import com.takaapoo.weatherer.ui.screens.detail.toDp
-import com.takaapoo.weatherer.ui.screens.home.toDp
+import com.takaapoo.weatherer.ui.utility.toDp
 import kotlinx.serialization.json.double
 import kotlinx.serialization.json.jsonPrimitive
 import java.time.LocalDate

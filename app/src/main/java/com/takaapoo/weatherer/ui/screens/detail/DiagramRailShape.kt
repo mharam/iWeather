@@ -9,9 +9,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.takaapoo.weatherer.ui.screens.home.toPx
-import com.takaapoo.weatherer.ui.screens.home.toSp
-import kotlin.math.PI
+import com.takaapoo.weatherer.ui.utility.toPx
 import kotlin.math.asin
 import kotlin.math.cos
 
@@ -30,29 +28,6 @@ fun diagramRailPath(width: Float, height: Float, density: Density): Path {
     val angel = asin(height/(2*radius))
     val d = height/2 + radius * cos(angel)
     val path = Path().apply {
-//        moveTo(x = 0f, y = 0f)
-//        lineTo(x = 16.dp.toPx(density), y = 0f)
-//        arcToRad(
-//            rect = Rect(
-//                offset = Offset(0f, height/2 - radius),
-//                size = Size(2*radius, 2*radius)
-//            ),
-//            startAngleRadians = angel - PI.toFloat(),
-//            sweepAngleRadians = -2 * angel,
-//            forceMoveTo = false
-//        )
-//        lineTo(x = 0f, y = height)
-
-//        moveTo(x = width - radius*(1 - cos(angel)), y = 0f)
-//        arcToRad(
-//            rect = Rect(
-//                offset = Offset(width - 2 * radius, height/2 - radius),
-//                size = Size(2*radius, 2*radius)
-//            ),
-//            startAngleRadians = -angel,
-//            sweepAngleRadians = 2 * angel,
-//            forceMoveTo = false
-//        )
         moveTo(x = width, y = height)
         lineTo(x = d, y = height)
         arcToRad(

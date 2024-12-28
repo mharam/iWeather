@@ -30,21 +30,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppSettings
-import com.takaapoo.weatherer.ui.screens.detail.BorderedText
 import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.utility.BorderedText
+import kotlinx.collections.immutable.ImmutableList
 
 @Composable
 fun HourlyDiagramLegend(
     modifier: Modifier = Modifier,
-    chartQuantities: List<WeatherQuantity>,
+    chartQuantities: ImmutableList<WeatherQuantity>,
     dotsOnCurveVisible: Boolean,
-    curveValueAtIndicator: List<Float>,
+    curveValueAtIndicator: ImmutableList<Float?>,
+    appSettings: AppSettings,
     onRemoveChartQuantity: (quantity: WeatherQuantity) -> Unit
 ) {
     Column(
-        modifier = modifier
-            .padding(start = 16.dp, end = 8.dp)
-            .fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.Start
     ) {
         val text = remember {
@@ -59,15 +59,12 @@ fun HourlyDiagramLegend(
                 weatherQuantity?.let {
                     val quantityValue = when (it) {
                         WeatherQuantity.HUMIDITY, WeatherQuantity.PRECIPITATIONPROBABILITY,
-                        WeatherQuantity.CLOUDCOVER -> curveValueAtIndicator[index].coerceIn(
-                            0f,
-                            100f
-                        )
+                        WeatherQuantity.CLOUDCOVER -> curveValueAtIndicator[index]?.coerceIn(0f, 100f)
 
                         WeatherQuantity.WINDSPEED, WeatherQuantity.UVINDEX, WeatherQuantity.DIRECTRADIATION,
-                        WeatherQuantity.DIRECTNORMALIRRADIANCE -> curveValueAtIndicator[index].coerceAtLeast(
-                            0f
-                        )
+                        WeatherQuantity.DIRECTNORMALIRRADIANCE, WeatherQuantity.Ozone, WeatherQuantity.SO2,
+                        WeatherQuantity.CO, WeatherQuantity.NO2, WeatherQuantity.PM10, WeatherQuantity.PM2_5 ->
+                            curveValueAtIndicator[index]?.coerceAtLeast(0f)
 
                         else -> curveValueAtIndicator[index]
                     }
@@ -76,8 +73,12 @@ fun HourlyDiagramLegend(
                             if (it.nameId != null) AnnotatedString(stringResource(id = it.nameId))
                             else it.title!!
                         )
-                        append(":  ${"%.${it.floatingPointDigits}f".format(quantityValue)}")
-                        append(it.unit(AppSettings()))
+                        when (quantityValue) {
+                            null -> append(":  ?")
+                            0f -> append(":  0")
+                            else -> append(":  ${"%.${it.floatingPointDigits(appSettings)}f".format(quantityValue)}")
+                        }
+                        append(it.unit(appSettings))
                     }
                 }
                 HourlyDiagramLegendRow(

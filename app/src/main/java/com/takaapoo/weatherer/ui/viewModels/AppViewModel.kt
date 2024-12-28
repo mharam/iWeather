@@ -2,7 +2,11 @@ package com.takaapoo.weatherer.ui.viewModels
 
 import androidx.lifecycle.ViewModel
 import com.takaapoo.weatherer.R
-import com.takaapoo.weatherer.data.Screens
+import com.takaapoo.weatherer.data.History
+import com.takaapoo.weatherer.data.HomePane
+import com.takaapoo.weatherer.data.Radar
+import com.takaapoo.weatherer.data.Screen
+import com.takaapoo.weatherer.data.Settings
 import com.takaapoo.weatherer.ui.screens.BottomNavigationItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,34 +20,7 @@ class AppViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState = _uiState.asStateFlow()
 
-    val screenItems = listOf(
-        BottomNavigationItem(
-            title = "Home",
-            screen = Screens.HOME,
-            selectedIcon = R.drawable.home_filled_24px,
-            unSelectedIcon = R.drawable.home_24px
-        ),
-        BottomNavigationItem(
-            title = "Radar",
-            screen = Screens.RADAR,
-            selectedIcon = R.drawable.radar_24px,
-            unSelectedIcon = R.drawable.radar_24px
-        ),
-        BottomNavigationItem(
-            title = "History",
-            screen = Screens.HISTORY,
-            selectedIcon = R.drawable.history_24px,
-            unSelectedIcon = R.drawable.history_24px
-        ),
-        BottomNavigationItem(
-            title = "Settings",
-            screen = Screens.SETTING,
-            selectedIcon = R.drawable.settings_filled_24px,
-            unSelectedIcon = R.drawable.settings_24px
-        )
-    )
-
-    fun updateScreen(screen: Screens){
+    fun updateScreen(screen: Screen){
         _uiState.update {
             it.copy(currentScreen = screen)
         }
@@ -52,5 +29,5 @@ class AppViewModel @Inject constructor() : ViewModel() {
 }
 
 data class AppUiState(
-    val currentScreen: Screens = Screens.HOME
+    val currentScreen: Screen = HomePane
 )

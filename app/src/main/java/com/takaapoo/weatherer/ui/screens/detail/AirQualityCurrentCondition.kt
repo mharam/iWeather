@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,12 +28,12 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -42,7 +41,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
@@ -64,34 +62,44 @@ import androidx.constraintlayout.compose.Dimension
 import androidx.constraintlayout.compose.layoutId
 import androidx.core.content.res.ResourcesCompat
 import com.takaapoo.weatherer.R
+import com.takaapoo.weatherer.data.local.LocalAirQuality
+import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.DetailState
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.GraphTypes
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.cubicCurveXtoY
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.linearCurveXtoY
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.quantityControlPoints
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.quantityData
-import com.takaapoo.weatherer.ui.screens.home.toPx
-import com.takaapoo.weatherer.ui.theme.AQMaroon
 import com.takaapoo.weatherer.ui.theme.AQGreen
-import com.takaapoo.weatherer.ui.theme.AQPurple
+import com.takaapoo.weatherer.ui.theme.AQMaroon
 import com.takaapoo.weatherer.ui.theme.AQOrange
+import com.takaapoo.weatherer.ui.theme.AQPurple
 import com.takaapoo.weatherer.ui.theme.AQRed
 import com.takaapoo.weatherer.ui.theme.AQYellow
+import com.takaapoo.weatherer.ui.theme.Gray60
+import com.takaapoo.weatherer.ui.theme.WeatherGaugeBackground
+import com.takaapoo.weatherer.ui.theme.WeatherGaugeHandle
+import com.takaapoo.weatherer.ui.utility.BorderedText
+import com.takaapoo.weatherer.ui.utility.toPx
+import kotlinx.collections.immutable.ImmutableList
 import kotlin.math.PI
 import kotlin.math.roundToInt
 
 @Composable
 fun AirQualityCurrentCondition(
     modifier: Modifier = Modifier,
-    detailState: DetailState,
+    currentDayHourlyAirQuality: ImmutableList<LocalAirQuality>,
+    targetX: Float,
     topBannerHeight: Float,
-    unit: AnnotatedString,
+    appSettings: AppSettings,
     quantity: WeatherQuantity,
+    scroll: Float = 0f,
     currentTemperature: Float = 273f,
     currentPressure: Float = 1000f
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
+    val unit = WeatherQuantity.AQI.unit(appSettings)
     val spaceOccupiedByValue = (dimensionResource(id = R.dimen.current_condition_gauge_width)
             + 32.dp).toPx(density)
     val iconSize = dimensionResource(id = R.dimen.current_condition_icon_size)
@@ -107,15 +115,13 @@ fun AirQualityCurrentCondition(
     var boxTopY by remember { mutableFloatStateOf(0f) }
 
     val firstPointX = 0f
-    val lastPointX = detailState.currentDayHourlyAirQuality.size.toFloat() - 1
+    val lastPointX = currentDayHourlyAirQuality.size.toFloat() - 1
     val data = quantityData(
-        weatherData = detailState.currentDayHourlyWeather,
-        airData = detailState.currentDayHourlyAirQuality,
+        airData = currentDayHourlyAirQuality,
         weatherQuantity = quantity
     )
     val (controlPoints1, controlPoints2) = quantityControlPoints(
-        weatherData = detailState.currentDayHourlyWeather,
-        airData = detailState.currentDayHourlyAirQuality,
+        airData = currentDayHourlyAirQuality,
         weatherQuantity = quantity
     )
     val quantityValue = when (quantity.graphType()){
@@ -125,13 +131,13 @@ fun AirQualityCurrentCondition(
             controlPoints2 = controlPoints2,
             firstPointX = firstPointX,
             lastPointX = lastPointX,
-            targetX = detailState.targetX
+            targetX = targetX
         )
         else -> linearCurveXtoY(
             data = data,
             firstPointX = firstPointX,
             lastPointX = lastPointX,
-            targetX = detailState.targetX
+            targetX = targetX
         )
     }
     val molarVolume = 22.4 * (currentTemperature / 273) / (currentPressure / 1000)
@@ -163,7 +169,7 @@ fun AirQualityCurrentCondition(
             .fillMaxSize()
             .onGloballyPositioned {
                 boxWidth = it.size.width.toFloat()
-                boxTopY = it.positionInWindow().y
+                boxTopY = it.parentLayoutCoordinates!!.positionInParent().y + scroll
             },
         constraintSet = constraints
     ) {
@@ -178,7 +184,7 @@ fun AirQualityCurrentCondition(
             modifier = Modifier
                 .size(dimensionResource(id = R.dimen.current_condition_gauge_width))
                 .background(
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = valueContainerAlpha),
+                    color = WeatherGaugeBackground,
                     shape = CircleShape
                 )
                 .zIndex(1f)
@@ -194,7 +200,8 @@ fun AirQualityCurrentCondition(
                     rightPoint3 = Offset(
                         x = (it.parentLayoutCoordinates?.size?.width ?: 0) - iconSizePx,
                         y = (rightPoint1.y + (topBannerHeight - (boxTopY + rightPoint1.y - iconSizePx / 2))
-                            .coerceAtLeast(0f)).coerceAtMost(leftPoints2.last().y)
+                            .coerceAtLeast(0f))
+                            .coerceAtMost(leftPoints2.last().y)
                     )
                 }
         ) {
@@ -230,11 +237,13 @@ fun AirQualityCurrentCondition(
                             val width = size.width
                             val height = size.height
                             val radius = 0.4f * width
-                            val paint = Paint().asFrameworkPaint().apply {
-                                isAntiAlias = true
-                                typeface = ResourcesCompat.getFont(context, R.font.cmu_serif)
-                                textSize = 14.sp.toPx()
-                            }
+                            val paint = Paint()
+                                .asFrameworkPaint()
+                                .apply {
+                                    isAntiAlias = true
+                                    typeface = ResourcesCompat.getFont(context, R.font.cmu_serif)
+                                    textSize = 14.sp.toPx()
+                                }
                             val textPath = Path()
                             val bounds = RectF()
                             val path = Path().apply {
@@ -258,7 +267,7 @@ fun AirQualityCurrentCondition(
                                     it.nativeCanvas.drawTextOnPath(
                                         text,
                                         path,
-                                        ((index + 1) * PI * radius / 4).toFloat() - bounds.width()/2,
+                                        ((index + 1) * PI * radius / 4).toFloat() - bounds.width() / 2,
                                         0f,
                                         paint
                                     )
@@ -285,27 +294,27 @@ fun AirQualityCurrentCondition(
                     .rotate(rotation),
                 painter = painterResource(id = R.drawable.uv_handle),
                 contentDescription = null,
-                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
+                colorFilter = ColorFilter.tint(WeatherGaugeHandle)
             )
-            Text(
-                modifier = Modifier
-                    .width(64.dp)
-                    .align(Alignment.BottomCenter),
+            BorderedText(
+                modifier = Modifier.align(Alignment.BottomCenter),
                 text = buildAnnotatedString {
                     append(
-                        if (quantityValue != null) "%.${quantity.floatingPointDigits}f".format(quantityValue)
+                        if (quantityValue != null)
+                            "%.${quantity.floatingPointDigits(appSettings)}f".format(quantityValue)
                         else "?"
                     )
                 },
-                textAlign = TextAlign.Center,
-                lineHeight = 16.sp,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                fontSize = 16.sp,
+                fillColor = Gray60,
+                strokeWidth = 1.5f,
+                alignment = Alignment.Center
             )
         }
         Text(
             modifier = Modifier
                 .background(
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = valueContainerAlpha),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
                     shape = RoundedCornerShape(percent = 50)
                 )
                 .onGloballyPositioned {
@@ -327,7 +336,7 @@ fun AirQualityCurrentCondition(
                 .layoutId("condition"),
             text = airQualityCondition ?: "",
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
+            color = MaterialTheme.colorScheme.onSecondaryContainer
         )
 
         if (isOnSeparateRow) {
@@ -359,9 +368,9 @@ fun AirQualityCurrentCondition(
             modifier = Modifier
                 .size(iconSize)
                 .layoutId("icon")
-                .graphicsLayer(
+                .graphicsLayer {
                     translationY = rightPoint3.y - iconSizePx / 2
-                )
+                }
                 .background(
                     color = MaterialTheme.colorScheme.primary,
                     shape = CircleShape
@@ -438,6 +447,7 @@ fun AirQualityCurrentCondition2(
     currentPressure: Float = 1000f
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current
     var quantityMiddlePoint by remember { mutableStateOf(Offset.Zero) }
     var conditionBottomPoint by remember { mutableStateOf(Offset.Zero) }
     var gaugeBottomPoint by remember { mutableStateOf(Offset.Zero) }
@@ -550,7 +560,7 @@ fun AirQualityCurrentCondition2(
             modifier = Modifier
                 .size(dimensionResource(id = R.dimen.current_condition_gauge_width))
                 .background(
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = valueContainerAlpha),
+                    color = WeatherGaugeBackground,
                     shape = CircleShape
                 )
                 .onGloballyPositioned {
@@ -565,6 +575,8 @@ fun AirQualityCurrentCondition2(
             val colorStops = Array(aqBrushColors.size) { index ->
                 (0.75f * index / (aqBrushColors.size - 1) + 0.125f) to aqBrushColors[index]
             }
+            val arcWidth = dimensionResource(id = R.dimen.connector_line_width).toPx(density)
+            val arcColor = MaterialTheme.colorScheme.primaryContainer
             Spacer(
                 modifier = Modifier
                     .fillMaxSize()
@@ -584,6 +596,15 @@ fun AirQualityCurrentCondition2(
                                     useCenter = true
                                 )
                             }
+                            drawArc(
+                                color = arcColor,
+                                startAngle = 45f,
+                                sweepAngle = 90f,
+                                useCenter = false,
+                                topLeft = Offset(x = arcWidth/2, y = arcWidth/2),
+                                size = Size(this.size.width - arcWidth, this.size.height - arcWidth),
+                                style = Stroke(width = arcWidth)
+                            )
                             drawCircle(
                                 color = Color.White,
                                 radius = 0.3f * this.size.width,
@@ -592,11 +613,13 @@ fun AirQualityCurrentCondition2(
                             val width = size.width
                             val height = size.height
                             val radius = 0.4f * width
-                            val paint = Paint().asFrameworkPaint().apply {
-                                isAntiAlias = true
-                                typeface = ResourcesCompat.getFont(context, R.font.cmu_serif)
-                                textSize = 14.sp.toPx()
-                            }
+                            val paint = Paint()
+                                .asFrameworkPaint()
+                                .apply {
+                                    isAntiAlias = true
+                                    typeface = ResourcesCompat.getFont(context, R.font.cmu_serif)
+                                    textSize = 14.sp.toPx()
+                                }
                             val textPath = Path()
                             val bounds = RectF()
                             val path = Path().apply {
@@ -613,14 +636,16 @@ fun AirQualityCurrentCondition2(
                             }
                             (listOf(0f) + quantityLevels).forEachIndexed { index, value ->
                                 val text = if (quantity == WeatherQuantity.CO)
-                                    "%.1f".format(value) else value.roundToInt().toString()
+                                    "%.1f".format(value) else value
+                                    .roundToInt()
+                                    .toString()
                                 paint.getTextPath(text, 0, text.length, 0f, 0f, textPath)
                                 textPath.computeBounds(bounds, true)
                                 drawIntoCanvas {
                                     it.nativeCanvas.drawTextOnPath(
                                         text,
                                         path,
-                                        ((index + 1) * PI * radius / 4).toFloat() - bounds.width()/2,
+                                        ((index + 1) * PI * radius / 4).toFloat() - bounds.width() / 2,
                                         0f,
                                         paint
                                     )
@@ -634,29 +659,27 @@ fun AirQualityCurrentCondition2(
                 painter = painterResource(id = R.drawable.air_quality_gauge),
                 contentDescription = null
             )
-
             Image(
                 modifier = Modifier
                     .fillMaxSize()
                     .rotate(rotation),
                 painter = painterResource(id = R.drawable.uv_handle),
                 contentDescription = null,
-                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
+                colorFilter = ColorFilter.tint(WeatherGaugeHandle)
             )
             val floatingPointDigits = if (quantity == WeatherQuantity.CO) 2 else 0
-            Text(
-                modifier = Modifier
-                    .width(64.dp)
-                    .align(Alignment.BottomCenter),
+            BorderedText(
+                modifier = Modifier.align(Alignment.BottomCenter),
                 text = buildAnnotatedString {
                     append(
                         if (quantityValue != null) "%.${floatingPointDigits}f".format(quantityValue)
                         else "?"
                     )
                 },
-                textAlign = TextAlign.Center,
-                lineHeight = 16.sp,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                fontSize = 16.sp,
+                fillColor = Gray60,
+                strokeWidth = 1.5f,
+                alignment = Alignment.Center
             )
         }
         val color = lerpMultipleColors(aqBrushColors, (rotation / 270).coerceIn(0f, 1f))
@@ -683,7 +706,7 @@ fun AirQualityCurrentCondition2(
                 .layoutId("condition"),
             text = airQualityCondition ?: "",
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
+            color = Gray60
         )
         SingleConnector(modifier = Modifier.layoutId("connector1"))
         SingleConnector3(

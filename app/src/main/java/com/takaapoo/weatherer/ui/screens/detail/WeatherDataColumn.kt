@@ -1,13 +1,6 @@
 package com.takaapoo.weatherer.ui.screens.detail
 
-import androidx.compose.animation.AnimatedContentScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,11 +14,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -34,11 +27,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -61,10 +58,10 @@ import com.takaapoo.weatherer.MainActivity
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
 import com.takaapoo.weatherer.domain.model.AppSettings
-import com.takaapoo.weatherer.domain.model.ChartState
 import com.takaapoo.weatherer.domain.model.DailyChartState
 import com.takaapoo.weatherer.domain.model.DetailState
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
+import com.takaapoo.weatherer.domain.model.HourlyChartState
 import com.takaapoo.weatherer.ui.screens.detail.daily_diagram.DailyChart
 import com.takaapoo.weatherer.ui.screens.detail.daily_diagram.DailyDiagramTopBar
 import com.takaapoo.weatherer.ui.screens.detail.daily_diagram.DailyQuantityChooserRail
@@ -75,39 +72,39 @@ import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.HourlyDiagramLege
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.HourlyDiagramLegendRow
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.HourlyDiagramTopBar
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.QuantityChooserRail
-import com.takaapoo.weatherer.ui.screens.home.toPx
-import com.takaapoo.weatherer.ui.screens.home.toSp
 import com.takaapoo.weatherer.ui.theme.DiagramGrid
 import com.takaapoo.weatherer.ui.theme.OnDiagramDarkTheme
 import com.takaapoo.weatherer.ui.theme.OnDiagramLightTheme
 import com.takaapoo.weatherer.ui.theme.Transparent10
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
 import com.takaapoo.weatherer.ui.theme.customColorScheme
+import com.takaapoo.weatherer.ui.utility.BorderedText
+import com.takaapoo.weatherer.ui.utility.toDp
+import com.takaapoo.weatherer.ui.utility.toPx
+import com.takaapoo.weatherer.ui.utility.toSp
+import kotlinx.collections.immutable.toImmutableList
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.pow
-import kotlin.math.roundToInt
 
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun WeatherDataColumn(
+    endPadding: Dp,
     hourlyChartData: List<HourlyChartDto>,
     dailyChartData: List<LocalDailyWeather>,
-    pageIndex: Int,
     appSettings: AppSettings,
     detailState: DetailState,
-    chartState: ChartState,
+    hourlyChartState: HourlyChartState,
     dailyChartState: DailyChartState,
     modifier: Modifier = Modifier,
-    scrollState: ScrollState,
-    showTemperature: Boolean,
     spaceAboveTitle: Float,
     bottomPadding: Dp,
     headerHeight: Float,
     cornerRadius: Dp,
     timeAlpha: Float,
-    onAddYAxis: (start: Float, end: Float, diagramHeight: Float, textMeasurer: TextMeasurer, axisIndex: Int?) -> Unit,
+    onAddYAxis: (start: Float, end: Float, diagramHeight: Float,
+                 textMeasurer: TextMeasurer, axisIndex: Int?, curveAnimatorInitialValue: Float) -> Unit,
     onUpdateDailyYAxis: (quantity: DailyWeatherQuantity) -> Unit,
     onMoveHourlyDiagramAxis: (Offset) -> Unit,
     onScaleHourlyDiagramAxis: (Offset, Float, Float) -> Unit,
@@ -137,30 +134,22 @@ fun WeatherDataColumn(
     onUpdateDailyDiagramSettingRectangle: (rect: Rect) -> Unit,
     onUpdateHourlyThumbPosition: (movement: Float) -> Unit,
     onUpdateDailyThumbPosition: (movement: Float) -> Unit,
-    onUpdateHourlyCurveValueAtIndicator: (curveIndex: Int, value: Float) -> Unit,
+    onUpdateHourlyCurveValueAtIndicator: (curveIndex: Int, value: Float?) -> Unit,
     onUpdateDailyCurveValueAtIndicator: (valueMin: Float, valueMax: Float) -> Unit,
     onNavigateToAQDetailScreen: () -> Unit,
-    sharedTransitionScope: SharedTransitionScope,
-    animatedContentScope: AnimatedContentScope
+//    sharedTransitionScope: SharedTransitionScope,
+//    animatedContentScope: AnimatedContentScope
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
-
+    val scrollState = detailState.scrollState
     val titleShrinkStartPoint = spaceAboveTitle - 0.3f * (context as MainActivity).windowHeight
     var titleWidth by rememberSaveable{ mutableIntStateOf(0) }
-    val titleMaxXMove = (detailScreenWidth - titleWidth)/2 -
-            dimensionResource(R.dimen.detail_screen_padding).toPx(density)
-    val timeTop by remember {
-        derivedStateOf {
-            when {
-                scrollState.value < spaceAboveTitle -> spaceAboveTitle + headerHeight - scrollState.value
-                else -> headerHeight
-            }
-        }
-    }
-//    var timeBottomSpacerY by remember{ mutableFloatStateOf(0f) }
+    val screenPadding = dimensionResource(R.dimen.detail_screen_padding).toPx(density)
+    val titleMaxXMove = (detailScreenWidth - titleWidth)/2f - screenPadding
+
     var timeBottomSpacerDistanceFromHeader by remember{ mutableFloatStateOf(0f) }
-    var hourlyBottomSpacerDistanceFromHeader by remember{ mutableFloatStateOf(0f) }
+    var hourlyBottomSpacerDistanceFromHeader by remember{ mutableFloatStateOf(Float.MAX_VALUE) }
     val subtitleVerticalSpace = (dimensionResource(id = R.dimen.detail_screen_subtitle_height) +
             dimensionResource(id = R.dimen.detail_screen_subtitle_vertical_padding) * 2).toPx(density)
 //    val timeAlpha = when {
@@ -177,19 +166,21 @@ fun WeatherDataColumn(
         else -> headerHeight
     }
     val chooserRailHeight = 48.dp.toPx(density)
-    val hourlyHeaderAlpha= when {
-        scrollState.value < hourlyHeaderInitialY - headerHeight -> 1f
-        else -> ((hourlyHeaderInitialY - headerHeight + chooserRailHeight - scrollState.value)/chooserRailHeight)
-            .coerceAtLeast(0f)
-    }
+    val hourlyHeaderAlpha =
+        when {
+            scrollState.value < hourlyHeaderInitialY - headerHeight -> 1f
+            else -> ((hourlyHeaderInitialY - headerHeight + chooserRailHeight - scrollState.value)/chooserRailHeight)
+                .coerceAtLeast(0f)
+        }
+
     val dailyHeaderInitialY = spaceAboveTitle + hourlyBottomSpacerDistanceFromHeader + sectionSeparation
     val dailyHeaderTop = when {
         scrollState.value < dailyHeaderInitialY - headerHeight -> dailyHeaderInitialY - scrollState.value
         else -> headerHeight
     }
-    val dailyHeaderAlpha= when {
+    val dailyHeaderAlpha = when {
         scrollState.value < dailyHeaderInitialY - headerHeight -> 1f
-        else -> ((dailyHeaderInitialY - headerHeight + chooserRailHeight - scrollState.value)/chooserRailHeight)
+        else -> ((dailyHeaderInitialY - headerHeight + chooserRailHeight - scrollState.value) / chooserRailHeight)
             .coerceAtLeast(0f)
     }
 
@@ -201,40 +192,114 @@ fun WeatherDataColumn(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(spaceAboveTitle.toDp(density)))
+//            val columnShape = RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius)
+            val surfaceColor = MaterialTheme.customColorScheme.detailScreenSurface.toArgb()
+            val borderColor = MaterialTheme.colorScheme.primaryContainer
+//            val currentConditionScroll = spaceAboveTitle - scrollState.value
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius))
-                    .background(
-                        color = barColor(
-                            scroll = scrollState.value,
-                            start = titleShrinkStartPoint,
-                            end = spaceAboveTitle,
-                            color1 = Transparent10.toArgb(),
-                            color2 = MaterialTheme.customColorScheme.detailScreenSurface.toArgb()
+                    .drawBehind {
+                        val width = size.width
+                        val height = size.height
+                        val cornerRad = CornerRadius(cornerRadius.toPx())
+                        val backgroundPath = Path().apply {
+                            this.addRoundRect(
+                                roundRect = RoundRect(
+                                    left = 0f, top = 0f, right = width, bottom = height,
+                                    topLeftCornerRadius = cornerRad, topRightCornerRadius = cornerRad
+                                )
+                            )
+                        }
+                        drawPath(
+                            path = backgroundPath,
+                            color = barColor(
+                                scroll = scrollState.value,
+                                start = titleShrinkStartPoint,
+                                end = spaceAboveTitle,
+                                color1 = Transparent10.toArgb(),
+                                color2 = surfaceColor
+                            )
                         )
-                    )
-                    .border(
-                        border = BorderStroke(
-                            width = 1.dp,
+                        drawPath(
+                            path = backgroundPath,
                             brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    Color.Transparent
-                                ),
+                                colors = listOf(borderColor, Color.Transparent),
                                 startY = 0f,
                                 endY = 300f
-                            )
-                        ),
-                        shape = RoundedCornerShape(topStart = cornerRadius, topEnd = cornerRadius)
-                    )
+                            ),
+                            style = Stroke(width = 1.dp.toPx()),
+                        )
+                    }
+//                    .background(
+//                        color = barColor(
+//                            scroll = scrollState.value,
+//                            start = titleShrinkStartPoint,
+//                            end = spaceAboveTitle,
+//                            color1 = Transparent10.toArgb(),
+//                            color2 = MaterialTheme.customColorScheme.detailScreenSurface.toArgb()
+//                        ),
+//                        shape = columnShape
+//                    )
+//                    .border(
+//                        border = BorderStroke(
+//                            width = 1.dp,
+//                            brush = Brush.verticalGradient(
+//                                colors = listOf(
+//                                    MaterialTheme.colorScheme.primaryContainer,
+//                                    Color.Transparent
+//                                ),
+//                                startY = 0f,
+//                                endY = 300f
+//                            )
+//                        ),
+//                        shape = columnShape
+//                    )
+//                    .clip(columnShape)
                     .padding(bottom = bottomPadding),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
+                        .drawBehind {
+                            val width = size.width
+                            val height = size.height
+                            val cornerRad = CornerRadius(cornerRadius.toPx())
+                            val backgroundPath = Path().apply {
+                                this.addRoundRect(
+                                    roundRect = RoundRect(
+                                        left = 0f,
+                                        top = 0f,
+                                        right = width,
+                                        bottom = height,
+                                        topLeftCornerRadius = cornerRad,
+                                        topRightCornerRadius = cornerRad
+                                    )
+                                )
+                            }
+                            drawPath(
+                                path = backgroundPath,
+                                brush = Brush.verticalGradient(
+                                    0f to borderColor,
+                                    1f to barColor(
+                                        scroll = scrollState.value,
+                                        start = titleShrinkStartPoint,
+                                        end = spaceAboveTitle,
+                                        color1 = 0x00FFFFFF,
+                                        color2 = borderColor.toArgb()
+                                    ),
+//                            1f to Color.Transparent,
+//                            startY = 0.1f * headerHeight,
+                                    endY = movementFraction(
+                                        scroll = scrollState.value,
+                                        start = titleShrinkStartPoint,
+                                        end = spaceAboveTitle
+                                    ) * headerHeight
+                                )
+                            )
+                        }
+                        /*.background(
                             brush = Brush.verticalGradient(
                                 0f to MaterialTheme.colorScheme.primaryContainer,
                                 1f to barColor(
@@ -252,11 +317,11 @@ fun WeatherDataColumn(
                                     end = spaceAboveTitle
                                 ) * headerHeight
                             )
-                        )
+                        )*/
                         .padding(horizontal = dimensionResource(R.dimen.detail_screen_padding))
                 ) {
                     Title(
-                        locationName = hourlyChartData.getOrNull(pageIndex)?.locationName ?: "",
+                        locationName = hourlyChartData.firstOrNull()?.locationName ?: "",
                         modifier = Modifier
                             .height(headerHeight.toDp(density))
                             .graphicsLayer {
@@ -267,6 +332,7 @@ fun WeatherDataColumn(
                                     maxMovement = titleMaxXMove
                                 )
                             }
+                            .padding(end = endPadding)
                             .onGloballyPositioned {
                                 titleWidth = it.size.width
                             },
@@ -276,80 +342,98 @@ fun WeatherDataColumn(
                     )
                 }
                 Spacer(modifier = Modifier.height(subtitleVerticalSpace.toDp(density)))
-                with(sharedTransitionScope) {
+//                with(sharedTransitionScope) {
                     WeatherCurrentCondition(
                         modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 8.dp),
                         weatherCode = detailState.currentDayHourlyWeather
-                                .getOrNull(detailState.targetX.roundToInt())?.weatherCode,
+                                .getOrNull(detailState.targetX.toInt())?.weatherCode,
                         sunRise = detailState.sunRise,
                         sunSet = detailState.sunSet,
                         utcOffset = detailState.utcOffset ?: 0,
                         targetX = detailState.targetX
                     )
                     WindCurrentCondition(
-                        modifier = Modifier.padding(horizontal = 8.dp),
-                        detailState = detailState,
-                        unit = WeatherQuantity.WINDSPEED.unit(appSettings)
+                        modifier = Modifier.padding(start = 8.dp, end = 8.dp),
+                        currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
+                        targetX = detailState.targetX,
+                        appSettings = appSettings
                     )
                     CurrentCondition(
-                        modifier = modifier.padding(horizontal = 8.dp),
-                        weatherQuantity = listOf(WeatherQuantity.HUMIDITY),
-                        detailState = detailState,
+                        modifier = Modifier.padding(start = 8.dp, end = 8.dp),
+                        weatherQuantity = listOf(WeatherQuantity.HUMIDITY).toImmutableList(),
+                        currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
+                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
+                        targetX = detailState.targetX,
                         appSettings = appSettings,
                         topBannerHeight = headerHeight
                     )
                     CurrentCondition(
-                        modifier = modifier.padding(horizontal = 8.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp),
                         weatherQuantity = listOf(
                             WeatherQuantity.PRECIPITATION,
                             WeatherQuantity.PRECIPITATIONPROBABILITY
-                        ),
-                        detailState = detailState,
+                        ).toImmutableList(),
+                        currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
+//                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
+                        targetX = detailState.targetX,
+                        appSettings = appSettings,
+                        topBannerHeight = headerHeight,
+//                        scroll = currentConditionScroll
+                    )
+                    CurrentCondition(
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        weatherQuantity = listOf(WeatherQuantity.DEWPOINT).toImmutableList(),
+                        currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
+                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
+                        targetX = detailState.targetX,
                         appSettings = appSettings,
                         topBannerHeight = headerHeight
                     )
                     CurrentCondition(
-                        modifier = modifier.padding(horizontal = 8.dp),
-                        weatherQuantity = listOf(WeatherQuantity.DEWPOINT),
-                        detailState = detailState,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        weatherQuantity = listOf(WeatherQuantity.FREEZINGLEVELHEIGHT).toImmutableList(),
+                        currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
+                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
+                        targetX = detailState.targetX,
                         appSettings = appSettings,
                         topBannerHeight = headerHeight
                     )
                     CurrentCondition(
-                        modifier = modifier.padding(horizontal = 8.dp),
-                        weatherQuantity = listOf(WeatherQuantity.FREEZINGLEVELHEIGHT),
-                        detailState = detailState,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        weatherQuantity = listOf(WeatherQuantity.SURFACEPRESSURE).toImmutableList(),
+                        currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
+                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
+                        targetX = detailState.targetX,
                         appSettings = appSettings,
                         topBannerHeight = headerHeight
                     )
                     CurrentCondition(
-                        modifier = modifier.padding(horizontal = 8.dp),
-                        weatherQuantity = listOf(WeatherQuantity.SURFACEPRESSURE),
-                        detailState = detailState,
-                        appSettings = appSettings,
-                        topBannerHeight = headerHeight
-                    )
-                    CurrentCondition(
-                        modifier = modifier.padding(horizontal = 8.dp),
-                        weatherQuantity = listOf(WeatherQuantity.VISIBILITY),
-                        detailState = detailState,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        weatherQuantity = listOf(WeatherQuantity.VISIBILITY).toImmutableList(),
+                        currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
+                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
+                        targetX = detailState.targetX,
                         appSettings = appSettings,
                         topBannerHeight = headerHeight
                     )
                     UVCurrentCondition(
                         modifier = Modifier.padding(8.dp),
-                        detailState = detailState,
-                        unit = WeatherQuantity.UVINDEX.unit(appSettings)
+                        currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
+                        targetX = detailState.targetX,
+                        appSettings = appSettings
                     )
                     CurrentCondition(
-                        modifier = modifier.padding(horizontal = 8.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp),
                         weatherQuantity = listOf(
                             WeatherQuantity.DIRECTRADIATION,
                             WeatherQuantity.DIRECTNORMALIRRADIANCE
-                        ),
-                        detailState = detailState,
+                        ).toImmutableList(),
+                        currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
+                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
+                        targetX = detailState.targetX,
                         appSettings = appSettings,
-                        topBannerHeight = headerHeight
+                        topBannerHeight = headerHeight,
+//                        scroll = currentConditionScroll
                     )
                     Box(
                         modifier = Modifier.padding(horizontal = 8.dp)
@@ -362,13 +446,15 @@ fun WeatherDataColumn(
                                     ),
                                     animatedVisibilityScope = animatedContentScope,
                                 )*/,
-                            detailState = detailState,
+                            currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
+                            targetX = detailState.targetX,
                             topBannerHeight = headerHeight,
-                            unit = WeatherQuantity.AQI.unit(appSettings),
-                            quantity = WeatherQuantity.AQI
+                            appSettings = appSettings,
+                            quantity = WeatherQuantity.AQI,
+//                            scroll = currentConditionScroll
                         )
                         TextButton(
-                            modifier = Modifier.align(Alignment.TopEnd),
+                            modifier = Modifier.align(Alignment.TopEnd).padding(end = endPadding),
                             onClick = { onNavigateToAQDetailScreen() }
                         ) {
                             Text(
@@ -377,7 +463,7 @@ fun WeatherDataColumn(
                             )
                         }
                     }
-                }
+//                }
 
 
                 Spacer(
@@ -387,30 +473,39 @@ fun WeatherDataColumn(
                                     subtitleVerticalSpace.toDp(density)
                         )
                         .onGloballyPositioned {
-//                            timeBottomSpacerY = it.positionInRoot().y
                             timeBottomSpacerDistanceFromHeader = it.positionInParent().y
                         }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                if (!showTemperature) {
+                if (detailState.chartsVisibility) {
+                    val undoIconTint = when (hourlyChartState.chartTheme) {
+                        ChartTheme.LIGHT -> OnDiagramLightTheme
+                        ChartTheme.DARK -> OnDiagramDarkTheme
+                        ChartTheme.APPTHEME -> LocalContentColor.current
+                        ChartTheme.DAYNIGHT -> DiagramGrid
+                    }
                     QuantityChooserRail(
-                        quantities = chartState.chartQuantities,
+                        modifier = Modifier.padding(end = endPadding),
+                        quantities = hourlyChartState.chartQuantities.toImmutableList(),
                         isAirQualityQuantities = false,
                         onRemoveChartQuantity = onRemoveChartQuantity,
                         onAddChartQuantity = onAddChartQuantity
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     QuantityChooserRail(
-                        quantities = chartState.chartQuantities,
+                        modifier = Modifier.padding(end = endPadding),
+                        quantities = hourlyChartState.chartQuantities.toImmutableList(),
                         isAirQualityQuantities = true,
                         onRemoveChartQuantity = onRemoveChartQuantity,
                         onAddChartQuantity = onAddChartQuantity
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     HourlyDiagramLegend(
-                        chartQuantities = chartState.chartQuantities,
-                        dotsOnCurveVisible = chartState.dotsOnCurveVisible,
-                        curveValueAtIndicator = chartState.curveValueAtIndicator,
+                        modifier = Modifier.padding(start = 16.dp, end = 8.dp + endPadding),
+                        chartQuantities = hourlyChartState.chartQuantities.toImmutableList(),
+                        dotsOnCurveVisible = hourlyChartState.dotsOnCurveVisible,
+                        curveValueAtIndicator = hourlyChartState.curveValueAtIndicator.toImmutableList(),
+                        appSettings = appSettings,
                         onRemoveChartQuantity = onRemoveChartQuantity
                     )
 
@@ -421,14 +516,16 @@ fun WeatherDataColumn(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(382.dp)
+                            .height(dimensionResource(R.dimen.diagram_height))
                             .padding(horizontal = dimensionResource(id = R.dimen.whole_diagram_hor_padding))
                     ) {
                         HourlyChart(
+                            modifier = Modifier.fillMaxSize(),
                             diagramHorPadding = diagramHorPadding,
                             diagramVertPadding = diagramVertPadding,
-                            hourlyChartData = hourlyChartData,
-                            chartState = chartState,
+                            hourlyChartData = hourlyChartData.toImmutableList(),
+                            hourlyChartState = hourlyChartState,
+                            appSettings = appSettings,
                             onAddYAxis = onAddYAxis,
                             onMoveAxis = onMoveHourlyDiagramAxis,
                             onScaleAxis = onScaleHourlyDiagramAxis,
@@ -441,7 +538,7 @@ fun WeatherDataColumn(
                             modifier = Modifier
                                 .padding(
                                     top = dimensionResource(id = R.dimen.diagram_frame_ver_padding) - 8.dp,
-                                    end = dimensionResource(id = R.dimen.diagram_frame_hor_padding) - 8.dp
+                                    end = dimensionResource(id = R.dimen.diagram_frame_hor_padding) - 8.dp + endPadding
                                 )
                                 .align(Alignment.TopEnd),
                             onClick = undoHourlyDiagramScaleMove
@@ -449,14 +546,7 @@ fun WeatherDataColumn(
                             Icon(
                                 painter = painterResource(id = R.drawable.undo),
                                 contentDescription = "Undo",
-                                tint = when (chartState.chartTheme) {
-                                    ChartTheme.LIGHT -> OnDiagramLightTheme
-                                    ChartTheme.DARK -> OnDiagramDarkTheme
-                                    ChartTheme.APPTHEME ->
-                                        if (isSystemInDarkTheme()) OnDiagramDarkTheme else OnDiagramLightTheme
-
-                                    ChartTheme.DAYNIGHT -> DiagramGrid
-                                }
+                                tint = undoIconTint
                             )
                         }
                     }
@@ -471,7 +561,7 @@ fun WeatherDataColumn(
                             )
                             .fillMaxWidth()
                             .height(dimensionResource(id = R.dimen.diagram_slider_thumb_size)),
-                        thumbPosition = chartState.sliderThumbPosition,
+                        thumbPosition = hourlyChartState.sliderThumbPosition,
                         onUpdateThumbPosition = onUpdateHourlyThumbPosition
                     )
                     Spacer(
@@ -486,6 +576,7 @@ fun WeatherDataColumn(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     DailyQuantityChooserRail(
+                        modifier = Modifier.padding(end = endPadding),
                         quantity = dailyChartState.chartQuantity,
                         onUpdateChartQuantity = onUpdateDailyChartQuantity
                     )
@@ -493,16 +584,18 @@ fun WeatherDataColumn(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(382.dp)
+                            .height(dimensionResource(R.dimen.diagram_height))
                             .padding(horizontal = dimensionResource(id = R.dimen.whole_diagram_hor_padding))
                     ) {
                         DailyChart(
                             diagramHorPadding = diagramHorPadding,
                             diagramVertPadding = diagramVertPadding,
-                            dailyChartData = dailyChartData,
-                            utcOffset = hourlyChartData.firstNotNullOfOrNull { it.utcOffset },
-                            chartState = chartState,
+                            dailyChartData = dailyChartData.toImmutableList(),
+                            appSettings = appSettings,
                             dailyChartState = dailyChartState,
+                            chartGrid = hourlyChartState.chartGrid,
+                            chartTheme = hourlyChartState.chartTheme,
+                            curveShadowVisible = hourlyChartState.curveShadowVisible,
                             onUpdateDailyYAxis = onUpdateDailyYAxis,
                             onMoveAxis = onMoveDailyDiagramAxis,
                             onScaleAxis = onScaleDailyDiagramAxis,
@@ -515,7 +608,7 @@ fun WeatherDataColumn(
                             modifier = Modifier
                                 .padding(
                                     top = dimensionResource(id = R.dimen.diagram_frame_ver_padding) - 8.dp,
-                                    end = dimensionResource(id = R.dimen.diagram_frame_hor_padding) - 8.dp
+                                    end = dimensionResource(id = R.dimen.diagram_frame_hor_padding) - 8.dp + endPadding
                                 )
                                 .align(Alignment.TopEnd),
                             onClick = undoDailyDiagramScaleMove
@@ -523,14 +616,7 @@ fun WeatherDataColumn(
                             Icon(
                                 painter = painterResource(id = R.drawable.undo),
                                 contentDescription = "Undo",
-                                tint = when (chartState.chartTheme) {
-                                    ChartTheme.LIGHT -> OnDiagramLightTheme
-                                    ChartTheme.DARK -> OnDiagramDarkTheme
-                                    ChartTheme.APPTHEME ->
-                                        if (isSystemInDarkTheme()) OnDiagramDarkTheme else OnDiagramLightTheme
-
-                                    ChartTheme.DAYNIGHT -> DiagramGrid
-                                }
+                                tint = undoIconTint
                             )
                         }
                     }
@@ -549,23 +635,7 @@ fun WeatherDataColumn(
                         onUpdateThumbPosition = onUpdateDailyThumbPosition
                     )
                 }
-                Spacer(modifier = Modifier.height(24.dp))
-
-
-
-
-//                for (i in 1..6) {
-//                    Card(
-//                        modifier = Modifier
-//                            .fillMaxWidth()
-//                            .height(200.dp)
-//                            .padding(
-//                                vertical = 8.dp,
-//                                horizontal = dimensionResource(R.dimen.detail_screen_padding)
-//                            )
-//                    ) {}
-//                }
-
+                Spacer(modifier = Modifier.height(204.dp))
             }
         }
         if (timeAlpha > 0) {
@@ -573,42 +643,62 @@ fun WeatherDataColumn(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .graphicsLayer {
-                        translationY = timeTop
+                        translationY = (spaceAboveTitle + headerHeight - scrollState.value)
+                            .coerceAtLeast(headerHeight)
                         alpha = timeAlpha
                     },
                 dateTime = detailState.localDateTime
             )
         }
-        if (!showTemperature) {
+        if (detailState.chartsVisibility) {
             if (hourlyHeaderAlpha > 0) {
-                HourlyDiagramTopBar(
-                    hourlyHeaderTop = hourlyHeaderTop,
-                    detailState = detailState,
-                    chartState = chartState,
-                    barAlpha = hourlyHeaderAlpha,
-                    onUpdateHourlyDiagramSettingOpen = onUpdateHourlyDiagramSettingOpen,
-                    onUpdateChartWeatherConditionVisibility = onUpdateChartWeatherConditionVisibility,
-                    onUpdateChartDotsOnCurveVisibility = onUpdateChartDotsOnCurveVisibility,
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                        .graphicsLayer {
+                            translationY = hourlyHeaderTop
+                            alpha = hourlyHeaderAlpha
+                        }
+                ) {
+                    HourlyDiagramTopBar(
+                        endPadding = endPadding,
+                        hourlyDiagramSettingOpen = detailState.hourlyDiagramSettingOpen,
+                        dotsOnCurveVisible = hourlyChartState.dotsOnCurveVisible,
+                        sunRiseSetIconsVisible = hourlyChartState.sunRiseSetIconsVisible,
+                        weatherConditionIconsVisible = hourlyChartState.weatherConditionIconsVisible,
+                        curveShadowVisible = hourlyChartState.curveShadowVisible,
+                        chartGrid = hourlyChartState.chartGrid,
+                        onUpdateHourlyDiagramSettingOpen = onUpdateHourlyDiagramSettingOpen,
+                        onUpdateChartWeatherConditionVisibility = onUpdateChartWeatherConditionVisibility,
+                        onUpdateChartDotsOnCurveVisibility = onUpdateChartDotsOnCurveVisibility,
+                        onUpdateChartCurveShadowVisibility = onUpdateChartCurveShadowVisibility,
+                        onUpdateChartSunRiseSetIconsVisibility = onUpdateChartSunRiseSetIconsVisibility,
+                        onUpdateChartGrids = onUpdateChartGrids,
+                        onUpdateChooseDiagramThemeDialogVisibility = onUpdateChooseDiagramThemeDialogVisibility,
+                        onUpdateHourlyDiagramSettingRectangle = onUpdateHourlyDiagramSettingRectangle
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier.fillMaxWidth()
+                    .graphicsLayer {
+                        translationY = dailyHeaderTop
+                        alpha = dailyHeaderAlpha
+                    }
+            ) {
+                DailyDiagramTopBar(
+                    endPadding = endPadding,
+                    dailyDiagramSettingOpen = detailState.dailyDiagramSettingOpen,
+                    curveShadowVisible = hourlyChartState.curveShadowVisible,
+                    chartGrid = hourlyChartState.chartGrid,
+                    weatherConditionIconsVisible = dailyChartState.weatherConditionIconsVisible,
+                    onUpdateDailyDiagramSettingOpen = onUpdateDailyDiagramSettingOpen,
+                    onUpdateChartWeatherConditionVisibility = onUpdateDailyChartWeatherConditionVisibility,
                     onUpdateChartCurveShadowVisibility = onUpdateChartCurveShadowVisibility,
-                    onUpdateChartSunRiseSetIconsVisibility = onUpdateChartSunRiseSetIconsVisibility,
                     onUpdateChartGrids = onUpdateChartGrids,
                     onUpdateChooseDiagramThemeDialogVisibility = onUpdateChooseDiagramThemeDialogVisibility,
-                    onUpdateHourlyDiagramSettingRectangle = onUpdateHourlyDiagramSettingRectangle
+                    onUpdateDailyDiagramSettingRectangle = onUpdateDailyDiagramSettingRectangle
                 )
             }
-            DailyDiagramTopBar(
-                dailyHeaderTop = dailyHeaderTop,
-                detailState = detailState,
-                chartState = chartState,
-                dailyChartState = dailyChartState,
-                barAlpha = dailyHeaderAlpha,
-                onUpdateDailyDiagramSettingOpen = onUpdateDailyDiagramSettingOpen,
-                onUpdateChartWeatherConditionVisibility = onUpdateDailyChartWeatherConditionVisibility,
-                onUpdateChartCurveShadowVisibility = onUpdateChartCurveShadowVisibility,
-                onUpdateChartGrids = onUpdateChartGrids,
-                onUpdateChooseDiagramThemeDialogVisibility = onUpdateChooseDiagramThemeDialogVisibility,
-                onUpdateDailyDiagramSettingRectangle = onUpdateDailyDiagramSettingRectangle
-            )
         }
     }
 }
@@ -662,7 +752,7 @@ fun Time(
                 .height(dimensionResource(id = R.dimen.detail_screen_subtitle_height))
                 .graphicsLayer {
                     shape = RoundedCornerShape(percent = 50)
-                    shadowElevation = 8.dp.toPx()
+                    shadowElevation = 4.dp.toPx()
                     clip = true
                 }
                 .background(color = MaterialTheme.colorScheme.tertiaryContainer)

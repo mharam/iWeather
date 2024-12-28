@@ -3,8 +3,6 @@ package com.takaapoo.weatherer.ui.screens.detail.hourly_diagram
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -13,18 +11,16 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.takaapoo.weatherer.R
-import com.takaapoo.weatherer.domain.model.ChartState
+import com.takaapoo.weatherer.domain.model.HourlyChartState
 import com.takaapoo.weatherer.ui.theme.customColorScheme
 
 
 @Composable
 fun RowScope.HourlyDiagramSettingsOptions(
-    chartState: ChartState = ChartState(),
+    hourlyChartState: HourlyChartState = HourlyChartState(),
     settingsOpen: Boolean,
     pageNumber: Int,
     onUpdateHourlyDiagramSettingOpen: (open: Boolean, pageIndex: Int) -> Unit,
@@ -59,14 +55,14 @@ fun RowScope.HourlyDiagramSettingsOptions(
             leadingIcon = {
                 Icon(
                     painter = painterResource(
-                        id = if (chartState.dotsOnCurveVisible) R.drawable.curve_with_dot
+                        id = if (hourlyChartState.dotsOnCurveVisible) R.drawable.curve_with_dot
                         else R.drawable.curve_without_dot
                     ),
                     contentDescription = stringResource(id = R.string.show_curve_dots)
                 )
             },
             onClick = {
-                onUpdateChartDotsOnCurveVisibility(!chartState.dotsOnCurveVisible)
+                onUpdateChartDotsOnCurveVisibility(!hourlyChartState.dotsOnCurveVisible)
             }
         )
         DropdownMenuItem(
@@ -76,14 +72,14 @@ fun RowScope.HourlyDiagramSettingsOptions(
             leadingIcon = {
                 Icon(
                     painter = painterResource(
-                        id = if (chartState.curveShadowVisible) R.drawable.shadow_remove
-                        else R.drawable.shadow_add
+                        id = if (hourlyChartState.curveShadowVisible) R.drawable.shadow_on
+                        else R.drawable.shadow_off
                     ),
                     contentDescription = stringResource(id = R.string.show_curve_shadow)
                 )
             },
             onClick = {
-                onUpdateChartCurveShadowVisibility(!chartState.curveShadowVisible)
+                onUpdateChartCurveShadowVisibility(!hourlyChartState.curveShadowVisible)
             }
         )
         DropdownMenuItem(
@@ -93,14 +89,14 @@ fun RowScope.HourlyDiagramSettingsOptions(
             leadingIcon = {
                 Icon(
                     painter = painterResource(
-                        id = if (chartState.weatherConditionIconsVisible) R.drawable.partly_cloudy_day_fill_24px
+                        id = if (hourlyChartState.weatherConditionIconsVisible) R.drawable.partly_cloudy_day_fill_24px
                         else R.drawable.partly_cloudy_day_24px
                     ),
                     contentDescription = stringResource(id = R.string.show_weather_condition_icon)
                 )
             },
             onClick = {
-                onUpdateChartWeatherConditionVisibility(!chartState.weatherConditionIconsVisible)
+                onUpdateChartWeatherConditionVisibility(!hourlyChartState.weatherConditionIconsVisible)
             }
         )
         DropdownMenuItem(
@@ -110,14 +106,14 @@ fun RowScope.HourlyDiagramSettingsOptions(
             leadingIcon = {
                 Icon(
                     painter = painterResource(
-                        id = if (chartState.sunRiseSetIconsVisible) R.drawable.sun_rise_set_fill
+                        id = if (hourlyChartState.sunRiseSetIconsVisible) R.drawable.sun_rise_set_fill
                         else R.drawable.sun_rise_set
                     ),
                     contentDescription = stringResource(id = R.string.show_sun_rise_set_icon)
                 )
             },
             onClick = {
-                onUpdateChartSunRiseSetIconsVisibility(!chartState.sunRiseSetIconsVisible)
+                onUpdateChartSunRiseSetIconsVisibility(!hourlyChartState.sunRiseSetIconsVisible)
             }
         )
         DropdownMenuItem(
@@ -126,12 +122,12 @@ fun RowScope.HourlyDiagramSettingsOptions(
             },
             leadingIcon = {
                 Icon(
-                    painter = painterResource(id = when (chartState.chartGrid){
+                    painter = painterResource(id = when (hourlyChartState.chartGrid){
                         ChartGrids.All -> R.drawable.grid_show
                         ChartGrids.MAIN -> R.drawable.grid_main_show
                         ChartGrids.NON -> R.drawable.grid_not_show
                     }),
-                    tint = when (chartState.chartGrid){
+                    tint = when (hourlyChartState.chartGrid){
                         ChartGrids.All -> MaterialTheme.colorScheme.primary
                         ChartGrids.MAIN -> LocalContentColor.current
                         ChartGrids.NON -> MaterialTheme.customColorScheme.noGridIcon
@@ -141,7 +137,7 @@ fun RowScope.HourlyDiagramSettingsOptions(
             },
             onClick = {
                 onUpdateChartGrids(
-                    when (chartState.chartGrid){
+                    when (hourlyChartState.chartGrid){
                         ChartGrids.All -> ChartGrids.MAIN
                         ChartGrids.MAIN -> ChartGrids.NON
                         ChartGrids.NON -> ChartGrids.All

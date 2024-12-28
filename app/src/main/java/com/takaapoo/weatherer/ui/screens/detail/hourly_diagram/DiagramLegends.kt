@@ -8,7 +8,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -46,6 +45,7 @@ fun DrawScope.diagramLegends(
     indicatorPosition: Float,
     onAppSurfaceColor: Color,
     textMeasurer: TextMeasurer,
+    textColor: Color,
     timeFontFamily: FontFamily,
     onCalculateHorizontalBarSeparation:
         (start: Float, end: Float, diagramHeight: Float, textMeasurer: TextMeasurer) -> Pair<Float, Float>,
@@ -140,15 +140,18 @@ fun DrawScope.diagramLegends(
             ) < size.width - horizontalPadding) {
             drawText(
                 textLayoutResult = monthMeasuredText,
-                topLeft = Offset(x = monthTextLeft, y = monthTextTop)
+                topLeft = Offset(x = monthTextLeft, y = monthTextTop),
+                color = textColor
             )
             drawText(
                 textLayoutResult = yearMeasuredText,
-                topLeft = Offset(x = monthTextLeft, y = yearTextTop)
+                topLeft = Offset(x = monthTextLeft, y = yearTextTop),
+                color = textColor
             )
             drawText(
                 textLayoutResult = clockMeasuredText,
-                topLeft = Offset(x = clockTextLeft, y = clockTextTop)
+                topLeft = Offset(x = clockTextLeft, y = clockTextTop),
+                color = textColor
             )
         }
         x += verticalBarSeparation
@@ -167,7 +170,8 @@ fun DrawScope.diagramLegends(
         textTop = size.height - verticalPadding / 2,
         fontSize = 16.sp,
         fontFamily = timeFontFamily,
-        borderWidth = 1f
+        borderWidth = 1f,
+        textColor = textColor
     )
 
     if (yAxesRanges.isNotEmpty()) {
@@ -279,7 +283,7 @@ fun Float.customToString(separation: Float): String {
     if (abs(this) /separation < 0.01) return "0"
     return when {
         order > 2 -> "%d".format(this.roundToInt())
-        order > 0 -> {
+        order > -0.01f -> {
             if (abs(separation - separation.roundToInt()) < 0.1f) "%d".format(this.roundToInt())
             else "%.1f".format(this)
         }

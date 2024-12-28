@@ -8,7 +8,8 @@ import kotlinx.coroutines.flow.Flow
 interface LocationRepository {
     suspend fun addLocation(location: Location): Int
     fun getAllLocations(): Flow<List<Location>>
-    fun getLocation(locationId: Int): Flow<Location>
+    fun getLocationFlow(locationId: Int): Flow<Location>
+    suspend fun getLocation(locationId: Int): Location
     suspend fun getAllLocationsList(): List<Location>
     suspend fun deleteLocation(locationName: String)
     suspend fun deleteLocation(locationId: Int)
@@ -19,6 +20,7 @@ interface LocationRepository {
     suspend fun updateLocationUtcOffset(name: String, utcOffset:Long?)
     suspend fun updateLocationCustomId(id: Int, customId: Int)
     suspend fun swapLocationCustomId(id1: Int, id2: Int)
+    fun locationCount(): Flow<Int>
 
 
     // Remote server functions

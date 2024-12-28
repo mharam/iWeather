@@ -8,6 +8,7 @@ import com.takaapoo.weatherer.data.remote.WholeAirQuality
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.repository.AirQualityRepository
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 import javax.inject.Inject
 
 class AirQualityRepositoryImpl @Inject constructor(
@@ -35,14 +36,35 @@ class AirQualityRepositoryImpl @Inject constructor(
         startDate: String,
         endDate: String
     ): List<LocalAirQuality> {
-        return weatherDao.getLocationAirQuality(locationId, startDate, endDate)
+        val rawList = weatherDao.getLocationAirQuality(locationId, startDate, endDate)
+
+        val size = LocalDate.parse(startDate).until(LocalDate.parse(endDate).plusDays(1)).days * 24
+        val times = List(size){
+            LocalDate.parse(startDate).atStartOfDay().plusHours(it.toLong()).toString()
+        }
+        val airQuality = MutableList(size){
+            LocalAirQuality(locationId, times[it])
+        }
+
+        var rawIndex = 0
+        times.forEachIndexed { index, time ->
+            if (rawList.getOrNull(rawIndex)?.time == time){
+                airQuality[index] = rawList[rawIndex]
+                rawIndex++
+            }
+        }
+        return airQuality
     }
 
 
     // Remote Server Functions
-    override suspend fun getAirQualityFromServer(latitude: Float, longitude: Float): MyResult<WholeAirQuality> {
+    override suspend fun getAirQualityFromServer(
+        latitude: Float,
+        longitude: Float,
+        pastDays: Int
+    ): MyResult<WholeAirQuality> {
         val response = try {
-            airQualityApiService.getAirQuality(latitude, longitude)
+            airQualityApiService.getAirQuality(latitude, longitude, pastDays)
         } catch (e: Exception){
             return MyResult.Error(exception = e)
         }

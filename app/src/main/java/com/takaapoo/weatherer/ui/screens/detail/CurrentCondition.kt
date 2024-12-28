@@ -1,5 +1,13 @@
 package com.takaapoo.weatherer.ui.screens.detail
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.animateValue
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,12 +44,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
@@ -54,19 +63,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.takaapoo.weatherer.R
+import com.takaapoo.weatherer.data.local.LocalAirQuality
+import com.takaapoo.weatherer.data.local.LocalHourlyWeather
 import com.takaapoo.weatherer.domain.WeatherType
 import com.takaapoo.weatherer.domain.WeatherType.Companion.calculateMoonType
 import com.takaapoo.weatherer.domain.model.AppSettings
-import com.takaapoo.weatherer.domain.model.DetailState
 import com.takaapoo.weatherer.ui.screens.detail.daily_diagram.daySeconds
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.GraphTypes
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.cubicCurveXtoY
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.linearCurveXtoY
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.quantityData
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.stepCurveXtoY
-import com.takaapoo.weatherer.ui.screens.home.toPx
-import com.takaapoo.weatherer.ui.theme.curveGreen
+import com.takaapoo.weatherer.ui.theme.Gray60
+import com.takaapoo.weatherer.ui.theme.WeatherGaugeBackground
+import com.takaapoo.weatherer.ui.theme.WeatherGaugeHandle
 import com.takaapoo.weatherer.ui.theme.customColorScheme
+import com.takaapoo.weatherer.ui.utility.BorderedText
+import com.takaapoo.weatherer.ui.utility.toKmph
+import com.takaapoo.weatherer.ui.utility.toPx
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -78,10 +95,13 @@ const val valueContainerAlpha = 0.3f
 @Composable
 fun CurrentCondition(
     modifier: Modifier = Modifier,
-    weatherQuantity: List<WeatherQuantity>,
-    detailState: DetailState,
+    weatherQuantity: ImmutableList<WeatherQuantity>,
+    currentDayHourlyWeather: ImmutableList<LocalHourlyWeather>,
+    currentDayHourlyAirQuality: ImmutableList<LocalAirQuality>? = null,
+    targetX: Float,
     appSettings: AppSettings,
-    topBannerHeight: Float
+    topBannerHeight: Float,
+    scroll: Float = 0f
 ) {
     val leftPoints by remember {
         mutableStateOf(Array(size = weatherQuantity.size){Offset.Zero})
@@ -103,13 +123,13 @@ fun CurrentCondition(
         4*textMiddleX[0] > (boxWidth - spaceOccupiedByValue)) 8.dp else 0.dp
 
     val firstPointX = 0f
-    val lastPointX = detailState.currentDayHourlyWeather.size.toFloat() - 1
+    val lastPointX = currentDayHourlyWeather.size.toFloat() - 1
 
 
     Box(
         modifier = modifier
             .onGloballyPositioned {
-                boxTopY = it.positionInWindow().y
+                boxTopY = it.positionInParent().y + scroll
                 boxWidth = it.size.width.toFloat()
             }
     ) {
@@ -127,8 +147,8 @@ fun CurrentCondition(
 //                    weatherQuantity = quantity
 //                )
                 val data = quantityData(
-                    weatherData = detailState.currentDayHourlyWeather,
-                    airData = detailState.currentDayHourlyAirQuality,
+                    weatherData = currentDayHourlyWeather,
+                    airData = currentDayHourlyAirQuality,
                     weatherQuantity = quantity
                 )
                 val quantityValue = when (quantity.graphType()){
@@ -148,19 +168,21 @@ fun CurrentCondition(
                         data = data,
                         firstPointX = firstPointX,
                         lastPointX = lastPointX,
-                        targetX = detailState.targetX
+                        targetX = targetX
                     )
                     GraphTypes.STEP -> stepCurveXtoY(
                         data = data,
                         firstPointX = firstPointX,
                         lastPointX = lastPointX,
-                        targetX = detailState.targetX
+                        targetX = targetX
                     )
-                }
+                }/*?.toAppropriateUnit(quantity, appSettings)*/
                 val quantityValueText = buildAnnotatedString {
                     append(
-                        if (quantityValue != null) "%.${quantity.floatingPointDigits}f".format(quantityValue)
-                        else "?"
+                        if (quantityValue != null) {
+                            if (quantityValue == 0f) "0"
+                            else "%.${quantity.floatingPointDigits(appSettings)}f".format(quantityValue)
+                        } else "?"
                     )
                     append(quantity.unit(appSettings = appSettings))
                 }
@@ -213,7 +235,7 @@ fun CurrentCondition(
                         modifier = Modifier
                             .width(dimensionResource(id = R.dimen.current_condition_value_width))
                             .background(
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = valueContainerAlpha),
+                                color = MaterialTheme.colorScheme.secondaryContainer/*.copy(alpha = valueContainerAlpha)*/,
                                 shape = RoundedCornerShape(percent = 50)
                             )
                             .onGloballyPositioned {
@@ -228,12 +250,10 @@ fun CurrentCondition(
                                 )
                                 if (index == 0)
                                     rightPoint = Offset(
-                                        x = (it.parentLayoutCoordinates?.size?.width
-                                            ?: 0) - iconSize.toPx(density),
-                                        y = (y + (topBannerHeight - boxTopY - parentTop).coerceAtLeast(
-                                            0f
-                                        )
-                                                ).coerceAtMost(leftPoints2.last().y)
+                                        x = (it.parentLayoutCoordinates?.size?.width ?: 0) - iconSize.toPx(density),
+                                        y = (y + (topBannerHeight - boxTopY - parentTop)
+                                            .coerceAtLeast(0f))
+                                            .coerceAtMost(leftPoints2.last().y)
                                     )
                             }
                             .border(
@@ -244,7 +264,7 @@ fun CurrentCondition(
                             .padding(8.dp),
                         text = quantityValueText,
                         textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Spacer(modifier = Modifier.weight(1f))
                 }
@@ -258,10 +278,9 @@ fun CurrentCondition(
         Icon(
             modifier = Modifier
                 .size(iconSize)
-                .graphicsLayer(
+                .graphicsLayer {
                     translationY = rightPoint.y - iconSize.toPx(density) / 2
-                )
-//                .offset(y = rightPoint.y.toDp(density) - iconSize / 2)
+                }
                 .background(
                     color = MaterialTheme.colorScheme.primary,
                     shape = CircleShape
@@ -415,33 +434,52 @@ fun WeatherCurrentCondition(
 @Composable
 fun WindCurrentCondition(
     modifier: Modifier = Modifier,
-    detailState: DetailState,
-    unit: AnnotatedString
+    currentDayHourlyWeather: ImmutableList<LocalHourlyWeather>,
+    targetX: Float,
+    appSettings: AppSettings
 ) {
+//    Log.i("wind1", "WindCurrentCondition")
+    val density = LocalDensity.current
     val iconSize = dimensionResource(id = R.dimen.current_condition_icon_size)
     val firstPointX = 0f
-    val lastPointX = detailState.currentDayHourlyWeather.size.toFloat() - 1
-    val controlPoints1 = detailState.currentDayHourlyWeather.map {
+    val lastPointX = currentDayHourlyWeather.size.toFloat() - 1
+    val controlPoints1 = currentDayHourlyWeather.map {
         if (it.windSpeedControl1X != null && it.windSpeedControl1Y != null)
             Offset(it.windSpeedControl1X, it.windSpeedControl1Y)
         else null }
-    val controlPoints2 = detailState.currentDayHourlyWeather.map {
+    val controlPoints2 = currentDayHourlyWeather.map {
         if (it.windSpeedControl2X != null && it.windSpeedControl2Y != null)
             Offset(it.windSpeedControl2X, it.windSpeedControl2Y)
         else null}
     val windSpeed = cubicCurveXtoY(
-        data = detailState.currentDayHourlyWeather.map { it.windSpeed },
+        data = currentDayHourlyWeather.map { it.windSpeed },
         controlPoints1 = controlPoints1,
         controlPoints2 = controlPoints2,
         firstPointX = firstPointX,
         lastPointX = lastPointX,
-        targetX = detailState.targetX
+        targetX = targetX
     )
     val windDirection = linearCurveXtoY(
-        data = detailState.currentDayHourlyWeather.map { it.windDirection },
+        data = currentDayHourlyWeather.map { it.windDirection },
         firstPointX = firstPointX,
         lastPointX = lastPointX,
-        targetX = detailState.targetX
+        targetX = targetX
+    )
+
+    val windSpeedKmph = windSpeed?.toKmph(appSettings.speedUnit) ?: 10f
+    val infiniteTransition = rememberInfiniteTransition(label = "wind")
+    val arrowMovement by infiniteTransition.animateValue(
+        initialValue = 0f,
+        targetValue = 1f,
+        typeConverter = Float.VectorConverter,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = (1000 * 50 / windSpeedKmph).coerceAtLeast(1000f).toInt(),
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "wind arrow"
     )
 
     Row(
@@ -462,19 +500,59 @@ fun WindCurrentCondition(
         }
         Box(modifier = Modifier
             .size(dimensionResource(id = R.dimen.current_condition_gauge_width))
-            .background(
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = valueContainerAlpha),
-                shape = CircleShape
-            )
+//            .background(
+//                color = MaterialTheme.colorScheme.secondaryContainer/*.copy(alpha = valueContainerAlpha)*/,
+//                shape = CircleShape
+//            )
             .zIndex(1f)
         ){
+            val circleColor = MaterialTheme.colorScheme.secondaryContainer
+            val size = dimensionResource(id = R.dimen.current_condition_gauge_width).toPx(density)
+            val arrowWidth = size / 5.2f
+            val path = windArrowPath(size, size, arrowWidth)
+            Canvas(
+                modifier = Modifier.fillMaxSize()
+                    .graphicsLayer {
+                        rotationZ = (windDirection ?: 0f) + 180
+                    }
+//                    .clip(CircleShape)
+            ) {
+                drawIntoCanvas {
+                    it.saveLayer(
+                        Rect(0f, 0f, this.size.width, this.size.height),
+                        Paint()
+                    )
+                    drawCircle(color = circleColor)
+                    if (windSpeed != null) {
+                        for (i in 0..6) {
+                            translate(top = -1.2f * ((i / 7f + arrowMovement) % 1) * size) {
+                                drawPath(
+                                    path = path,
+                                    color = Color.Yellow,
+                                    blendMode = BlendMode.Clear
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+//            Spacer(
+//                modifier = Modifier.fillMaxSize()
+//                    .graphicsLayer {
+//                        rotationZ = (windDirection ?: 0f) + 180
+//                    }
+//                    .drawWithContent {
+//
+//                    }
+//            )
+
             Image(
                 modifier = Modifier.fillMaxSize(),
                 painter = painterResource(id = R.drawable.wind_compass),
                 contentDescription = null,
-                colorFilter = ColorFilter.tint(color = MaterialTheme.colorScheme.onPrimaryContainer)
+                colorFilter = ColorFilter.tint(color = MaterialTheme.colorScheme.onSecondaryContainer)
             )
-            windDirection?.let {
+            /*windDirection?.let {
                 Image(
                     modifier = Modifier
                         .fillMaxSize()
@@ -486,19 +564,23 @@ fun WindCurrentCondition(
                     colorFilter = ColorFilter.tint(curveGreen),
                     alpha = 0.7f
                 )
-            }
+            }*/
             Text(
                 modifier = Modifier
                     .width(64.dp)
                     .padding(8.dp)
                     .align(Alignment.Center),
                 text = buildAnnotatedString{
-                    append("%.${WeatherQuantity.WINDSPEED.floatingPointDigits}f".format(windSpeed))
-                    append(unit)
+                    if (windSpeed != null)
+                        append("%.${WeatherQuantity.WINDSPEED.floatingPointDigits(appSettings)}f".format(windSpeed))
+                    else
+                        append("?")
+                    append("\n")
+                    append(WeatherQuantity.WINDSPEED.unit(appSettings))
                 },
                 textAlign = TextAlign.Center,
                 lineHeight = 18.sp,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.onSecondaryContainer
             )
         }
         Row(
@@ -530,30 +612,51 @@ fun WindCurrentCondition(
     }
 }
 
+fun windArrowPath(
+    width: Float,
+    height: Float,
+    arrowWidth: Float
+):  androidx.compose.ui.graphics.Path {
+    val xCenter = width/2
+    val halfArrowWidth = arrowWidth/2
+    val yal = 0.4375f * arrowWidth
+
+    return Path().apply {
+        moveTo(x = xCenter, y = height)
+        lineTo(x = xCenter + halfArrowWidth, y = height + halfArrowWidth)
+        relativeLineTo(dx = 0f, dy = yal)
+        lineTo(x = xCenter, y = height + yal)
+        lineTo(x = xCenter - halfArrowWidth, y = height + halfArrowWidth + yal)
+        relativeLineTo(dx = 0f, dy = -yal)
+        close()
+    }
+}
+
 @Composable
 fun UVCurrentCondition(
     modifier: Modifier = Modifier,
-    detailState: DetailState,
-    unit: AnnotatedString
+    currentDayHourlyWeather: ImmutableList<LocalHourlyWeather>,
+    targetX: Float,
+    appSettings: AppSettings
 ) {
     val iconSize = dimensionResource(id = R.dimen.current_condition_icon_size)
     val firstPointX = 0f
-    val lastPointX = detailState.currentDayHourlyWeather.size.toFloat() - 1
-    val controlPoints1 = detailState.currentDayHourlyWeather.map {
+    val lastPointX = currentDayHourlyWeather.size.toFloat() - 1
+    val controlPoints1 = currentDayHourlyWeather.map {
         if (it.uvIndexControl1X != null && it.uvIndexControl1Y != null)
             Offset(it.uvIndexControl1X, it.uvIndexControl1Y)
         else null }
-    val controlPoints2 = detailState.currentDayHourlyWeather.map {
+    val controlPoints2 = currentDayHourlyWeather.map {
         if (it.uvIndexControl2X != null && it.uvIndexControl2Y != null)
             Offset(it.uvIndexControl2X, it.uvIndexControl2Y)
         else null}
     val uvIndex = cubicCurveXtoY(
-        data = detailState.currentDayHourlyWeather.map { it.uvIndex },
+        data = currentDayHourlyWeather.map { it.uvIndex },
         controlPoints1 = controlPoints1,
         controlPoints2 = controlPoints2,
         firstPointX = firstPointX,
         lastPointX = lastPointX,
-        targetX = detailState.targetX
+        targetX = targetX
     )?.coerceAtLeast(0f)
 
     Row(
@@ -575,11 +678,12 @@ fun UVCurrentCondition(
         Box(modifier = Modifier
             .size(dimensionResource(id = R.dimen.current_condition_gauge_width))
             .background(
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = valueContainerAlpha),
+                color = WeatherGaugeBackground,
                 shape = CircleShape
             )
             .zIndex(1f)
         ){
+            val unit = WeatherQuantity.UVINDEX.unit(appSettings)
             val size = DailyWeatherQuantity.UVINDEXMAX.brushColors.size
             val colorStops = Array(size) { index ->
                 (0.75f * index / (size - 1) + 0.125f) to DailyWeatherQuantity.UVINDEXMAX.brushColors[index]
@@ -609,7 +713,7 @@ fun UVCurrentCondition(
             Image(
                 modifier = Modifier.fillMaxSize(),
                 painter = painterResource(id = R.drawable.uv_gauge),
-                contentDescription = null
+                contentDescription = null,
             )
             Image(
                 modifier = Modifier
@@ -617,22 +721,21 @@ fun UVCurrentCondition(
                     .rotate((uvIndex ?: 0f) * 270 / 11),
                 painter = painterResource(id = R.drawable.uv_handle),
                 contentDescription = null,
-                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary)
+                colorFilter = ColorFilter.tint(WeatherGaugeHandle)
             )
-            Text(
-                modifier = Modifier
-                    .width(64.dp)
-                    .align(Alignment.BottomCenter),
+            BorderedText(
+                modifier = Modifier.align(Alignment.BottomCenter),
                 text = buildAnnotatedString{
                     append(
-                        if (uvIndex != null) "%.${WeatherQuantity.UVINDEX.floatingPointDigits}f".format(uvIndex)
+                        if (uvIndex != null)
+                            "%.${WeatherQuantity.UVINDEX.floatingPointDigits(appSettings)}f".format(uvIndex)
                         else "?"
                     )
-                    append(unit)
                 },
-                textAlign = TextAlign.Center,
-                lineHeight = 16.sp,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                fontSize = 16.sp,
+                strokeWidth = 1.5f,
+                fillColor = Gray60,
+                alignment = Alignment.Center
             )
         }
         Row(
@@ -676,8 +779,10 @@ fun CurrentConditionPreview(modifier: Modifier = Modifier) {
         weatherQuantity = listOf(
             WeatherQuantity.PRECIPITATION,
             WeatherQuantity.PRECIPITATIONPROBABILITY
-        ),
-        detailState = DetailState(),
+        ).toImmutableList(),
+        currentDayHourlyWeather = persistentListOf(),
+        currentDayHourlyAirQuality = persistentListOf(),
+        targetX = 0f,
         appSettings = AppSettings(),
         topBannerHeight = 0f,
     )

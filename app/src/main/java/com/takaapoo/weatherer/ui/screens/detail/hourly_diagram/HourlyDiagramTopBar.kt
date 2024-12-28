@@ -23,33 +23,41 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.toFontFamily
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.takaapoo.weatherer.R
-import com.takaapoo.weatherer.domain.model.ChartState
-import com.takaapoo.weatherer.domain.model.DetailState
-import com.takaapoo.weatherer.ui.screens.home.toSp
 import com.takaapoo.weatherer.ui.theme.customColorScheme
+import com.takaapoo.weatherer.ui.utility.toSp
 
 @Composable
 fun BoxScope.HourlyDiagramTopBar(
     modifier: Modifier = Modifier,
-    hourlyHeaderTop: Float,
-    barAlpha: Float,
-    detailState: DetailState,
-    chartState: ChartState,
+    endPadding: Dp,
+    hourlyDiagramSettingOpen: Boolean,
+    dotsOnCurveVisible: Boolean,
+    curveShadowVisible: Boolean,
+    weatherConditionIconsVisible: Boolean,
+    sunRiseSetIconsVisible: Boolean,
+    chartGrid: ChartGrids,
     onUpdateHourlyDiagramSettingOpen: (open: Boolean) -> Unit,
     onUpdateChartWeatherConditionVisibility: (visible: Boolean) -> Unit,
     onUpdateChartDotsOnCurveVisibility: (visible: Boolean) -> Unit,
@@ -59,14 +67,16 @@ fun BoxScope.HourlyDiagramTopBar(
     onUpdateChooseDiagramThemeDialogVisibility: () -> Unit,
     onUpdateHourlyDiagramSettingRectangle: (rect: Rect) -> Unit
 ) {
+    var settingRectangle by remember {
+        mutableStateOf(Rect(0f, 0f, 0f, 0f))
+    }
+    LaunchedEffect(settingRectangle) {
+        onUpdateHourlyDiagramSettingRectangle(settingRectangle)
+    }
     Row(
         modifier = modifier
             .fillMaxWidth()
             .align(Alignment.TopCenter)
-            .graphicsLayer {
-                translationY = hourlyHeaderTop
-                alpha = barAlpha
-            }
             .padding(
                 horizontal = 8.dp,
                 vertical = dimensionResource(id = R.dimen.detail_screen_subtitle_vertical_padding)
@@ -80,84 +90,89 @@ fun BoxScope.HourlyDiagramTopBar(
         )
         Column(
             modifier = Modifier
+                .padding(end = endPadding)
                 .width(48.dp)
-                .height(if (detailState.hourlyDiagramSettingOpen) 336.dp else 48.dp)
+                .height(if (hourlyDiagramSettingOpen) 336.dp else 48.dp)
                 .graphicsLayer {
                     shape = RoundedCornerShape(percent = 50)
-                    shadowElevation = 8.dp.toPx()
+                    shadowElevation = 4.dp.toPx()
                     clip = true
                 }
                 .zIndex(2f)
                 .onGloballyPositioned {
-                    onUpdateHourlyDiagramSettingRectangle(it.boundsInRoot())
+                    val displace = it.parentLayoutCoordinates!!.parentLayoutCoordinates!!.positionInParent().y
+                    settingRectangle = it.boundsInParent().copy(
+                        top = it.boundsInParent().top + displace,
+                        bottom = it.boundsInParent().bottom + displace
+                    )
                 }
-                .background(color = MaterialTheme.customColorScheme.detailScreenSurface),
+                .background(color = MaterialTheme.customColorScheme.searchbarSurface),
             verticalArrangement = Arrangement.Top
         ) {
             IconToggleButton(
-                checked = detailState.hourlyDiagramSettingOpen,
+                checked = hourlyDiagramSettingOpen,
                 onCheckedChange = {
                     onUpdateHourlyDiagramSettingOpen(it)
                 },
-                enabled = barAlpha > 0.9f
+//                enabled = barAlpha > 0.9f
             ) {
                 Icon(
-                    imageVector = if (detailState.hourlyDiagramSettingOpen) Icons.Filled.Settings
+                    imageVector = if (hourlyDiagramSettingOpen) Icons.Filled.Settings
                     else Icons.Outlined.Settings,
                     contentDescription = stringResource(id = R.string.settings)
                 )
             }
             IconToggleButton(
-                checked = chartState.dotsOnCurveVisible,
+                checked = dotsOnCurveVisible,
                 onCheckedChange = {
                     onUpdateChartDotsOnCurveVisibility(it)
                 }
             ) {
                 Icon(
                     painter = painterResource(
-                        id = if (chartState.dotsOnCurveVisible) R.drawable.curve_with_dot
+                        id = if (dotsOnCurveVisible) R.drawable.curve_with_dot
                         else R.drawable.curve_without_dot
                     ),
                     contentDescription = stringResource(id = R.string.show_curve_dots)
                 )
             }
             IconToggleButton(
-                checked = chartState.curveShadowVisible,
+                checked = curveShadowVisible,
                 onCheckedChange = {
                     onUpdateChartCurveShadowVisibility(it)
                 }
             ) {
                 Icon(
                     painter = painterResource(
-                        id = if (chartState.curveShadowVisible) R.drawable.shadow_remove
-                        else R.drawable.shadow_add
+                        id = if (curveShadowVisible) R.drawable.shadow_on
+                        else R.drawable.shadow_off
                     ),
                     contentDescription = stringResource(id = R.string.show_curve_shadow)
                 )
             }
             IconToggleButton(
-                checked = chartState.weatherConditionIconsVisible,
+                checked = weatherConditionIconsVisible,
                 onCheckedChange = {
                     onUpdateChartWeatherConditionVisibility(it)
                 }
             ) {
                 Icon(
                     painter = painterResource(
-                        id = if (chartState.weatherConditionIconsVisible) R.drawable.partly_cloudy_day_fill_24px
+                        id = if (weatherConditionIconsVisible) R.drawable.partly_cloudy_day_fill_24px
                         else R.drawable.partly_cloudy_day_24px
                     ),
                     contentDescription = stringResource(id = R.string.show_weather_condition_icon)
                 )
             }
             IconToggleButton(
-                checked = chartState.sunRiseSetIconsVisible,
+                checked = sunRiseSetIconsVisible,
                 onCheckedChange = {
                     onUpdateChartSunRiseSetIconsVisibility(it)
                 }
             ) {
                 Icon(
                     painter = painterResource(
-                        id = if (chartState.sunRiseSetIconsVisible) R.drawable.sun_rise_set_fill
+                        id = if (sunRiseSetIconsVisible) R.drawable.sun_rise_set_fill
                         else R.drawable.sun_rise_set
                     ),
                     contentDescription = stringResource(id = R.string.show_sun_rise_set_icon)
@@ -166,7 +181,7 @@ fun BoxScope.HourlyDiagramTopBar(
             IconButton(
                 onClick = {
                     onUpdateChartGrids(
-                        when (chartState.chartGrid){
+                        when (chartGrid){
                             ChartGrids.All -> ChartGrids.MAIN
                             ChartGrids.MAIN -> ChartGrids.NON
                             ChartGrids.NON -> ChartGrids.All
@@ -175,12 +190,12 @@ fun BoxScope.HourlyDiagramTopBar(
                 }
             ) {
                 Icon(
-                    painter = painterResource(id = when (chartState.chartGrid){
+                    painter = painterResource(id = when (chartGrid){
                         ChartGrids.All -> R.drawable.grid_show
                         ChartGrids.MAIN -> R.drawable.grid_main_show
                         ChartGrids.NON -> R.drawable.grid_not_show
                     }),
-                    tint = when (chartState.chartGrid){
+                    tint = when (chartGrid){
                         ChartGrids.All -> MaterialTheme.colorScheme.primary
                         ChartGrids.MAIN -> LocalContentColor.current
                         ChartGrids.NON -> MaterialTheme.customColorScheme.noGridIcon
@@ -216,7 +231,7 @@ fun HourlyDiagramsTitle(
                 .height(dimensionResource(id = R.dimen.detail_screen_subtitle_height))
                 .graphicsLayer {
                     shape = RoundedCornerShape(percent = 50)
-                    shadowElevation = 8.dp.toPx()
+                    shadowElevation = 4.dp.toPx()
                     clip = true
                 }
                 .background(color = MaterialTheme.colorScheme.tertiaryContainer)

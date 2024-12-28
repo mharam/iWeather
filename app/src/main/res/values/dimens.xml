@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <dimen name="drawer_width">280dp</dimen>
+    <dimen name="start_add_location">128dp</dimen>
+
+    <dimen name="home_card_spacing">16dp</dimen>
     <dimen name="home_card_top_over_head">24dp</dimen>
     <dimen name="home_card_corner_radius">16dp</dimen>
     <dimen name="home_card_overhead_distance">40dp</dimen>
@@ -7,10 +11,12 @@
     <dimen name="home_card_max_width">460dp</dimen>
     <dimen name="home_card_max_height">296dp</dimen>
     <dimen name="home_card_clock_round">32dp</dimen>
-    <dimen name="home_card_bottom_border">32dp</dimen>
+    <dimen name="home_card_bottom_border">40dp</dimen>
     <dimen name="home_card_icons_radius">20dp</dimen>
+    <dimen name="home_card_thermo_bottom_radius">10dp</dimen>
+    <dimen name="home_card_thermo_top_radius">4dp</dimen>
+    <dimen name="home_card_mercury_space_to_end">4dp</dimen>
 
-    <dimen name="home_card_spacing">16dp</dimen>
     <dimen name="weather_item_data_height">110dp</dimen>
     <dimen name="day_display_height">32dp</dimen>
     <dimen name="day_display_item_height">31dp</dimen>
@@ -28,6 +34,7 @@
     <dimen name="current_condition_gauge_width">124dp</dimen>
     <dimen name="current_condition_icon_size">48dp</dimen>
     <dimen name="diagram_corner_radius">8dp</dimen>
+    <dimen name="diagram_height">382dp</dimen>
 
     <dimen name="hourly_curve_point_size">6dp</dimen>
     <dimen name="daily_curve_point_size">4dp</dimen>
@@ -40,5 +47,8 @@
     <dimen name="diagram_frame_ver_padding">48dp</dimen>
     <dimen name="diagram_curve_width">2dp</dimen>
     <dimen name="whole_diagram_hor_padding">8dp</dimen>
+
+    <dimen name="rail_edge_width">2dp</dimen>
+    <dimen name="tense_width">72dp</dimen>
 
 </resources>

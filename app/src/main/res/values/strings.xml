@@ -47,6 +47,7 @@
     <string name="dark_theme">Dark</string>
     <string name="app_theme">App theme</string>
     <string name="day_night">Day/Night</string>
+    <string name="default_theme">System default</string>
     
     <string-array name="air_quality_description">
         <item>Good</item>
@@ -56,5 +57,23 @@
         <item>Very Unhealthy</item>
         <item>Hazardous</item>
     </string-array>
+
+    <string name="celsius">Celsius</string>
+    <string name="fahrenheit">Fahrenheit</string>
+    <string name="kelvin">Kelvin</string>
+
+    <string name="si">meter</string>
+    <string name="imperial">inch, foot, mile</string>
+
+    <string name="pa">Pascal</string>
+    <string name="bar">Bar</string>
+    <string name="psi">Pounds per square inch</string>
+    <string name="atm">Atmosphere</string>
+
+    <string name="kph">kilometer‌/‌hour</string>
+    <string name="mph">mile‌/‌hour</string>
+    <string name="mps">meter‌/‌second</string>
+
+
 
 </resources>

@@ -1,5 +1,6 @@
 package com.takaapoo.weatherer.ui.screens.detail.aq_detail
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -16,13 +17,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -49,6 +51,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.text.AnnotatedString
@@ -63,20 +66,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.DetailState
 import com.takaapoo.weatherer.ui.screens.detail.AirQualityCurrentCondition2
-import com.takaapoo.weatherer.ui.screens.detail.BorderedText
 import com.takaapoo.weatherer.ui.screens.detail.SingleConnector4
 import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.linearCurveXtoY
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.quantityData
-import com.takaapoo.weatherer.ui.screens.detail.valueContainerAlpha
-import com.takaapoo.weatherer.ui.screens.home.toSp
 import com.takaapoo.weatherer.ui.theme.AQGreen
 import com.takaapoo.weatherer.ui.theme.AQMaroon
 import com.takaapoo.weatherer.ui.theme.AQOrange
@@ -85,6 +83,10 @@ import com.takaapoo.weatherer.ui.theme.AQRed
 import com.takaapoo.weatherer.ui.theme.AQYellow
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
 import com.takaapoo.weatherer.ui.theme.customColorScheme
+import com.takaapoo.weatherer.ui.utility.BorderedText
+import com.takaapoo.weatherer.ui.utility.toCelsius
+import com.takaapoo.weatherer.ui.utility.toPa
+import com.takaapoo.weatherer.ui.utility.toSp
 import com.takaapoo.weatherer.ui.viewModels.timeFontFamily
 import java.time.format.DateTimeFormatter
 
@@ -92,12 +94,12 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun AirQualityDetailScreen(
     modifier: Modifier = Modifier,
-    navController: NavController = rememberNavController(),
     detailState: DetailState = DetailState(),
     location: Location,
     appSettings: AppSettings = AppSettings(),
 //    sharedTransitionScope: SharedTransitionScope,
 //    animatedContentScope: AnimatedContentScope
+    onNavigateUp: () -> Unit
 ) {
     val density = LocalDensity.current
 
@@ -130,14 +132,15 @@ fun AirQualityDetailScreen(
         firstPointX = firstPointX,
         lastPointX = lastPointX,
         targetX = detailState.targetX
-    )
+    )?.toCelsius(appSettings.temperatureUnit)
     val currentPressure = linearCurveXtoY(
         data = pressureData,
         firstPointX = firstPointX,
         lastPointX = lastPointX,
         targetX = detailState.targetX
-    )
+    )?.toPa(appSettings.pressureUnit)
 
+    val layoutDirection = LocalLayoutDirection.current
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -152,9 +155,7 @@ fun AirQualityDetailScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        navController.navigateUp()
-                    }) {
+                    IconButton(onClick = onNavigateUp) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
@@ -174,12 +175,15 @@ fun AirQualityDetailScreen(
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Color(0x00FFFFFF)
+                ),
+                windowInsets = WindowInsets(
+                    left = 0, top = TopAppBarDefaults.windowInsets.getTop(density), right = 0, bottom = 0
                 )
             )
         }
     ) { paddingValues ->
         Box(
-            modifier = modifier
+            modifier = Modifier
                 .fillMaxSize()
                 .padding(
                     top = paddingValues.calculateTopPadding(),
@@ -189,10 +193,11 @@ fun AirQualityDetailScreen(
                 .background(color = MaterialTheme.customColorScheme.detailScreenSurface)
         ) {
             Box(
-                modifier = modifier
+                modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = dimensionResource(id = R.dimen.detail_screen_subtitle_vertical_padding))
                     .zIndex(1f)
+                    .align(Alignment.TopCenter)
             ) {
                 Row(
                     modifier = Modifier
@@ -370,7 +375,9 @@ fun AirQualityDetailScreen(
                     )
                     Text(text = ": ")
                     Text(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(end = paddingValues.calculateEndPadding(layoutDirection))
+                        ,
                         text = buildAnnotatedString {
                             append("Particulate matter with diameter smaller than 10 ")
                             withStyle(
@@ -425,7 +432,8 @@ fun AirQualityDetailScreen(
                     )
                     Text(text = ": ")
                     Text(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(end = paddingValues.calculateEndPadding(layoutDirection)),
                         text = "Atmospheric gases close to surface (10 meter above ground)",
                         textAlign = TextAlign.Justify
                     )
@@ -496,6 +504,9 @@ fun AirQualityDetailScreen(
             }
         }
     }
+    BackHandler {
+        onNavigateUp()
+    }
 }
 
 @Composable
@@ -553,6 +564,7 @@ fun AirQualityDetailScreenPreview(modifier: Modifier = Modifier) {
     WeathererTheme {
         AirQualityDetailScreen(
             location = Location(),
+            onNavigateUp = {}
         )
     }
 }

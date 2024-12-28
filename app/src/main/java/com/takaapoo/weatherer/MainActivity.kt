@@ -6,36 +6,40 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Point
 import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
-import android.util.DisplayMetrics
-import android.util.Log
+import android.view.View
+import android.view.ViewTreeObserver
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.datastore.dataStore
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.location.LocationSettingsStates
-import com.takaapoo.weatherer.data.remote.generateControlPoints2
-import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.AppSettingsSerializer
 import com.takaapoo.weatherer.ui.screens.AppScreen
 import com.takaapoo.weatherer.ui.screens.add_location.REQUEST_CHECK_SETTINGS
-import com.takaapoo.weatherer.ui.screens.home.HomeScreen
+import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
 import com.takaapoo.weatherer.ui.utility.readJSONFromAssets
 import com.takaapoo.weatherer.ui.viewModels.AddLocationViewModel
+import com.takaapoo.weatherer.ui.viewModels.HomeViewModel
+import com.takaapoo.weatherer.ui.viewModels.PreferenceViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -52,11 +56,13 @@ lateinit var moonPhaseMap: Map<String, JsonElement>
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    private val displayMetrics = DisplayMetrics()
+//    private val displayMetrics = DisplayMetrics()
     var windowHeight = 0
     var windowWidth = 0
 
+    private val homeViewModel: HomeViewModel by viewModels()
     private val addLocationViewModel: AddLocationViewModel by viewModels()
+    private val preferenceViewModel: PreferenceViewModel by viewModels()
     lateinit var appName: String
     private lateinit var locationChangeReceiver: BroadcastReceiver
 
@@ -79,17 +85,49 @@ class MainActivity : ComponentActivity() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(
+                scrim = Transparent.toArgb(),
+                darkScrim = Transparent.toArgb()
+            ),
+            navigationBarStyle = SystemBarStyle.light(
+                scrim = Transparent.toArgb(),
+                darkScrim = Transparent.toArgb()
+            )
+        )
+        // Set up an OnPreDrawListener to the root view.
+        val content: View = findViewById(android.R.id.content)
+        content.viewTreeObserver.addOnPreDrawListener(
+            object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    // Check whether the initial data is ready.
+                    return if (homeViewModel.locationsState.value.firstOrNull()?.locationId == -2) {
+                        // The content isn't ready. Suspend.
+                        false
+                    } else {
+                        // The content is ready. Start drawing.
+                        content.viewTreeObserver.removeOnPreDrawListener(this)
+                        true
+                    }
+                }
+            }
+        )
+
+
         WindowCompat.setDecorFitsSystemWindows(window, false)
         if (Build.VERSION.SDK_INT > 29) {
             windowHeight = windowManager.currentWindowMetrics.bounds.height()
             windowWidth = windowManager.currentWindowMetrics.bounds.width()
         } else {
-            windowManager.defaultDisplay.getRealMetrics(displayMetrics)
-            windowHeight = displayMetrics.heightPixels
-            windowWidth = displayMetrics.widthPixels
+            val outSize = Point()
+            windowManager.defaultDisplay.getSize(outSize)
+//            windowManager.defaultDisplay.getRealMetrics(displayMetrics)
+            windowHeight = outSize.y
+            windowWidth = outSize.x
         }
-
+//Log.i("size1", "windowWidth = ${windowWidth} , windowHeight = ${windowHeight}")
         appName = applicationInfo.loadLabel(packageManager).toString()
         locationChangeReceiver = LocationProviderChangeReceiver(
             onUpdateDeviceLocationEnabled = {
@@ -101,7 +139,9 @@ class MainActivity : ComponentActivity() {
         ).jsonObject.toMap()
 
         setContent {
-            WeathererTheme {
+            WeathererTheme(
+                preferenceViewModel = preferenceViewModel
+            ) {
                 // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -109,7 +149,9 @@ class MainActivity : ComponentActivity() {
                 ) {
                     AppScreen(
                         modifier = Modifier.fillMaxSize(),
-                        addLocationViewModel = addLocationViewModel
+                        homeViewModel = homeViewModel,
+                        addLocationViewModel = addLocationViewModel,
+                        preferenceViewModel = preferenceViewModel
                     )
                 }
             }
@@ -152,14 +194,16 @@ class MainActivity : ComponentActivity() {
 }
 
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    WeathererTheme {
-        HomeScreen(
-            appSettings = AppSettings(),
-            onMenuButtonClick = {},
-            initialFirstItemIndex = 0
-        )
-    }
-}
+//@Preview(showBackground = true)
+//@Composable
+//fun GreetingPreview() {
+//    WeathererTheme {
+//        HomeScreen(
+//            appSettings = AppSettings(),
+//            onMenuButtonClick = {},
+//            initialFirstItemIndex = 0,
+//            onNavigateToDetailScreen = {_, _ ->},
+//            onNavigateToAddLocationScreen = {}
+//        )
+//    }
+//}

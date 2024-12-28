@@ -8,10 +8,12 @@ interface RemoteWeatherRepository {
     suspend fun getHourlyWeatherFromServer(
         latitude: Float,
         longitude: Float,
-        currentWeather: Boolean
+//        currentWeather: Boolean,
+        pastDays: Int
     ): MyResult<HourlyWeatherPack>
     suspend fun getDailyWeatherFromServer(
         latitude: Float,
         longitude: Float,
+        pastDays: Int
     ): MyResult<DailyWeatherPack>
 }

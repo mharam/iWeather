@@ -22,18 +22,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -42,9 +37,10 @@ import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.DiagramRailShape
 import com.takaapoo.weatherer.ui.screens.detail.diagramRailPath
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.pathInnerShadow
-import com.takaapoo.weatherer.ui.screens.home.toPx
 import com.takaapoo.weatherer.ui.theme.DiagramShadow
 import com.takaapoo.weatherer.ui.theme.Gray20
+import com.takaapoo.weatherer.ui.theme.customColorScheme
+import com.takaapoo.weatherer.ui.utility.toPx
 
 @Composable
 fun DailyQuantityChooserRail(
@@ -55,6 +51,7 @@ fun DailyQuantityChooserRail(
     val density = LocalDensity.current
     val scrollState = rememberScrollState()
     @DrawableRes val displayingIconId  = quantity.iconId
+    val railBackgroundColor = MaterialTheme.customColorScheme.railBackground
     Box(
         modifier = modifier.fillMaxWidth()
     ) {
@@ -63,7 +60,7 @@ fun DailyQuantityChooserRail(
                 .align(Alignment.CenterStart)
                 .size(48.dp)
                 .background(
-                    color = MaterialTheme.colorScheme.primaryContainer,
+                    color = MaterialTheme.colorScheme.primary,
                     shape = RoundedCornerShape(
                         topStart = 0.dp,
                         topEnd = 24.dp,
@@ -73,19 +70,25 @@ fun DailyQuantityChooserRail(
                 )
                 .padding(12.dp),
             painter = painterResource(displayingIconId),
-            contentDescription = "weather related curves"
+            contentDescription = "weather related curves",
+            tint = MaterialTheme.colorScheme.onPrimary
         )
+        val edgeWidth = dimensionResource(R.dimen.rail_edge_width).toPx(density)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(DiagramRailShape())
                 .drawWithContent {
                     val path = diagramRailPath(size.width, size.height, density)
+                    drawPath(
+                        path = path,
+                        color = railBackgroundColor,
+                    )
                     drawContent()
                     drawPath(
                         path = path,
                         color = Gray20,
-                        style = Stroke(3f)
+                        style = Stroke(edgeWidth)
                     )
                     pathInnerShadow(
                         color = DiagramShadow,

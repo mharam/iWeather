@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -71,11 +72,12 @@ fun EditDialog(
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    text = "Choose a new name for this location",
+                    text = "Choose a new name",
                     modifier = Modifier.align(Alignment.Start),
                     style = MaterialTheme.typography.bodyMedium,
-                    fontSize = 16.sp,
-                    fontFamily = FontFamily.Default
+//                    fontWeight = FontWeight.Normal
+//                    fontSize = 16.sp,
+//                    fontFamily = FontFamily.Default
                 )
                 Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
@@ -125,7 +127,7 @@ fun EditDialog(
                         enabled = locationName.isNotEmpty()
                     ) {
                         Text(
-                            text = "Change Name",
+                            text = "Change",
                             fontFamily = FontFamily.Default
                         )
                     }
