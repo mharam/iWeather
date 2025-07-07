@@ -35,6 +35,7 @@ import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.normalizedY
 import com.takaapoo.weatherer.ui.theme.OnDiagramDarkTheme
 import com.takaapoo.weatherer.ui.theme.OnDiagramLightTheme
 import com.takaapoo.weatherer.ui.theme.Transparent
+import com.takaapoo.weatherer.utility.drawThickText
 
 
 @Composable

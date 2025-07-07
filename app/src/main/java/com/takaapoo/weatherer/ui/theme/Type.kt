@@ -6,6 +6,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.toFontFamily
 import androidx.compose.ui.unit.sp
 import com.takaapoo.weatherer.R
 
@@ -21,6 +22,10 @@ val Cmu = FontFamily(
     Font(resId = R.font.cmu_serif_bold, weight = FontWeight.Bold),
     Font(resId = R.font.cmu_serif_italic, style = FontStyle.Italic),
 )
+
+val timeFontFamily = Font(R.font.cmu_typewriter_bold).toFontFamily()
+val gerdFontFamily = Font(R.font.cmu_demi_condensed).toFontFamily()
+
 
 // Set of Material typography styles to start with
 val Typography = Typography(

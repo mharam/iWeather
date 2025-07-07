@@ -191,7 +191,7 @@ fun AddLocationScreen(
             )
         }
     ) {
-        Box(modifier = modifier.fillMaxSize()){
+        Box(modifier = Modifier.fillMaxSize()){
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,

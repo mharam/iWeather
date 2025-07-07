@@ -39,14 +39,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.toFontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.ui.theme.customColorScheme
-import com.takaapoo.weatherer.ui.utility.toSp
+import com.takaapoo.weatherer.ui.theme.timeFontFamily
+import com.takaapoo.weatherer.utility.toSp
 
 @Composable
 fun BoxScope.HourlyDiagramTopBar(
@@ -240,7 +239,7 @@ fun HourlyDiagramsTitle(
                 .align(Alignment.Center),
             text = "Hourly Diagrams",
             fontSize = dimensionResource(id = R.dimen.detail_screen_subtitle_font_size).toSp(density),
-            fontFamily = Font(R.font.cmu_typewriter_bold).toFontFamily(),
+            fontFamily = timeFontFamily,
             color = MaterialTheme.colorScheme.onTertiaryContainer
         )
     }

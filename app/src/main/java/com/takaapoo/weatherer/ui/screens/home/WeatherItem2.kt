@@ -76,11 +76,10 @@ import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.font.toFontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -113,8 +112,10 @@ import com.takaapoo.weatherer.ui.theme.LoadingData
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.TransparentGray50
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
-import com.takaapoo.weatherer.ui.utility.BorderedText
-import com.takaapoo.weatherer.ui.utility.toPx
+import com.takaapoo.weatherer.ui.theme.gerdFontFamily
+import com.takaapoo.weatherer.ui.theme.timeFontFamily
+import com.takaapoo.weatherer.utility.BorderedText
+import com.takaapoo.weatherer.utility.toPx
 import kotlin.math.PI
 import kotlin.math.acos
 import kotlin.math.asin
@@ -225,6 +226,7 @@ fun WeatherItem2(
                     ),
                     shape = RoundedCornerShape(dimensionResource(R.dimen.home_card_corner_radius))
                 )
+                .clip(RoundedCornerShape(dimensionResource(R.dimen.home_card_corner_radius)))
                 .clickable {
                     when (dragState.currentValue) {
                         DragValue.Right -> onDeleteIconPressed(
@@ -442,11 +444,12 @@ fun WeatherItem2(
                             currentTemperature = itemState.currentTemperature,
                             maxTemperature = itemState.todayMaxTemperature,
                             minTemperature = itemState.todayMinTemperature,
-                            humidity = itemState.currentHumidity,
-                            precipitationProbability = itemState.currentPrecipitationProbability,
-                            windSpeed = itemState.currentWindSpeed,
-                            windDirection = itemState.currentWindDirection,
-                            airQuality = itemState.currentAirQuality,
+//                            humidity = itemState.currentHumidity,
+//                            precipitationProbability = itemState.currentPrecipitationProbability,
+//                            windSpeed = itemState.currentWindSpeed,
+//                            windDirection = itemState.currentWindDirection,
+//                            airQuality = itemState.currentAirQuality,
+                            itemState = itemState,
                             appSettings = appSettings,
                             isDay = itemState.isDay
                         )
@@ -464,7 +467,7 @@ fun WeatherItem2(
                                 .wrapContentHeight(align = Alignment.CenterVertically)
                             ,
                             text = "${itemState.dayOfWeek}., ${itemState.month} ${itemState.day}, ${itemState.year}",
-                            fontFamily = Font(resId = R.font.cmu_typewriter_bold).toFontFamily(),
+                            fontFamily = timeFontFamily,
                             fontSize = 14.sp,
                             color = textColor
                         )
@@ -637,7 +640,7 @@ fun CardTitle(
             .wrapContentHeight(align = Alignment.CenterVertically),
         text = locationName,
         fontSize = 20.sp,
-        fontFamily = Font(resId = R.font.cmu_demi_condensed).toFontFamily(),
+        fontFamily = gerdFontFamily,
         overflow = TextOverflow.Ellipsis,
         textAlign = TextAlign.Center,
         color = color
@@ -650,11 +653,7 @@ fun WeatherData(
     currentTemperature: Float?,
     maxTemperature: Float?,
     minTemperature: Float?,
-    humidity: Float?,
-    precipitationProbability: Float?,
-    windSpeed: Float?,
-    windDirection: Float?,
-    airQuality: Int?,
+    itemState: LocationsState,
     appSettings: AppSettings,
     isDay: Boolean
 ) {
@@ -672,22 +671,48 @@ fun WeatherData(
         val columnGuidelines = List(size = 5){ i ->
             createGuidelineFromStart((i + 1) / 6f)
         }
-        AirQualityData2(
-            modifier = Modifier.constrainAs(column1){
-                centerAround(columnGuidelines[0])
-                bottom.linkTo(parent.bottom)
-            },
-            usAQI = airQuality,
-            color = color
-        )
-        HumidityData2(
-            modifier = Modifier.constrainAs(column2){
-                centerAround(columnGuidelines[1])
-                bottom.linkTo(parent.bottom)
-            },
-            humidity = humidity,
-            color = color
-        )
+        appSettings.cardWeatherQuantities.getOrNull(0)?.let {
+            QuantityData(
+                modifier = Modifier.constrainAs(column1){
+                    centerAround(columnGuidelines[0])
+                    bottom.linkTo(parent.bottom)
+                },
+                quantity = it,
+                quantityValue = itemState.quantityValue(it),
+                quantity2Value = itemState.currentWindDirection,
+                appSettings = appSettings,
+                color = color
+            )
+        }
+//        AirQualityData2(
+//            modifier = Modifier.constrainAs(column1){
+//                centerAround(columnGuidelines[0])
+//                bottom.linkTo(parent.bottom)
+//            },
+//            usAQI = airQuality,
+//            color = color
+//        )
+        appSettings.cardWeatherQuantities.getOrNull(1)?.let {
+            QuantityData(
+                modifier = Modifier.constrainAs(column2){
+                    centerAround(columnGuidelines[1])
+                    bottom.linkTo(parent.bottom)
+                },
+                quantity = it,
+                quantityValue = itemState.quantityValue(it),
+                quantity2Value = itemState.currentWindDirection,
+                appSettings = appSettings,
+                color = color
+            )
+        }
+//        HumidityData2(
+//            modifier = Modifier.constrainAs(column2){
+//                centerAround(columnGuidelines[1])
+//                bottom.linkTo(parent.bottom)
+//            },
+//            humidity = humidity,
+//            color = color
+//        )
         TemperatureData2(
             modifier = Modifier.constrainAs(column3){
                 centerAround(columnGuidelines[2])
@@ -700,24 +725,50 @@ fun WeatherData(
             color = color,
             isDay = isDay
         )
-        PrecipitationData2(
-            modifier = Modifier.constrainAs(column4){
-                centerAround(columnGuidelines[3])
-                bottom.linkTo(parent.bottom)
-            },
-            precipitationProbability = precipitationProbability,
-            color = color
-        )
-        WindData2(
-            modifier = Modifier.constrainAs(column5){
-                centerAround(columnGuidelines[4])
-                bottom.linkTo(parent.bottom)
-            },
-            windSpeed = windSpeed,
-            windDirection = windDirection,
-            appSettings = appSettings,
-            color = color
-        )
+        appSettings.cardWeatherQuantities.getOrNull(2)?.let {
+            QuantityData(
+                modifier = Modifier.constrainAs(column4){
+                    centerAround(columnGuidelines[3])
+                    bottom.linkTo(parent.bottom)
+                },
+                quantity = it,
+                quantityValue = itemState.quantityValue(it),
+                quantity2Value = itemState.currentWindDirection,
+                appSettings = appSettings,
+                color = color
+            )
+        }
+//        PrecipitationData2(
+//            modifier = Modifier.constrainAs(column4){
+//                centerAround(columnGuidelines[3])
+//                bottom.linkTo(parent.bottom)
+//            },
+//            precipitationProbability = precipitationProbability,
+//            color = color
+//        )
+        appSettings.cardWeatherQuantities.getOrNull(3)?.let {
+            QuantityData(
+                modifier = Modifier.constrainAs(column5){
+                    centerAround(columnGuidelines[4])
+                    bottom.linkTo(parent.bottom)
+                },
+                quantity = it,
+                quantityValue = itemState.quantityValue(it),
+                quantity2Value = itemState.currentWindDirection,
+                appSettings = appSettings,
+                color = color
+            )
+        }
+//        WindData2(
+//            modifier = Modifier.constrainAs(column5){
+//                centerAround(columnGuidelines[4])
+//                bottom.linkTo(parent.bottom)
+//            },
+//            windSpeed = windSpeed,
+//            windDirection = windDirection,
+//            appSettings = appSettings,
+//            color = color
+//        )
     }
 }
 
@@ -961,7 +1012,7 @@ fun TemperatureMercury(
     }
 }
 
-@Composable
+/*@Composable
 fun AirQualityData2(
     modifier: Modifier = Modifier,
     usAQI: Int?,
@@ -993,9 +1044,9 @@ fun AirQualityData2(
             color = color
         )
     }
-}
+}*/
 
-@Composable
+/*@Composable
 fun HumidityData2(
     modifier: Modifier = Modifier,
     humidity: Float?,
@@ -1027,9 +1078,9 @@ fun HumidityData2(
             color = color
         )
     }
-}
+}*/
 
-@Composable
+/*@Composable
 fun PrecipitationData2(
     modifier: Modifier = Modifier,
     precipitationProbability: Float?,
@@ -1061,9 +1112,70 @@ fun PrecipitationData2(
             color = color
         )
     }
-}
+}*/
 
 @Composable
+fun QuantityData(
+    modifier: Modifier = Modifier,
+    quantity: WeatherQuantity,
+    quantityValue: Float? = null,
+    quantity2Value: Float? = null,
+    appSettings: AppSettings,
+    color: Color
+) {
+    val toolTip = if (quantity.homeCardNameId != null)
+        stringResource(quantity.homeCardNameId)
+    else null
+    Box(
+        modifier = modifier.height(dimensionResource(R.dimen.home_card_icons_radius) +
+                dimensionResource(R.dimen.home_card_bottom_border))
+    ) {
+        if (quantity2Value != null && quantity == WeatherQuantity.WINDSPEED) {
+            Image(
+                painter = painterResource(R.drawable.wind_arrow3),
+                contentDescription = "wind",
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .size(2 * dimensionResource(R.dimen.home_card_icons_radius))
+                    .graphicsLayer {
+                        rotationZ = quantity2Value + 180
+                    }
+            )
+        }
+        Column(
+            modifier = Modifier.align(Alignment.BottomCenter),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            ComposeWithTextToolTip(
+                tooltipText = toolTip ?: ""
+            ) {
+                Icon(
+                    painter = painterResource(quantity.iconId),
+                    contentDescription = toolTip,
+                    modifier = Modifier
+                        .width(2 * dimensionResource(R.dimen.home_card_icons_radius))
+                        .padding(horizontal = 8.dp),
+                    tint = color
+                )
+            }
+            Text(
+                modifier = Modifier
+                    .height(28.dp)
+                    .wrapContentHeight(align = Alignment.CenterVertically),
+                text = quantity.quantityValueText(
+                    quantityValue,
+                    appSettings,
+                    unitVisible = appSettings.homeCardQuantityUnitsVisibility
+                ),
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+                color = color
+            )
+        }
+    }
+}
+
+/*@Composable
 fun WindData2(
     modifier: Modifier = Modifier,
     windSpeed: Float?,
@@ -1113,7 +1225,7 @@ fun WindData2(
             )
         }
     }
-}
+}*/
 
 
 @Composable

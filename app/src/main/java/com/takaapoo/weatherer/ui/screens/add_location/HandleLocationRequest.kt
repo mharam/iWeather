@@ -43,7 +43,7 @@ fun HandleLocationRequest(
                     confirmButton = {
                         TextButton(onClick = {
                             onDismiss()
-                            (context as MainActivity).launchRequestPermission()
+                            (context as MainActivity).launchRequestLocationPermission()
                         }){
                             Text("Ok")
                         }
@@ -68,7 +68,7 @@ fun HandleLocationRequest(
                 )
             }
         else -> {
-            (context as MainActivity).launchRequestPermission()
+            (context as MainActivity).launchRequestLocationPermission()
             onDismiss()
         }
     }

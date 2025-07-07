@@ -1,11 +1,14 @@
 package com.takaapoo.weatherer.ui.screens.detail
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.RadioButton
@@ -14,8 +17,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.takaapoo.weatherer.R
@@ -33,7 +38,12 @@ fun ChooseDiagramThemeDialog(
     AlertDialog(
         onDismissRequest = onConfirmation,
         confirmButton = {
-            TextButton(onClick = onConfirmation){ Text("Ok") }
+            TextButton(onClick = onConfirmation){
+                Text(
+                    text = "Ok",
+                    fontFamily = FontFamily.Default
+                )
+            }
         },
         modifier = modifier,
         icon = {
@@ -43,17 +53,17 @@ fun ChooseDiagramThemeDialog(
             )
         },
         title = {
-            Text(text = stringResource(id = R.string.choose_diagram_theme))
+            Text(text = stringResource(id = R.string.diagram_theme))
         },
         text = {
             Column(
-                modifier = Modifier
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ChartTheme.entries.forEach { theme ->
-                    ThemeDialogRow(
-                        theme = theme,
+                    DialogMultiChoiceRow(
+                        text = stringResource(id = theme.nameId),
                         isSelected = theme == chartTheme,
-                        onSelectRow = onSelectTheme
+                        onSelect = { onSelectTheme(theme) }
                     )
                 }
             }
@@ -62,23 +72,29 @@ fun ChooseDiagramThemeDialog(
 }
 
 @Composable
-fun ThemeDialogRow(
+fun DialogMultiChoiceRow(
     modifier: Modifier = Modifier,
-    theme: ChartTheme,
+    text: String,
     isSelected: Boolean,
-    onSelectRow: (theme: ChartTheme) -> Unit
+    onSelect: () -> Unit
 ) {
     Row(
         modifier = modifier
-            .clickable { onSelectRow(theme) },
+            .fillMaxWidth()
+            .height(48.dp)
+            .clip(RoundedCornerShape(percent = 50))
+            .clickable { onSelect() },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(
             selected = isSelected,
-            onClick = { onSelectRow(theme) }
+            onClick =  onSelect
         )
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(text = stringResource(id = theme.nameId), modifier = Modifier.padding(end = 16.dp))
+        Spacer(modifier = Modifier.width(24.dp))
+        Text(
+            text = text,
+            fontFamily = FontFamily.Default
+        )
     }
 }
 

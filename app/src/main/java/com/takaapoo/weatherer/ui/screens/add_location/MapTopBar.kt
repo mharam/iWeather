@@ -56,7 +56,7 @@ fun MapTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(start = 8.dp, end = 8.dp, top = 4.dp),
+                .padding(start = 8.dp, end = 8.dp, top = 8.dp),
             query = mapState.searchQuery,
             onQueryChange = { onSearchQueryChange(it, true) },
             placeholder = { Text(

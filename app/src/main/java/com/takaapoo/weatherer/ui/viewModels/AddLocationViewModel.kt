@@ -1,5 +1,6 @@
 package com.takaapoo.weatherer.ui.viewModels
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.IntentSender
@@ -213,6 +214,7 @@ class AddLocationViewModel @Inject constructor(
         }
     }
 
+    @SuppressLint("MissingPermission")
     fun goToMyLocation(context: Context){
         val locationRequest = LocationRequest.Builder(10000)
             .setMinUpdateIntervalMillis(10000)

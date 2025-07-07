@@ -58,6 +58,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.toFontFamily
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextAlign
@@ -81,13 +82,14 @@ import com.takaapoo.weatherer.ui.theme.AQOrange
 import com.takaapoo.weatherer.ui.theme.AQPurple
 import com.takaapoo.weatherer.ui.theme.AQRed
 import com.takaapoo.weatherer.ui.theme.AQYellow
+import com.takaapoo.weatherer.ui.theme.Cmu
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
 import com.takaapoo.weatherer.ui.theme.customColorScheme
-import com.takaapoo.weatherer.ui.utility.BorderedText
-import com.takaapoo.weatherer.ui.utility.toCelsius
-import com.takaapoo.weatherer.ui.utility.toPa
-import com.takaapoo.weatherer.ui.utility.toSp
-import com.takaapoo.weatherer.ui.viewModels.timeFontFamily
+import com.takaapoo.weatherer.ui.theme.timeFontFamily
+import com.takaapoo.weatherer.utility.BorderedText
+import com.takaapoo.weatherer.utility.toCelsius
+import com.takaapoo.weatherer.utility.toPa
+import com.takaapoo.weatherer.utility.toSp
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
@@ -214,7 +216,7 @@ fun AirQualityDetailScreen(
                 ) {
                     Text(
                         text = "Current Air Quality Condition",
-                        fontFamily = Font(R.font.cmu_typewriter_bold).toFontFamily(),
+                        fontFamily = timeFontFamily,
                         color = MaterialTheme.colorScheme.onTertiaryContainer,
                         fontSize = dimensionResource(id = R.dimen.detail_screen_subtitle_font_size).toSp(density)
                     )
@@ -242,6 +244,7 @@ fun AirQualityDetailScreen(
                         )*/,
                         detailState = detailState,
                         quantity = WeatherQuantity.AQI,
+                        appSettings = appSettings,
                     )
                     AirQualityCurrentCondition2(
                         modifier = Modifier
@@ -249,6 +252,7 @@ fun AirQualityDetailScreen(
                             .padding(vertical = 8.dp),
                         detailState = detailState,
                         quantity = WeatherQuantity.PM10,
+                        appSettings = appSettings,
                     )
                     AirQualityCurrentCondition2(
                         modifier = Modifier
@@ -256,6 +260,7 @@ fun AirQualityDetailScreen(
                             .padding(vertical = 8.dp),
                         detailState = detailState,
                         quantity = WeatherQuantity.PM2_5,
+                        appSettings = appSettings,
                     )
                     AirQualityCurrentCondition2(
                         modifier = Modifier
@@ -263,6 +268,7 @@ fun AirQualityDetailScreen(
                             .padding(vertical = 8.dp),
                         detailState = detailState,
                         quantity = WeatherQuantity.CO,
+                        appSettings = appSettings,
                         currentTemperature = 273 + (currentTemperature ?: 0f),
                         currentPressure = currentPressure ?: 1000f
                     )
@@ -272,6 +278,7 @@ fun AirQualityDetailScreen(
                             .padding(vertical = 8.dp),
                         detailState = detailState,
                         quantity = WeatherQuantity.NO2,
+                        appSettings = appSettings,
                         currentTemperature = 273 + (currentTemperature ?: 0f),
                         currentPressure = currentPressure ?: 1000f
                     )
@@ -281,6 +288,7 @@ fun AirQualityDetailScreen(
                             .padding(vertical = 8.dp),
                         detailState = detailState,
                         quantity = WeatherQuantity.SO2,
+                        appSettings = appSettings,
                         currentTemperature = 273 + (currentTemperature ?: 0f),
                         currentPressure = currentPressure ?: 1000f
                     )
@@ -290,6 +298,7 @@ fun AirQualityDetailScreen(
                             .padding(vertical = 8.dp),
                         detailState = detailState,
                         quantity = WeatherQuantity.Ozone,
+                        appSettings = appSettings,
                         currentTemperature = 273 + (currentTemperature ?: 0f),
                         currentPressure = currentPressure ?: 1000f
                     )
@@ -382,7 +391,8 @@ fun AirQualityDetailScreen(
                             append("Particulate matter with diameter smaller than 10 ")
                             withStyle(
                                 style = SpanStyle(
-                                    fontFamily = Font(R.font.cmu_serif_italic).toFontFamily()
+                                    fontFamily = Cmu,
+                                    fontStyle = FontStyle.Italic
                                 )
                             ){ append("µ") }
                             append("m (PM")
@@ -395,7 +405,8 @@ fun AirQualityDetailScreen(
                             append(") and smaller than 2.5 ")
                             withStyle(
                                 style = SpanStyle(
-                                    fontFamily = Font(R.font.cmu_serif_italic).toFontFamily()
+                                    fontFamily = Cmu,
+                                    fontStyle = FontStyle.Italic
                                 )
                             ){ append("µ") }
                             append("m (PM")
@@ -540,7 +551,8 @@ fun concentration(micro: Boolean): AnnotatedString {
     return buildAnnotatedString {
         withStyle(
             style = SpanStyle(
-                fontFamily = Font(R.font.cmu_serif_italic).toFontFamily()
+                fontFamily = Cmu,
+                fontStyle = FontStyle.Italic
             )
         ){ append(if (micro) "µ" else "m") }
         append("\u200Cg")

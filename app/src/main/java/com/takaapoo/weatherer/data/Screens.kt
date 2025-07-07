@@ -37,3 +37,6 @@ object History: Screen()
 
 @Serializable
 object Settings: Screen()
+
+@Serializable
+object Donate: Screen()

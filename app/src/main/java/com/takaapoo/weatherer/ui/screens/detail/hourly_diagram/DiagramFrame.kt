@@ -213,9 +213,9 @@ fun DrawScope.diagramFrame(
                     color = minorBarColor,
                     start = Offset(x = lineX, y = verticalPadding),
                     end = Offset(x = lineX, y = size.height - verticalPadding),
-                    strokeWidth = minorBarWidthPx,
+                    strokeWidth = mainBarWidthPx,
                     pathEffect = PathEffect.dashPathEffect(
-                        intervals = floatArrayOf(20f, 10f),
+                        intervals = floatArrayOf(2 * mainBarWidthPx, 4 * mainBarWidthPx),
                         phase = verticalDashLinePhase
                     )
                 )
@@ -251,9 +251,9 @@ fun DrawScope.diagramFrame(
                         color = minorBarColor,
                         start = Offset(x = horizontalPadding, y = lineY),
                         end = Offset(x = size.width - horizontalPadding, y = lineY),
-                        strokeWidth = minorBarWidthPx,
+                        strokeWidth = mainBarWidthPx,
                         pathEffect = PathEffect.dashPathEffect(
-                            intervals = floatArrayOf(20f, 10f),
+                            intervals = floatArrayOf(2 * mainBarWidthPx, 4 * mainBarWidthPx),
                             phase = horizontalDashLinePhase
                         )
                     )

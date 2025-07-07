@@ -18,6 +18,7 @@
     <string name="apparent_temp">Feeling temperature</string>
     <string name="precipitation_probability">Precipitation probability</string>
     <string name="precipitation">Precipitation</string>
+    <string name="precipitation_amount">Precipitation amount</string>
     <string name="rain">Rain</string>
     <string name="showers">Showers</string>
     <string name="snowfall">Snowfall</string>
@@ -27,12 +28,14 @@
     <string name="visibility">Visibility</string>
     <string name="wind_speed">Wind speed</string>
     <string name="wind_direction">Wind direction</string>
+    <string name="wind">Wind</string>
     <string name="uv_index">UV index</string>
     <string name="freezing_level_height">Freezing level height</string>
     <string name="direct_radiation">Direct radiation</string>
     <string name="direct_normal_irradiance">Direct normal irradiance</string>
 
-    <string name="AQI">Air quality</string>
+    <string name="AQ">Air quality</string>
+    <string name="AQI">Air quality index</string>
     <string name="CO">Carbon monoxide (CO)</string>
 
     <string name="temperature_MIN_MAX">Temperature min/max</string>
@@ -42,13 +45,18 @@
     <string name="precipitation_probability_MAX">Precipitation probability max</string>
     <string name="wind_speed_MAX">Wind speed max</string>
 
-    <string name="choose_diagram_theme">Choose diagram theme</string>
+    <string name="diagram_theme">Diagram theme</string>
     <string name="light_theme">Light</string>
     <string name="dark_theme">Dark</string>
     <string name="app_theme">App theme</string>
     <string name="day_night">Day/Night</string>
     <string name="default_theme">System default</string>
-    
+
+    <string name="grid_all">All</string>
+    <string name="grid_main">main grid</string>
+    <string name="grid_non">No grid</string>
+    <string name="diagram_grid">Diagram grid</string>
+
     <string-array name="air_quality_description">
         <item>Good</item>
         <item>Moderate</item>
@@ -74,6 +82,38 @@
     <string name="mph">mile‌/‌hour</string>
     <string name="mps">meter‌/‌second</string>
 
+    <string name="channel_name">weather notification</string>
+    <string name="channel_description">Shows weather condition as a notification</string>
+    <string name="foreground_service_description">Provides updated data to persistent weather notification</string>
 
+    <string name="notification_channel_disable_dialog_title">Notification channel</string>
+    <string name="notification_channel_disable_dialog_text">You have to activate channel of this notification
+        from your device notification channel settings.</string>
 
+    <string name="notification_alarm_permission_dialog_title">Alarm permission</string>
+    <string name="notification_alarm_permission_dialog_text">iWeather persistent notification needs setting
+        alarm to update its data. This has less than 1% effect on iWeather power consumption.</string>
+
+    <string name="donation_title">Support iWeather with Your Generous Donation</string>
+    <string name="donation_body">
+        iWeather is a completely free application with no advertisements, yet it incurs ongoing costs, including developer expenses and access to weather data. Its development and continuous improvement rely entirely on the generosity of users like you. If you find iWeather valuable, please consider making a donation according to your financial ability.
+        \n
+        As a token of appreciation, donors gain access to exclusive features that enhance their weather-tracking experience. Your support not only helps keep iWeather free for everyone but also enables us to introduce new and improved functionalities. Thank you for your kindness and generosity!
+    </string>
+    <string name="donate_positive_button">I appreciate your effort and Donate!</string>
+    <string name="donate_negative_button">I don\'t care!</string>
+
+    <string name="donate_success_dialog_title">Donation Received</string>
+    <string name="donate_success_dialog_text">Thank you so much for your generous donation. Now you have access
+    to all capabilities and features of iWeather.</string>
+
+    <string name="hourly_diagram_utc">Universal Time Clock</string>
+    <string name="hourly_diagram_device">Device clock</string>
+    <string name="hourly_diagram_location">Location clock</string>
+    <string name="hourly_diagram_utc_title">UTC</string>
+    <string name="hourly_diagram_device_title">Device</string>
+    <string name="hourly_diagram_location_title">Location</string>
+
+    <string name="curve_smoothness_tooltip_titel">Smoothness</string>
+    <string name="curve_smoothness_tooltip_text">Increasing curve smoothness may increase error of some weather quantities value. In some cases it may lead to meaning-less values like negative probability.</string>
 </resources>

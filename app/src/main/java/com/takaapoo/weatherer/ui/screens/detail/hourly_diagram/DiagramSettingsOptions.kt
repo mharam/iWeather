@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.takaapoo.weatherer.R
+import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.HourlyChartState
 import com.takaapoo.weatherer.ui.theme.customColorScheme
 
@@ -21,6 +22,7 @@ import com.takaapoo.weatherer.ui.theme.customColorScheme
 @Composable
 fun RowScope.HourlyDiagramSettingsOptions(
     hourlyChartState: HourlyChartState = HourlyChartState(),
+    appSettings: AppSettings,
     settingsOpen: Boolean,
     pageNumber: Int,
     onUpdateHourlyDiagramSettingOpen: (open: Boolean, pageIndex: Int) -> Unit,
@@ -55,14 +57,14 @@ fun RowScope.HourlyDiagramSettingsOptions(
             leadingIcon = {
                 Icon(
                     painter = painterResource(
-                        id = if (hourlyChartState.dotsOnCurveVisible) R.drawable.curve_with_dot
+                        id = if (appSettings.hourlyDotsOnCurveVisible) R.drawable.curve_with_dot
                         else R.drawable.curve_without_dot
                     ),
                     contentDescription = stringResource(id = R.string.show_curve_dots)
                 )
             },
             onClick = {
-                onUpdateChartDotsOnCurveVisibility(!hourlyChartState.dotsOnCurveVisible)
+                onUpdateChartDotsOnCurveVisibility(!appSettings.hourlyDotsOnCurveVisible)
             }
         )
         DropdownMenuItem(
@@ -89,14 +91,16 @@ fun RowScope.HourlyDiagramSettingsOptions(
             leadingIcon = {
                 Icon(
                     painter = painterResource(
-                        id = if (hourlyChartState.weatherConditionIconsVisible) R.drawable.partly_cloudy_day_fill_24px
-                        else R.drawable.partly_cloudy_day_24px
+                        id = if (appSettings.hourlyDiagramWeatherConditionIconVisible)
+                            R.drawable.partly_cloudy_day_fill_24px
+                        else
+                            R.drawable.partly_cloudy_day_24px
                     ),
                     contentDescription = stringResource(id = R.string.show_weather_condition_icon)
                 )
             },
             onClick = {
-                onUpdateChartWeatherConditionVisibility(!hourlyChartState.weatherConditionIconsVisible)
+                onUpdateChartWeatherConditionVisibility(!appSettings.hourlyDiagramWeatherConditionIconVisible)
             }
         )
         DropdownMenuItem(

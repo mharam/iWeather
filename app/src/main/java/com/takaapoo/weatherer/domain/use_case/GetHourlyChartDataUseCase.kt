@@ -40,59 +40,27 @@ class GetHourlyChartDataUseCase @Inject constructor(
                 locationRepository.getLocation(locationId)
             }
             val data = awaitAll(hourlyDataDeferred, dailyDataDeferred, airQualityDeferred, locationDeferred)
-            val hourlyData = data[0] as List<LocalHourlyWeather>
-            val dailyData = data[1] as List<LocalDailyWeather>
-            val airQuality = data[2] as List<LocalAirQuality>
-            val location = data[3] as Location
-
-
-            List(size = hourlyData.size){ index ->
-                val dailyIndex = index / 24
-                HourlyChartDto(
-                    hourlyWeather = hourlyData.getOrNull(index),
-                    airQuality = airQuality.getOrNull(index),
-                    locationName = location.name,
-                    utcOffset = location.utcOffset,
-                    maxTemperature = dailyData.getOrNull(dailyIndex)?.temperatureMax,
-                    minTemperature = dailyData.getOrNull(dailyIndex)?.temperatureMin,
-                    sunRise = dailyData.getOrNull(dailyIndex)?.sunRise,
-                    sunSet = dailyData.getOrNull(dailyIndex)?.sunSet
-                )
-            }
+            val hourlyData = data[0] as? List<LocalHourlyWeather>
+            val dailyData = data[1] as? List<LocalDailyWeather>
+            val airQuality = data[2] as? List<LocalAirQuality>
+            val location = data[3] as? Location
+            if (hourlyData.isNullOrEmpty() || dailyData.isNullOrEmpty() ||
+                airQuality.isNullOrEmpty() || location == null) emptyList<HourlyChartDto>()
+            else
+                List(size = hourlyData.size){ index ->
+                    val dailyIndex = index / 24
+                    HourlyChartDto(
+                        hourlyWeather = hourlyData.getOrNull(index),
+                        airQuality = airQuality.getOrNull(index),
+                        locationName = location.name,
+                        utcOffset = location.utcOffset,
+                        maxTemperature = dailyData.getOrNull(dailyIndex)?.temperatureMax,
+                        minTemperature = dailyData.getOrNull(dailyIndex)?.temperatureMin,
+                        sunRise = dailyData.getOrNull(dailyIndex)?.sunRise,
+                        sunSet = dailyData.getOrNull(dailyIndex)?.sunSet
+                    )
+                }
         }
-
-
-        /*val hourlyWeatherFlow = localWeatherRepository.getLocationHourlyWeatherFlow(
-            locationId, startDate, endDate
-        )
-        val dailyWeatherFlow = localWeatherRepository.getLocationDailyWeatherFlow(
-            locationId, startDate, endDate
-        )
-        val airQualityFlow = airQualityRepository.getLocationAirQualityFlow(
-            locationId, startDate, endDate
-        )
-        val locationFlow = locationRepository.getLocation(locationId)
-
-        return combine(
-            hourlyWeatherFlow,
-            dailyWeatherFlow,
-            airQualityFlow,
-            locationFlow
-        ){ hourlyData, dailyData, airQuality, location ->
-            List(size = hourlyData.size){ index ->
-                val dailyIndex = index / 24
-                HourlyChartDto(
-                    hourlyWeather = hourlyData.getOrNull(index),
-                    airQuality = airQuality.getOrNull(index),
-                    locationName = location.name,
-                    utcOffset = location.utcOffset,
-                    maxTemperature = dailyData.getOrNull(dailyIndex)?.temperatureMax,
-                    minTemperature = dailyData.getOrNull(dailyIndex)?.temperatureMin,
-                    sunRise = dailyData.getOrNull(dailyIndex)?.sunRise,
-                    sunSet = dailyData.getOrNull(dailyIndex)?.sunSet
-                )
-            }
-        }*/
     }
 
 }

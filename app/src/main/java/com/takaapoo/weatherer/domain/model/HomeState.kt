@@ -10,8 +10,6 @@ import java.time.LocalDateTime
 @Stable
 data class HomeState(
     val zoom: Boolean = false,
-//    val homeScreenWidth: Float = 0f,
-//    val homeScreenHeight: Float = 0f,
     val topPaddingOffset: Float = 0f,
     val selectedCardX: Float = 0f,
     val selectedCardY: Float = 0f,

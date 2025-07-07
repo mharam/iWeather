@@ -23,29 +23,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.drawscope.Fill
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.toFontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,8 +52,8 @@ import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartGrids
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
 import com.takaapoo.weatherer.ui.theme.customColorScheme
-import com.takaapoo.weatherer.ui.utility.toPx
-import com.takaapoo.weatherer.ui.viewModels.timeFontFamily
+import com.takaapoo.weatherer.utility.toPx
+import com.takaapoo.weatherer.ui.theme.timeFontFamily
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import java.time.LocalDate
@@ -302,9 +297,8 @@ fun dailyTimeToX(date: String?): Long?{
 
 
 const val daySeconds = (24 * 60 * 60 - 1).toFloat()
-private fun dailyQuantityData(
+fun dailyQuantityData(
     dailyData: List<LocalDailyWeather?>,
-//    utcOffset: Long,
     weatherQuantity: DailyWeatherQuantity
 ): List<ClosedFloatingPointRange<Float>?>{
     return when (weatherQuantity){
@@ -339,100 +333,34 @@ private fun dailyQuantityData(
 }
 
 
-fun DrawScope.drawThickText(
-    textMeasurer: TextMeasurer,
-    text: String,
-    textColor: Color = Color.Unspecified,
-    borderColor: Color? = null,
-    textLeft: Float? = null,
-    textRight: Float? = null,
-    textCenter: Float? = null,
-    textTop: Float? = null,
-    textBottom: Float? = null,
-    textMiddle: Float? = null,
-    fontSize: TextUnit = 14.sp,
-    fontFamily: FontFamily = Font(R.font.cmu_serif).toFontFamily(),
-    borderWidth: Float = 1.5f,
-    rectanglePadding: Dp = 4.dp,
-    hasBackgroundRect: Boolean = false,
-    backgroundColor: Color = Color.Unspecified,
-    backgroundBorderColor: Color = Color.Unspecified,
-    backgroundBorderWidth: Float = 4f
-){
-    val measuredTextOutline = measureText(
-        textMeasurer = textMeasurer,
-        text = text,
-        fontSize = fontSize,
-        fontFamily = fontFamily,
-        color = borderColor ?: textColor,
-        drawStyle = Stroke(width = borderWidth)
-    )
-    val measuredTextFill = measureText(
-        textMeasurer = textMeasurer,
-        text = text,
-        fontSize = fontSize,
-        fontFamily = fontFamily,
-        color = textColor
-    )
-
-    val left = (textLeft ?: textCenter?.minus(measuredTextOutline.size.width / 2f)) ?:
-    (textRight!! - measuredTextOutline.size.width)
-    val top = (textTop ?: textMiddle?.minus(measuredTextOutline.size.height / 2f)) ?:
-    (textBottom!! - measuredTextOutline.size.height)
-    if (hasBackgroundRect) {
-        val padding = rectanglePadding.toPx()
-        val rectSize = Size(
-            width = measuredTextOutline.size.width + 4 * padding,
-            height = measuredTextOutline.size.height + 2 * padding
-        )
-        drawRoundRect(
-            color = Color.White,
-            topLeft = Offset(left - 2 * padding, top - padding),
-            size = rectSize,
-            cornerRadius = CornerRadius(measuredTextOutline.size.height / 2f + padding),
-            blendMode = BlendMode.Clear
-        )
-        drawRoundRect(
-            color = backgroundColor,
-            topLeft = Offset(left - 2 * padding, top - padding),
-            size = rectSize,
-            cornerRadius = CornerRadius(measuredTextOutline.size.height / 2f + padding),
-        )
-        drawRoundRect(
-            color = backgroundBorderColor,
-            topLeft = Offset(left - 2 * padding, top - padding),
-            size = rectSize,
-            cornerRadius = CornerRadius(measuredTextOutline.size.height / 2f + padding),
-            style = Stroke(backgroundBorderWidth)
-        )
-    }
-    drawText(
-        textLayoutResult = measuredTextOutline,
-        topLeft = Offset(x = left, y = top)
-    )
-    drawText(
-        textLayoutResult = measuredTextFill,
-        topLeft = Offset(x = left, y = top)
-    )
-}
-
 fun measureText(
     textMeasurer: TextMeasurer,
-    text: String,
+    text: String? = null,
+    annotatedString: AnnotatedString? = null,
     fontSize: TextUnit = 14.sp,
     fontFamily: FontFamily = Font(R.font.cmu_serif).toFontFamily(),
     color: Color = Color.Unspecified,
     drawStyle: DrawStyle = Fill
 ): TextLayoutResult {
-    return textMeasurer.measure(
-        text = text,
-        style = TextStyle(
-            fontFamily = fontFamily,
-            fontSize = fontSize,
-            color = color,
-            drawStyle = drawStyle
-        )
-    )
+    return if (text != null)
+        textMeasurer.measure(
+            text = text,
+            style = TextStyle(
+                fontFamily = fontFamily,
+                fontSize = fontSize,
+                color = color,
+                drawStyle = drawStyle
+            )
+        ) else
+            textMeasurer.measure(
+                text = annotatedString!!,
+                style = TextStyle(
+                    fontFamily = fontFamily,
+                    fontSize = fontSize,
+                    color = color,
+                    drawStyle = drawStyle
+                )
+            )
 }
 
 suspend fun animateCurve(dailyChartState: DailyChartState){

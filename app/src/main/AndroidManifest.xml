@@ -6,6 +6,15 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+<!--    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>-->
+<!--    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>-->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+<!--    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />-->
+<!--    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />-->
+
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+<!--    <uses-permission android:name="android.permission.WAKE_LOCK"/>-->
+    <uses-permission android:name="com.android.vending.BILLING"/>
 
     <application
         android:name=".WeatherApplication"
@@ -29,6 +38,60 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".main.Widget2ConfigurationActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Widget">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/>
+            </intent-filter>
+        </activity>
+        <activity android:name=".main.Widget1ConfigurationActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Widget">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/>
+            </intent-filter>
+        </activity>
+
+
+
+        <receiver
+            android:name=".main.DataRefreshReceiver"
+            android:exported="false"/>
+        <receiver
+            android:name=".ui.notification.NotificationHeaderReceiver"
+            android:exported="false"/>
+        <receiver
+            android:name=".main.BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.PHONE_STATE"/>
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".ui.widget.WeatherWidgetReceiver1"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/weather_widget_info1" />
+        </receiver>
+        <receiver
+            android:name=".ui.widget.WeatherWidgetReceiver2"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/weather_widget_info2" />
+        </receiver>
+
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
@@ -36,6 +99,9 @@
         <meta-data
             android:name="com.google.android.gms.version"
             android:value="@integer/google_play_services_version" />
+<!--        <meta-data-->
+<!--            android:name="com.google.ar.core.min_apk_version"-->
+<!--            tools:remove="android:value" />-->
 
         <provider
             android:name="androidx.startup.InitializationProvider"

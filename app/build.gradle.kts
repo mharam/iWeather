@@ -1,3 +1,4 @@
+
 import java.io.FileInputStream
 import java.util.Properties
 
@@ -24,8 +25,8 @@ android {
         applicationId = "com.takaapoo.weatherer"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "0.0"
 
 //        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunner = "com.takaapoo.weatherer.CustomTestRunner"
@@ -61,6 +62,7 @@ android {
     }
     buildFeatures {
         compose = true
+        viewBinding = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.15"
@@ -82,6 +84,7 @@ dependencies {
     implementation(libs.ui.graphics)
     implementation(libs.ui.tooling.preview)
     implementation(libs.material3)
+    implementation("androidx.compose.material:material-icons-core:1.7.7")
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.appcompat)
 
@@ -153,7 +156,7 @@ dependencies {
 
 
     // Shared Element Animation
-    implementation("androidx.compose.animation:animation:1.7.0-beta01")
+    implementation("androidx.compose.animation:animation:1.7.6")
 
     // Material
 //    implementation("androidx.compose.material:material:1.5.3")
@@ -172,9 +175,11 @@ dependencies {
     implementation(libs.reorderable)
 
     // Adaptive Screen
-    implementation("androidx.compose.material3.adaptive:adaptive:1.1.0-alpha01")
-//    implementation("androidx.compose.material3.adaptive:adaptive-layout:1.1.0-alpha01")
-//    implementation("androidx.compose.material3.adaptive:adaptive-navigation:1.1.0-alpha01")
+    implementation("androidx.compose.material3.adaptive:adaptive:1.1.0-beta01")
+//    implementation("androidx.compose.material3:material3:1.3.1")
+//    implementation("androidx.compose.material3:material3-window-size-class:1.3.1")
+//    implementation("androidx.compose.material3.adaptive:adaptive-layout:1.1.0-alpha08")
+//    implementation("androidx.compose.material3.adaptive:adaptive-navigation:1.1.0-alpha08")
 
     // Immutable Collections
     implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.8")
@@ -182,6 +187,28 @@ dependencies {
     // Splash Screen
     implementation(libs.androidx.core.splashscreen)
 
+    // For AppWidgets support
+    implementation("androidx.glance:glance:1.2.0-alpha01")
+    implementation("androidx.glance:glance-appwidget:1.2.0-alpha01")
+
+    // For interop APIs with Material 3
+    implementation("androidx.glance:glance-material3:1.2.0-alpha01")
+
+    // Play console Billing
+    val billingVersion = "7.1.1"
+    implementation("com.android.billingclient:billing:$billingVersion")
+    implementation("com.android.billingclient:billing-ktx:$billingVersion")
+
+    // Lottie Animation
+    val lottieVersion = "6.6.4"
+    implementation("com.airbnb.android:lottie-compose:$lottieVersion")
+
+
+    // Used for Extracting Dynamic colors
+//    implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.10")
+
+    // ViewBinding
+    implementation(libs.androidx.ui.viewbinding)
 
 
 

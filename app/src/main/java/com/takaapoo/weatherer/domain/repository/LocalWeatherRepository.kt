@@ -1,10 +1,10 @@
 package com.takaapoo.weatherer.domain.repository
 
+import com.takaapoo.weatherer.data.local.LocalAirQuality
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
 import com.takaapoo.weatherer.data.local.LocalHourlyWeather
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.model.AppSettings
-import com.takaapoo.weatherer.domain.model.WeatherDto
 import kotlinx.coroutines.flow.Flow
 
 interface LocalWeatherRepository {
@@ -20,7 +20,7 @@ interface LocalWeatherRepository {
         appSettings: AppSettings
     ): List<LocalHourlyWeather>
 
-//    suspend fun getDailyWeather(time: String): Map<Location, LocalDailyWeather>
+    suspend fun getDailyWeather(startDate: String, endDate: String): Map<Location, List<LocalDailyWeather>>
 //    fun getLocationDailyWeatherFlow(locationId: Int, startDate: String, endDate: String): Flow<List<LocalDailyWeather>>
 
     suspend fun getLocationDailyWeather(
@@ -30,9 +30,13 @@ interface LocalWeatherRepository {
         appSettings: AppSettings
     ): List<LocalDailyWeather>
 
-    suspend fun getAllLocationsWeather(startDate: String, endDate: String) : List<WeatherDto>
+//    suspend fun getAllLocationsWeather(startDate: String, endDate: String) : List<WeatherDto>
     fun getAllTimes(): Flow<List<String>>
 
     suspend fun getLocationHourlyWeatherForTime(locationId: Int, startTime: String, endTime: String):
             List<LocalHourlyWeather>
+
+    suspend fun getHourlyWeather(startDate: String, endDate: String): Map<Location, List<LocalHourlyWeather>>
+    suspend fun getHourlyAirQuality(startDate: String, endDate: String): Map<Location, List<LocalAirQuality>>
+
 }

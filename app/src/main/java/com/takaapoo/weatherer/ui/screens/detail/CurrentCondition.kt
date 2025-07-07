@@ -69,18 +69,16 @@ import com.takaapoo.weatherer.domain.WeatherType
 import com.takaapoo.weatherer.domain.WeatherType.Companion.calculateMoonType
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.ui.screens.detail.daily_diagram.daySeconds
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.GraphTypes
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.cubicCurveXtoY
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.linearCurveXtoY
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.quantityData
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.stepCurveXtoY
+import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.weatherCurveXtoY
 import com.takaapoo.weatherer.ui.theme.Gray60
 import com.takaapoo.weatherer.ui.theme.WeatherGaugeBackground
 import com.takaapoo.weatherer.ui.theme.WeatherGaugeHandle
 import com.takaapoo.weatherer.ui.theme.customColorScheme
-import com.takaapoo.weatherer.ui.utility.BorderedText
-import com.takaapoo.weatherer.ui.utility.toKmph
-import com.takaapoo.weatherer.ui.utility.toPx
+import com.takaapoo.weatherer.utility.BorderedText
+import com.takaapoo.weatherer.utility.toKmph
+import com.takaapoo.weatherer.utility.toPx
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -146,12 +144,23 @@ fun CurrentCondition(
 //                    airData = detailState.currentDayHourlyAirQuality,
 //                    weatherQuantity = quantity
 //                )
-                val data = quantityData(
-                    weatherData = currentDayHourlyWeather,
-                    airData = currentDayHourlyAirQuality,
-                    weatherQuantity = quantity
+//                val data = quantityData(
+//                    weatherData = currentDayHourlyWeather,
+//                    airData = currentDayHourlyAirQuality,
+//                    weatherQuantity = quantity
+//                )
+                val quantityValue = weatherCurveXtoY(
+                    quantity = quantity,
+                    appSettings = appSettings,
+                    hourlyWeather = currentDayHourlyWeather,
+                    hourlyAirQuality = currentDayHourlyAirQuality,
+                    firstPointX = firstPointX,
+                    lastPointX = lastPointX,
+                    targetX = targetX
                 )
-                val quantityValue = when (quantity.graphType()){
+
+
+                    /*when (quantity.graphType()){
 //                    GraphTypes.CUBIC -> cubicCurveXtoY(
 //                        data = data,
 //                        controlPoints1 = controlPoints1,
@@ -176,8 +185,9 @@ fun CurrentCondition(
                         lastPointX = lastPointX,
                         targetX = targetX
                     )
-                }/*?.toAppropriateUnit(quantity, appSettings)*/
-                val quantityValueText = buildAnnotatedString {
+                }*//*?.toAppropriateUnit(quantity, appSettings)*/
+                val quantityValueText = quantity.quantityValueText(quantityValue, appSettings)
+                    /*buildAnnotatedString {
                     append(
                         if (quantityValue != null) {
                             if (quantityValue == 0f) "0"
@@ -185,7 +195,7 @@ fun CurrentCondition(
                         } else "?"
                     )
                     append(quantity.unit(appSettings = appSettings))
-                }
+                }*/
 
                 val isOnSeparateRow = 4*textMiddleX[index] > (boxWidth - spaceOccupiedByValue)
                 if (isOnSeparateRow) {
@@ -338,42 +348,6 @@ fun QuantityName(
     )
 }
 
-//@JvmName("StringInputMethod")
-//@Composable
-//fun CurrentCondition(
-//    modifier: Modifier = Modifier,
-//    quantityValuePairs: List<Pair<WeatherQuantity, String>>,
-//    detailState: DetailState,
-//    topBannerHeight: Float
-//) {
-//    CurrentCondition(
-//        modifier = modifier,
-//        quantityValuePairs = List(size = quantityValuePairs.size){
-//            quantityValuePairs[it].first to buildAnnotatedString{append(quantityValuePairs[it].second)}
-//        },
-//        detailState = detailState,
-//        topBannerHeight = topBannerHeight
-//    )
-//}
-//
-//@JvmName("StringAnnotatedStringInputMethod")
-//@Composable
-//fun CurrentCondition(
-//    modifier: Modifier = Modifier,
-//    quantityValuePairs: List<Pair<String, AnnotatedString>>,
-//    @DrawableRes iconId: Int,
-//    topBannerHeight: Float
-//) {
-//    CurrentCondition(
-//        modifier = modifier,
-//        quantityValuePairs = List(size = quantityValuePairs.size){
-//            buildAnnotatedString{append(quantityValuePairs[it].first)} to quantityValuePairs[it].second
-//        },
-//        iconId = iconId,
-//        topBannerHeight = topBannerHeight
-//    )
-//}
-
 @Composable
 fun WeatherCurrentCondition(
     modifier: Modifier = Modifier,
@@ -438,7 +412,6 @@ fun WindCurrentCondition(
     targetX: Float,
     appSettings: AppSettings
 ) {
-//    Log.i("wind1", "WindCurrentCondition")
     val density = LocalDensity.current
     val iconSize = dimensionResource(id = R.dimen.current_condition_icon_size)
     val firstPointX = 0f
@@ -616,7 +589,7 @@ fun windArrowPath(
     width: Float,
     height: Float,
     arrowWidth: Float
-):  androidx.compose.ui.graphics.Path {
+):  Path {
     val xCenter = width/2
     val halfArrowWidth = arrowWidth/2
     val yal = 0.4375f * arrowWidth

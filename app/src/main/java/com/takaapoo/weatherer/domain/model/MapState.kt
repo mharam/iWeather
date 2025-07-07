@@ -7,7 +7,7 @@ import com.google.maps.android.compose.MapType
 import com.google.maps.android.compose.MapUiSettings
 import com.takaapoo.weatherer.data.remote.Location
 import com.takaapoo.weatherer.domain.MyResult
-import com.takaapoo.weatherer.ui.utility.MapStyle
+import com.takaapoo.weatherer.utility.MapStyle
 
 data class MapState(
     val properties: MapProperties = MapProperties(

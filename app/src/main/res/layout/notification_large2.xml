@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/notification_layout"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/notification_height">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/notification_header_height"
+        android:id="@+id/tab"
+        android:orientation="horizontal"
+        android:gravity="top"
+        android:layout_alignParentTop="true">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="@dimen/notification_header_height"
+            android:id="@+id/header1"
+            android:textAlignment="center"
+            android:text="Current"
+            android:textSize="14sp"
+            android:textStyle="normal"
+            android:layout_weight="1"
+            android:gravity="center_horizontal|top"
+            style="@style/TextAppearance.Compat.Notification.Title" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="@dimen/notification_header_height"
+            android:id="@+id/header2"
+            android:text="Hourly"
+            android:textAlignment="center"
+            android:textSize="14sp"
+            android:textStyle="normal"
+            android:gravity="center_horizontal|top"
+            android:layout_weight="1"
+            style="@style/TextAppearance.Compat.Notification.Title" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="@dimen/notification_header_height"
+            android:id="@+id/header3"
+            android:text="Daily"
+            android:textAlignment="center"
+            android:textSize="14sp"
+            android:textStyle="normal"
+            android:gravity="center_horizontal|top"
+            android:layout_weight="1"
+            style="@style/TextAppearance.Compat.Notification.Title" />
+
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:id="@+id/active_indicator"
+        android:orientation="horizontal"
+        android:gravity="bottom"
+        android:layout_above="@id/divider">
+        <ImageView
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:id="@+id/header1_indicator"
+            android:background="@color/primary"
+            android:layout_weight="1"/>
+        <ImageView
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:id="@+id/header2_indicator"
+            android:background="@color/primary"
+            android:layout_weight="1"/>
+        <ImageView
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:id="@+id/header3_indicator"
+            android:background="@color/primary"
+            android:layout_weight="1"/>
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:id="@+id/divider"
+        android:background="@color/outline_variant"
+        android:layout_below="@id/tab" />
+
+
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:id="@+id/quantity1"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentEnd="true"
+        android:layout_below="@id/tab"
+        android:layout_marginTop="@dimen/notification_header_bottom_margin"
+        android:layout_marginEnd="88dp">
+        <ImageView
+            android:layout_width="@dimen/notification_icon_width_with_point"
+            android:layout_height="@dimen/notification_icon_size"
+            android:id="@+id/icon1"
+            android:contentDescription="" />
+        <ImageView
+            android:layout_width="0dp"
+            android:layout_height="@dimen/notification_connector_height"
+            android:id="@+id/icon1_connector"
+            android:layout_marginStart="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:contentDescription=""
+            android:layout_weight="1"
+            android:scaleType="fitXY"
+            android:translationZ="-1dp"/>
+        <ImageView
+            android:layout_width="@dimen/notification_icon_value_width"
+            android:layout_height="@dimen/notification_icon_value_height"
+            android:id="@+id/icon1_value"
+            android:contentDescription="" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:id="@+id/quantity2"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentEnd="true"
+        android:layout_below="@id/quantity1"
+        android:layout_marginTop="-8dp"
+        android:layout_marginStart="32dp">
+        <ImageView
+            android:layout_width="@dimen/notification_icon_width_with_point"
+            android:layout_height="@dimen/notification_icon_size"
+            android:id="@+id/icon2"
+            android:contentDescription="" />
+        <ImageView
+            android:layout_width="0dp"
+            android:layout_height="@dimen/notification_connector_height"
+            android:id="@+id/icon2_connector"
+            android:layout_marginStart="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:contentDescription=""
+            android:layout_weight="1"
+            android:scaleType="fitXY"
+            android:translationZ="-1dp"/>
+        <ImageView
+            android:layout_width="@dimen/notification_icon_value_width"
+            android:layout_height="@dimen/notification_icon_value_height"
+            android:id="@+id/icon2_value"
+            android:contentDescription="" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:id="@+id/quantity3"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentEnd="true"
+        android:layout_below="@id/quantity2"
+        android:layout_marginTop="-8dp"
+        android:layout_marginEnd="88dp">
+        <ImageView
+            android:layout_width="@dimen/notification_icon_width_with_point"
+            android:layout_height="@dimen/notification_icon_size"
+            android:id="@+id/icon3"
+            android:contentDescription="" />
+        <ImageView
+            android:layout_width="0dp"
+            android:layout_height="@dimen/notification_connector_height"
+            android:id="@+id/icon3_connector"
+            android:layout_marginStart="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:contentDescription=""
+            android:layout_weight="1"
+            android:scaleType="fitXY"
+            android:translationZ="-1dp"/>
+        <ImageView
+            android:layout_width="@dimen/notification_icon_value_width"
+            android:layout_height="@dimen/notification_icon_value_height"
+            android:id="@+id/icon3_value"
+            android:contentDescription="" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:id="@+id/quantity4"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentEnd="true"
+        android:layout_below="@id/quantity3"
+        android:layout_marginTop="-8dp"
+        android:layout_marginStart="32dp">
+        <ImageView
+            android:layout_width="@dimen/notification_icon_width_with_point"
+            android:layout_height="@dimen/notification_icon_size"
+            android:id="@+id/icon4"
+            android:contentDescription="" />
+        <ImageView
+            android:layout_width="0dp"
+            android:layout_height="@dimen/notification_connector_height"
+            android:id="@+id/icon4_connector"
+            android:layout_marginStart="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:contentDescription=""
+            android:layout_weight="1"
+            android:scaleType="fitXY"
+            android:translationZ="-1dp"/>
+        <ImageView
+            android:layout_width="@dimen/notification_icon_value_width"
+            android:layout_height="@dimen/notification_icon_value_height"
+            android:id="@+id/icon4_value"
+            android:contentDescription="" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:id="@+id/quantity5"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentEnd="true"
+        android:layout_below="@id/quantity4"
+        android:layout_marginTop="-8dp"
+        android:layout_marginEnd="88dp">
+        <ImageView
+            android:layout_width="@dimen/notification_icon_width_with_point"
+            android:layout_height="@dimen/notification_icon_size"
+            android:id="@+id/icon5"
+            android:contentDescription="" />
+        <ImageView
+            android:layout_width="0dp"
+            android:layout_height="@dimen/notification_connector_height"
+            android:id="@+id/icon5_connector"
+            android:layout_marginStart="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:contentDescription=""
+            android:layout_weight="1"
+            android:scaleType="fitXY"
+            android:translationZ="-1dp"/>
+        <ImageView
+            android:layout_width="@dimen/notification_icon_value_width"
+            android:layout_height="@dimen/notification_icon_value_height"
+            android:id="@+id/icon5_value"
+            android:contentDescription="" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:id="@+id/quantity6"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentEnd="true"
+        android:layout_below="@id/quantity5"
+        android:layout_marginTop="-8dp"
+        android:layout_marginStart="32dp">
+        <ImageView
+            android:layout_width="@dimen/notification_icon_width_with_point"
+            android:layout_height="@dimen/notification_icon_size"
+            android:id="@+id/icon6"
+            android:contentDescription="" />
+        <ImageView
+            android:layout_width="0dp"
+            android:layout_height="@dimen/notification_connector_height"
+            android:id="@+id/icon6_connector"
+            android:layout_marginStart="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:contentDescription=""
+            android:layout_weight="1"
+            android:scaleType="fitXY"
+            android:translationZ="-1dp"/>
+        <ImageView
+            android:layout_width="@dimen/notification_icon_value_width"
+            android:layout_height="@dimen/notification_icon_value_height"
+            android:id="@+id/icon6_value"
+            android:contentDescription="" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:id="@+id/quantity7"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentEnd="true"
+        android:layout_below="@id/quantity6"
+        android:layout_marginTop="-8dp"
+        android:layout_marginEnd="88dp">
+        <ImageView
+            android:layout_width="@dimen/notification_icon_width_with_point"
+            android:layout_height="@dimen/notification_icon_size"
+            android:id="@+id/icon7"
+            android:contentDescription="" />
+        <ImageView
+            android:layout_width="0dp"
+            android:layout_height="@dimen/notification_connector_height"
+            android:id="@+id/icon7_connector"
+            android:layout_marginStart="-4dp"
+            android:layout_marginEnd="-4dp"
+            android:contentDescription=""
+            android:layout_weight="1"
+            android:scaleType="fitXY"
+            android:translationZ="-1dp"/>
+        <ImageView
+            android:layout_width="@dimen/notification_icon_value_width"
+            android:layout_height="@dimen/notification_icon_value_height"
+            android:id="@+id/icon7_value"
+            android:contentDescription="" />
+    </LinearLayout>
+
+
+    <ImageView
+        android:id="@+id/quantities"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/notification_hour_diagram_label_height"
+        android:layout_marginStart="@dimen/notification_hour_diagram_label_margin_start"
+        android:layout_above="@id/diagram"
+        android:adjustViewBounds="false"
+        android:contentDescription=""
+        android:scaleType="fitStart" />
+
+    <ImageView
+        android:id="@+id/diagram"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/notification_diagram_height"
+        android:layout_alignParentBottom="true"
+        android:adjustViewBounds="false"
+        android:contentDescription="Notification content"
+        android:scaleType="fitXY" />
+
+    <ImageView
+        android:id="@+id/daily_diagram"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentBottom="true"
+        android:layout_below="@id/tab"
+        android:layout_marginTop="@dimen/notification_header_bottom_margin"
+        android:adjustViewBounds="false"
+        android:contentDescription="Notification content"
+        android:scaleType="fitXY" />
+
+</RelativeLayout>

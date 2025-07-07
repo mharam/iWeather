@@ -10,15 +10,12 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.AppTheme
-import com.takaapoo.weatherer.ui.viewModels.PreferenceViewModel
 
 private val DarkCustomColorScheme = CustomColorsPalette(
     searchbarSurface = Gray50,
@@ -34,6 +31,7 @@ private val DarkCustomColorScheme = CustomColorsPalette(
     onDetailScreenSurface = onDetailScreenDarkSurface,
     appThemeDiagramSurfaceColor = DiagramDarkTheme,
     appThemeDiagramOnSurfaceColor = OnDiagramDarkTheme,
+    paneSpacerColor = Gray40,
 )
 private val LightCustomColorScheme = CustomColorsPalette(
     searchbarSurface = Color.White,
@@ -49,46 +47,102 @@ private val LightCustomColorScheme = CustomColorsPalette(
     onDetailScreenSurface = onDetailScreenLightSurface,
     appThemeDiagramSurfaceColor = DiagramLightTheme,
     appThemeDiagramOnSurfaceColor = OnDiagramLightTheme,
+    paneSpacerColor = Gray20,
 )
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80,
-    surface = Purple80
+val DarkColorScheme = darkColorScheme(
+    primary = primaryDark,
+    onPrimary = onPrimaryDark,
+    primaryContainer = primaryContainerDark,
+    onPrimaryContainer = onPrimaryContainerDark,
+    secondary = secondaryDark,
+    onSecondary = onSecondaryDark,
+    secondaryContainer = secondaryContainerDark,
+    onSecondaryContainer = onSecondaryContainerDark,
+    tertiary = tertiaryDark,
+    onTertiary = onTertiaryDark,
+    tertiaryContainer = tertiaryContainerDark,
+    onTertiaryContainer = onTertiaryContainerDark,
+    error = errorDark,
+    onError = onErrorDark,
+    errorContainer = errorContainerDark,
+    onErrorContainer = onErrorContainerDark,
+    background = backgroundDark,
+    onBackground = onBackgroundDark,
+    surface = surfaceDark,
+    onSurface = onSurfaceDark,
+    surfaceVariant = surfaceVariantDark,
+    onSurfaceVariant = onSurfaceVariantDark,
+    outline = outlineDark,
+    outlineVariant = outlineVariantDark,
+    scrim = scrimDark,
+    inverseSurface = inverseSurfaceDark,
+    inverseOnSurface = inverseOnSurfaceDark,
+    inversePrimary = inversePrimaryDark,
+    surfaceDim = surfaceDimDark,
+    surfaceBright = surfaceBrightDark,
+    surfaceContainerLowest = surfaceContainerLowestDark,
+    surfaceContainerLow = surfaceContainerLowDark,
+    surfaceContainer = surfaceContainerDark,
+    surfaceContainerHigh = surfaceContainerHighDark,
+    surfaceContainerHighest = surfaceContainerHighestDark
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+val LightColorScheme = lightColorScheme(
+    primary = primaryLight,
+    onPrimary = onPrimaryLight,
+    primaryContainer = primaryContainerLight,
+    onPrimaryContainer = onPrimaryContainerLight,
+    secondary = secondaryLight,
+    onSecondary = onSecondaryLight,
+    secondaryContainer = secondaryContainerLight,
+    onSecondaryContainer = onSecondaryContainerLight,
+    tertiary = tertiaryLight,
+    onTertiary = onTertiaryLight,
+    tertiaryContainer = tertiaryContainerLight,
+    onTertiaryContainer = onTertiaryContainerLight,
+    error = errorLight,
+    onError = onErrorLight,
+    errorContainer = errorContainerLight,
+    onErrorContainer = onErrorContainerLight,
+    background = backgroundLight,
+    onBackground = onBackgroundLight,
+    surface = surfaceLight,
+    onSurface = onSurfaceLight,
+    surfaceVariant = surfaceVariantLight,
+    onSurfaceVariant = onSurfaceVariantLight,
+    outline = outlineLight,
+    outlineVariant = outlineVariantLight,
+    scrim = scrimLight,
+    inverseSurface = inverseSurfaceLight,
+    inverseOnSurface = inverseOnSurfaceLight,
+    inversePrimary = inversePrimaryLight,
+    surfaceDim = surfaceDimLight,
+    surfaceBright = surfaceBrightLight,
+    surfaceContainerLowest = surfaceContainerLowestLight,
+    surfaceContainerLow = surfaceContainerLowLight,
+    surfaceContainer = surfaceContainerLight,
+    surfaceContainerHigh = surfaceContainerHighLight,
+    surfaceContainerHighest = surfaceContainerHighestLight,
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
-)
+    )
 
 @Composable
 fun WeathererTheme(
     systemDarkTheme: Boolean = isSystemInDarkTheme(),
-    preferenceViewModel: PreferenceViewModel = hiltViewModel(),
+//    preferenceViewModel: PreferenceViewModel = hiltViewModel(),
+    appSettings: AppSettings = AppSettings(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+//    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val appSettings by preferenceViewModel.appSettings.collectAsStateWithLifecycle()
+//    val appSettings by preferenceViewModel.appSettings.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val darkTheme = (systemDarkTheme && appSettings.theme != AppTheme.LIGHT) ||
             appSettings.theme == AppTheme.DARK
 
     val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        appSettings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> DarkColorScheme
@@ -97,7 +151,7 @@ fun WeathererTheme(
     val customColorScheme = if (darkTheme) DarkCustomColorScheme else LightCustomColorScheme
 
     val view = LocalView.current
-    val window = (context as Activity).window
+
 //    if (!view.isInEditMode) {
 //        SideEffect {
 //            window.statusBarColor = /*colorScheme.primary.toArgb()*/ Transparent.toArgb()
@@ -108,8 +162,10 @@ fun WeathererTheme(
 //    }
     if (!view.isInEditMode) {
 //        WindowCompat.setDecorFitsSystemWindows(window, false)
-        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
-        WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
+        (context as? Activity)?.window?.let {
+            WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(it, view).isAppearanceLightNavigationBars = !darkTheme
+        }
     }
 
     CompositionLocalProvider(

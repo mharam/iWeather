@@ -46,9 +46,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.ui.screens.home.shapes.AddLocationShape
-import com.takaapoo.weatherer.ui.utility.BorderedText
-import com.takaapoo.weatherer.ui.utility.lighter
-import com.takaapoo.weatherer.ui.utility.toDp
+import com.takaapoo.weatherer.utility.BorderedText
+import com.takaapoo.weatherer.utility.lighter
+import com.takaapoo.weatherer.utility.toDp
 
 
 @Composable

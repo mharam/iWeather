@@ -1,26 +1,28 @@
 package com.takaapoo.weatherer.ui.viewModels
 
+import androidx.annotation.FloatRange
+import androidx.annotation.IntRange
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.toFontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.model.DailyChartState
 import com.takaapoo.weatherer.domain.model.DetailState
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartState
+import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
 import com.takaapoo.weatherer.domain.model.SettingsUnits
 import com.takaapoo.weatherer.domain.model.toSettingsUnits
 import com.takaapoo.weatherer.domain.repository.AirQualityRepository
@@ -35,8 +37,9 @@ import com.takaapoo.weatherer.ui.screens.detail.daily_diagram.daySeconds
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartGrids
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.timeToX
-import com.takaapoo.weatherer.ui.utility.mmToUnit
-import com.takaapoo.weatherer.ui.utility.swap
+import com.takaapoo.weatherer.ui.theme.timeFontFamily
+import com.takaapoo.weatherer.utility.mmToUnit
+import com.takaapoo.weatherer.utility.swap
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -57,21 +60,16 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import javax.inject.Inject
-import kotlin.collections.map
-import kotlin.collections.toMutableList
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.log10
 import kotlin.math.log2
-import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
-//const val Extra_Data_Loading_Days = 2
-//const val Extra_Data_Loading_Days_For_Daily_Diagrams = 7
-val timeFontFamily = Font(R.font.cmu_typewriter_bold).toFontFamily()
 const val EPSILON = 0.0001f
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -98,89 +96,36 @@ class DetailViewModel @Inject constructor(
     private val _detailState: MutableStateFlow<List<DetailState>> = MutableStateFlow(List(size = 0){ DetailState() })
     val detailState: StateFlow<List<DetailState>> = _detailState.asStateFlow()
 
-    private val _hourlyChartState: MutableStateFlow<List<HourlyChartState>> =
-        MutableStateFlow(List(size = 0){ HourlyChartState() })
-    var hourlyChartState: StateFlow<List<HourlyChartState>> = _hourlyChartState.asStateFlow()
+//    private val _hourlyChartState: MutableStateFlow<List<HourlyChartState>> =
+//        MutableStateFlow(List(size = 0){ HourlyChartState() })
+//    val hourlyChartState: StateFlow<List<HourlyChartState>> = _hourlyChartState.asStateFlow()
 
-    private val _dailyChartState: MutableStateFlow<List<DailyChartState>> =
-        MutableStateFlow(List(size = 0){ DailyChartState() })
-    var dailyChartState: StateFlow<List<DailyChartState>> = _dailyChartState.asStateFlow()
+    private var _hourlyChartState: MutableList<MutableStateFlow<HourlyChartState>> =
+        MutableList(size = 0){ MutableStateFlow(HourlyChartState()) }
+    val hourlyChartState: List<StateFlow<HourlyChartState>>
+        get() = _hourlyChartState.map { it.asStateFlow() }
 
-    val locationsHourlyChartData: StateFlow<List<List<HourlyChartDto>>> =
-        combine(
-            _hourlyChartState.map {
-                it.map { hourlyState -> hourlyState.xAxisStart.value to hourlyState.xAxisEnd.value }
-            },
-            allLocationsFlow,
-            settingsFlow
-        ){ listOfStartEndPairs, locationList, appSettings ->
-//            Log.i("daily1", "listOfStartEndPairs = $listOfStartEndPairs")
-            if (listOfStartEndPairs.size == locationList.size) {
-                val newDataList = List(size = locationList.size) { index ->
-                    val extraDataLoadingDays = ceil((listOfStartEndPairs[index].second -
-                            listOfStartEndPairs[index].first) / (1.5f * 24)).toLong()
-                    val startDate = LocalDate.now().plusDays(
-                        floor(listOfStartEndPairs[index].first / 24).toLong() - extraDataLoadingDays
-                    ).toString()
-                    val endDate = LocalDate.now().plusDays(
-                        ceil(listOfStartEndPairs[index].second / 24).toLong() + extraDataLoadingDays
-                    ).toString()
+    private var _dailyChartState: MutableList<MutableStateFlow<DailyChartState>> =
+        MutableList(size = 0){ MutableStateFlow(DailyChartState()) }
+    val dailyChartState: List<StateFlow<DailyChartState>>
+        get() = _dailyChartState.map { it.asStateFlow() }
 
-                    hourlyChartDataUseCase(
-                        locationId = locationList[index].id,
-                        startDate = startDate,
-                        endDate = endDate,
-                        appSettings = appSettings
-                    )
-                }
-                updateHourlySettingsStatus(appSettings.toSettingsUnits() == settingsUnits)
-                newDataList
-            } else {
-                emptyList()
-            }
-        }.stateIn(
-            viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-    var locationsDailyChartData: StateFlow<List<List<LocalDailyWeather>>> =
-        combine(
-            _dailyChartState.map {
-                it.map { dailyState -> dailyState.xAxisStart.value to dailyState.xAxisEnd.value }
-            },
-            allLocationsFlow,
-            settingsFlow
-        ) { listOfStartEndPairs, locationList, appSettings ->
-            val newDataList = List(size = min(listOfStartEndPairs.size, locationList.size)) { index ->
-                val extraDataLoadingDays = ceil((listOfStartEndPairs[index].second -
-                        listOfStartEndPairs[index].first) / 1.5f).toLong()
-                val startDate = LocalDate.now()
-                    .plusDays(
-                        (listOfStartEndPairs[index].first).toLong() - extraDataLoadingDays
-                    ).toString()
-                val endDate = LocalDate.now()
-                    .plusDays(
-                        (listOfStartEndPairs[index].second).toLong() + extraDataLoadingDays
-                    ).toString()
+    private var _locationsHourlyChartData: MutableList<StateFlow<List<HourlyChartDto>>> =
+        MutableList(size = 0){ MutableStateFlow(emptyList()) }
+    val locationsHourlyChartData: List<StateFlow<List<HourlyChartDto>>>
+        get() = _locationsHourlyChartData
 
-                localWeatherRepository.getLocationDailyWeather(
-                    locationId = locationList[index].id,
-                    startDate = startDate,
-                    endDate = endDate,
-                    appSettings = appSettings
-                )
-            }
-            updateDailySettingsStatus(appSettings.toSettingsUnits() == settingsUnits)
-            newDataList
-        }.stateIn(
-            viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    private var _locationsDailyChartData: MutableList<StateFlow<List<LocalDailyWeather>>> =
+        MutableList(size = 0){ MutableStateFlow(emptyList()) }
+    val locationsDailyChartData: List<StateFlow<List<LocalDailyWeather>>>
+        get() = _locationsDailyChartData
+
+
     private lateinit var initialYAxesStarts: List<MutableList<Float>>
     private lateinit var initialYAxesEnds: List<MutableList<Float>>
     private lateinit var initialDailyYAxesStarts: MutableList<Float>
     private lateinit var initialDailyYAxesEnds: MutableList<Float>
+    private var initializedCompleted = false
 
 
     init {
@@ -191,21 +136,19 @@ class DetailViewModel @Inject constructor(
         viewModelScope.launch {
             allLocations = locationRepository.getAllLocationsList()
             _detailState.value = List(size = allLocations.size){ DetailState() }
-            _hourlyChartState.value = List(size = allLocations.size){ HourlyChartState() }
-            _dailyChartState.value = List(size = allLocations.size){ DailyChartState() }
+            _hourlyChartState = MutableList(size = allLocations.size){ MutableStateFlow(HourlyChartState()) }
+            _dailyChartState = MutableList(size = allLocations.size){ MutableStateFlow(DailyChartState()) }
+            _locationsHourlyChartData = MutableList(size = allLocations.size){ i ->
+                hourlyChartDataFlow(i)
+            }
+            _locationsDailyChartData = MutableList(size = allLocations.size){ i ->
+                dailyChartDataFlow(i)
+            }
+
             initialYAxesStarts = List(allLocations.size){ mutableListOf() }
             initialYAxesEnds = List(allLocations.size){ mutableListOf() }
             initialDailyYAxesStarts = MutableList(allLocations.size){ 0f }
             initialDailyYAxesEnds = MutableList(allLocations.size){ 0f }
-
-            val appSettings = preferenceRepository.getSettings()
-            updateHourlyChartWeatherIconVisibility(appSettings.hourlyDiagramWeatherConditionIconVisible)
-            updateDailyChartWeatherIconVisibility(appSettings.dailyDiagramWeatherConditionIconVisible)
-            updateHourlyChartDotsOnCurveVisibility(appSettings.hourlyDotsOnCurveVisible)
-            updateHourlyChartCurveShadowVisibility(appSettings.hourlyCurveShadowVisible)
-            updateHourlyChartGrid(appSettings.hourlyChartGrid)
-            updateHourlyChartSunRiseSetIconsVisibility(appSettings.hourlySunRiseSetIconsVisible)
-            updateHourlyChartTheme(appSettings.hourlyChartTheme)
 
             launch(Dispatchers.Default) {
                 while (true) {
@@ -237,7 +180,7 @@ class DetailViewModel @Inject constructor(
                     .collectLatest {
                         settingsUnits = it
                         updateDetailState()
-                        _hourlyChartState.value.forEachIndexed { index, _ ->
+                        _hourlyChartState.forEachIndexed { index, _ ->
                             clearYAxis(index)
                         }
                         updateHourlySettingsStatus(false)
@@ -250,68 +193,145 @@ class DetailViewModel @Inject constructor(
                     updateDetailState()
                 }
             }
+            initializedCompleted = true
+            adjustSettings()
         }
     }
 
-    private fun clearYAxis(index: Int){
-        _hourlyChartState.update {
-            it.toMutableList().apply {
-                this[index] = this[index].copy(
-                    yAxesStarts = emptyList(),
-                    yAxesEnds = emptyList(),
-                    curveAnimator = emptyList()
-                )
+    private fun hourlyChartDataFlow(index: Int) =
+        combine(
+            _hourlyChartState[index].map {
+                it.xAxisStart.value to it.xAxisEnd.value
+            },
+            settingsFlow
+        ){ startEndPairs, appSettings ->
+            val extraDataLoadingDays = ceil(
+                (startEndPairs.second - startEndPairs.first) / (1.5f * 24)
+            ).toLong()
+
+            val zone = when (appSettings.hourlyDiagramTime) {
+                HourlyDiagramTime.UTC -> ZoneId.of("UTC")
+                HourlyDiagramTime.DEVICE -> ZoneId.systemDefault()
+                HourlyDiagramTime.LOCATION -> {
+                    ZoneOffset.ofTotalSeconds((allLocations[index].utcOffset?.toInt() ?: 0) * 60)
+                }
             }
+            val startDate = LocalDate.now(zone).plusDays(
+                floor(startEndPairs.first / 24).toLong() - extraDataLoadingDays
+            ).toString()
+            val endDate = LocalDate.now(zone).plusDays(
+                ceil(startEndPairs.second / 24).toLong() + extraDataLoadingDays
+            ).toString()
+            updateHourlySettingsStatus(appSettings.toSettingsUnits() == settingsUnits)
+
+            hourlyChartDataUseCase(
+                locationId = allLocations[index].id,
+                startDate = startDate,
+                endDate = endDate,
+                appSettings = appSettings
+            )
+        }.stateIn(
+            viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    private fun dailyChartDataFlow(index: Int) = combine(
+        _dailyChartState[index].map {
+            it.xAxisStart.value to it.xAxisEnd.value
+        },
+        settingsFlow
+    ) { startEndPairs, appSettings ->
+        val extraDataLoadingDays = ceil((startEndPairs.second - startEndPairs.first) / 1.5f).toLong()
+        val startDate = LocalDate.now().plusDays(
+            (startEndPairs.first).toLong() - extraDataLoadingDays
+        ).toString()
+        val endDate = LocalDate.now().plusDays(
+            (startEndPairs.second).toLong() + extraDataLoadingDays
+        ).toString()
+        updateDailySettingsStatus(appSettings.toSettingsUnits() == settingsUnits)
+
+        localWeatherRepository.getLocationDailyWeather(
+            locationId = allLocations[index].id,
+            startDate = startDate,
+            endDate = endDate,
+            appSettings = appSettings
+        )
+    }.stateIn(
+        viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    private fun clearYAxis(index: Int){
+        _hourlyChartState[index].update {
+            it.copy(
+                yAxesStarts = emptyList(),
+                yAxesEnds = emptyList(),
+                curveAnimator = emptyList()
+            )
         }
         initialYAxesStarts[index].clear()
         initialYAxesEnds[index].clear()
     }
 
     fun reInitialize(){
-        var deletedLocationIndex: Int?
+//        var deletedLocationIndex: Int?
         viewModelScope.launch {
+            while (!initializedCompleted)
+                delay(20)
+
             val newAllLocations = locationRepository.getAllLocationsList()
-            if (newAllLocations.size == allLocations.size) return@launch
+            if (newAllLocations.size <= allLocations.size) return@launch
             val addedLocationsCount = newAllLocations.size - allLocations.size
-            if(addedLocationsCount < 0) {
-                deletedLocationIndex = allLocations.indexOfFirst { !newAllLocations.contains(it) }
-                deletedLocationIndex.let { index ->
-                    _detailState.update {
-                        it - it[index]
-                    }
-                    _hourlyChartState.update {
-                        it - it[index]
-                    }
-                    _dailyChartState.update {
-                        it - it[index]
-                    }
-                    initialYAxesStarts = initialYAxesStarts.apply {
-                        this.toMutableList().removeAt(index)
-                    }
-                    initialYAxesEnds = initialYAxesEnds.apply {
-                        this.toMutableList().removeAt(index)
-                    }
-                    initialDailyYAxesStarts.removeAt(index)
-                    initialDailyYAxesEnds.removeAt(index)
-                }
-                allLocations = newAllLocations
-            } else {
-                _detailState.update {
-                    it + List(size = addedLocationsCount) { DetailState() }
-                }
-                _hourlyChartState.update {
-                    it + List(size = addedLocationsCount) { HourlyChartState() }
-                }
-                _dailyChartState.update {
-                    it + List(size = addedLocationsCount) { DailyChartState() }
-                }
-                initialYAxesStarts = initialYAxesStarts + List(addedLocationsCount) { mutableListOf() }
-                initialYAxesEnds = initialYAxesEnds + List(addedLocationsCount) { mutableListOf() }
-                initialDailyYAxesStarts.addAll(List(addedLocationsCount) { 0f })
-                initialDailyYAxesEnds.addAll(List(addedLocationsCount) { 0f })
-                allLocations = newAllLocations
-                updateDetailState()
+//            if(addedLocationsCount < 0) {
+//                deletedLocationIndex = allLocations.indexOfFirst { !newAllLocations.contains(it) }
+//                deletedLocationIndex.let { index ->
+//                    _detailState.update {
+//                        it - it[index]
+//                    }
+//                    _hourlyChartState.removeAt(index)
+//                    _locationsHourlyChartData.removeAt(index)
+//                    _dailyChartState.update {
+//                        it - it[index]
+//                    }
+//                    initialYAxesStarts = initialYAxesStarts.apply {
+//                        this.toMutableList().removeAt(index)
+//                    }
+//                    initialYAxesEnds = initialYAxesEnds.apply {
+//                        this.toMutableList().removeAt(index)
+//                    }
+//                    initialDailyYAxesStarts.removeAt(index)
+//                    initialDailyYAxesEnds.removeAt(index)
+//                }
+//                allLocations = newAllLocations
+//            } else {
+            _detailState.update {
+                it + List(size = addedLocationsCount) { DetailState() }
             }
+            _hourlyChartState.addAll(
+                List(size = addedLocationsCount) { MutableStateFlow(HourlyChartState()) }
+            )
+            _dailyChartState.addAll(
+                List(size = addedLocationsCount) { MutableStateFlow(DailyChartState()) }
+            )
+            initialYAxesStarts = initialYAxesStarts + List(addedLocationsCount) { mutableListOf() }
+            initialYAxesEnds = initialYAxesEnds + List(addedLocationsCount) { mutableListOf() }
+            initialDailyYAxesStarts.addAll(List(addedLocationsCount) { 0f })
+            initialDailyYAxesEnds.addAll(List(addedLocationsCount) { 0f })
+            allLocations = newAllLocations
+            _locationsHourlyChartData.addAll(
+                List(size = addedLocationsCount) {
+                    hourlyChartDataFlow(it + _locationsHourlyChartData.size)
+                }
+            )
+            _locationsDailyChartData.addAll(
+                List(size = addedLocationsCount) {
+                    dailyChartDataFlow(it + _locationsDailyChartData.size)
+                }
+            )
+            updateDetailState()
+//            }
         }
     }
 
@@ -324,12 +344,8 @@ class DetailViewModel @Inject constructor(
             _detailState.update {
                 it - it[deletedLocationIndex]
             }
-            _hourlyChartState.update {
-                it - it[deletedLocationIndex]
-            }
-            _dailyChartState.update {
-                it - it[deletedLocationIndex]
-            }
+            _hourlyChartState.removeAt(deletedLocationIndex)
+            _dailyChartState.removeAt(deletedLocationIndex)
             initialYAxesStarts = initialYAxesStarts.apply {
                 this.toMutableList().removeAt(deletedLocationIndex)
             }
@@ -340,6 +356,12 @@ class DetailViewModel @Inject constructor(
             initialDailyYAxesEnds.removeAt(deletedLocationIndex)
 
             allLocations = allLocations.toMutableList().apply { removeAt(deletedLocationIndex) }
+            _locationsHourlyChartData = MutableList(size = allLocations.size){ i ->
+                hourlyChartDataFlow(i)
+            }
+            _locationsDailyChartData = MutableList(size = allLocations.size){ i ->
+                dailyChartDataFlow(i)
+            }
         }
     }
 
@@ -396,55 +418,49 @@ class DetailViewModel @Inject constructor(
 
 
     fun setSliderThumbPositions(){
-        _hourlyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                allLocations.forEachIndexed { index, location ->
-                    val utcNow = LocalDateTime.now(ZoneId.of("UTC")).toString()
-                    val nowX = timeToX(utcNow, location.utcOffset) ?: 0f
-                    this[index] = this[index].copy(
-                        sliderThumbPosition = ((nowX - _hourlyChartState.value[index].initialXAxisStart) /
-                                (_hourlyChartState.value[index].initialXAxisEnd -
-                                        _hourlyChartState.value[index].initialXAxisStart))
+        val utcNow = LocalDateTime.now(ZoneId.of("UTC")).toString()
+        viewModelScope.launch {
+            val appSettings = preferenceRepository.getSettings()
+            allLocations.forEachIndexed { index, location ->
+                val nowX = timeToX(utcNow, location.utcOffset, appSettings.hourlyDiagramTime) ?: 0f
+                _hourlyChartState[index].update { chartState ->
+                    chartState.copy(
+                        sliderThumbPosition = ((nowX - chartState.initialXAxisStart) /
+                                (chartState.initialXAxisEnd - chartState.initialXAxisStart))
                     )
                 }
             }
         }
-        _dailyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                allLocations.forEachIndexed { index, _ ->
-                    this[index] = this[index].copy(
-                        sliderThumbPosition = ((0f - _dailyChartState.value[index].initialDailyXAxisStart) /
-                                (_dailyChartState.value[index].initialDailyXAxisEnd -
-                                        _dailyChartState.value[index].initialDailyXAxisStart))
-                    )
-                }
+
+        allLocations.forEachIndexed { index, location ->
+            _dailyChartState[index].update { chartState ->
+                chartState.copy(
+                    sliderThumbPosition = ((0f - chartState.initialDailyXAxisStart) /
+                            (chartState.initialDailyXAxisEnd - chartState.initialDailyXAxisStart))
+                )
             }
         }
     }
 
     fun addChartQuantity(quantity: WeatherQuantity, pageIndex: Int){
-        if (!_hourlyChartState.value[pageIndex].chartQuantities.contains(quantity) &&
-            _hourlyChartState.value[pageIndex].chartQuantities.size < 4) {
-            _hourlyChartState.update { chartStateList ->
-                chartStateList.toMutableList().apply {
-                    this[pageIndex] = this[pageIndex].copy(
-                        chartQuantities = this[pageIndex].chartQuantities + quantity,
-                        curveValueAtIndicator = this[pageIndex].curveValueAtIndicator + 0f
-                    )
-                }
+        if (!_hourlyChartState[pageIndex].value.chartQuantities.contains(quantity) &&
+            _hourlyChartState[pageIndex].value.chartQuantities.size < 4) {
+            _hourlyChartState[pageIndex].update { chartState ->
+                chartState.copy(
+                    chartQuantities = chartState.chartQuantities + quantity,
+                    curveValueAtIndicator = chartState.curveValueAtIndicator + 0f
+                )
             }
         }
     }
 
     fun removeChartQuantity(quantity: WeatherQuantity, pageIndex: Int){
-        val curveIndex = _hourlyChartState.value[pageIndex].chartQuantities.indexOf(quantity)
+        val curveIndex = _hourlyChartState[pageIndex].value.chartQuantities.indexOf(quantity)
         if (curveIndex >= 0) {
-            _hourlyChartState.update { chartStateList ->
-                chartStateList.toMutableList().apply {
-                    this[pageIndex] = this[pageIndex].copy(
-                        chartQuantities = this[pageIndex].chartQuantities - quantity
-                    )
-                }
+            _hourlyChartState[pageIndex].update { chartState ->
+                chartState.copy(
+                    chartQuantities = chartState.chartQuantities - quantity
+                )
             }
             removeYAxis(curveIndex, pageIndex)
         }
@@ -497,28 +513,47 @@ class DetailViewModel @Inject constructor(
     }
 
     fun updateDailyChartQuantity(quantity: DailyWeatherQuantity, pageIndex: Int){
-        _dailyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                this[pageIndex] = this[pageIndex].copy(
-                    chartQuantity = quantity,
-                    curveAnimator = Animatable(initialValue = 0f)
-                )
-            }
+        _dailyChartState[pageIndex].update { chartState ->
+            chartState.copy(
+                chartQuantity = quantity,
+                curveAnimator = Animatable(initialValue = 0f)
+            )
         }
 //        updateDailyYAxis(quantity, pageIndex)
     }
 
-    private fun copyYAxis(pageIndex: Int, axisIndex: Int){
-        _hourlyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                this[pageIndex] = this[pageIndex].copy(
-                    curveAnimator = this[pageIndex].curveAnimator + Animatable(initialValue = 0f),
-                    yAxesStarts = this[pageIndex].yAxesStarts + Animatable(
-                        initialValue = this[pageIndex].yAxesStarts[axisIndex].value),
-                    yAxesEnds = this[pageIndex].yAxesEnds + Animatable(
-                        initialValue = this[pageIndex].yAxesEnds[axisIndex].value)
-                )
+    fun adjustSettings(){
+        viewModelScope.launch {
+            val appSettings = preferenceRepository.getSettings()
+            updateHourlyChartWeatherIconVisibility(appSettings.hourlyDiagramWeatherConditionIconVisible)
+            updateDailyChartWeatherIconVisibility(appSettings.dailyDiagramWeatherConditionIconVisible)
+            updateHourlyChartDotsOnCurveVisibility(appSettings.hourlyDotsOnCurveVisible)
+            updateHourlyChartCurveShadowVisibility(appSettings.hourlyCurveShadowVisible)
+            updateHourlyChartGrid(appSettings.hourlyChartGrid)
+            updateHourlyChartSunRiseSetIconsVisibility(appSettings.hourlySunRiseSetIconsVisible)
+            updateHourlyChartTheme(appSettings.hourlyChartTheme)
+            _hourlyChartState.forEach {
+                it.update { chartState ->
+                    chartState.copy(curvesColor = appSettings.curvesColor)
+                }
             }
+            _hourlyChartState.forEach {
+                it.update { chartState ->
+                    chartState.copy(curvesSmoothness = appSettings.curvesSmoothness)
+                }
+            }
+        }
+    }
+
+    private fun copyYAxis(pageIndex: Int, axisIndex: Int){
+        _hourlyChartState[pageIndex].update { chartState ->
+            chartState.copy(
+                curveAnimator = chartState.curveAnimator + Animatable(initialValue = 0f),
+                yAxesStarts = chartState.yAxesStarts + Animatable(
+                    initialValue = chartState.yAxesStarts[axisIndex].value),
+                yAxesEnds = chartState.yAxesEnds + Animatable(
+                    initialValue = chartState.yAxesEnds[axisIndex].value)
+            )
         }
         initialYAxesStarts[pageIndex].add(initialYAxesStarts[pageIndex][axisIndex])
         initialYAxesEnds[pageIndex].add(initialYAxesEnds[pageIndex][axisIndex])
@@ -542,7 +577,7 @@ class DetailViewModel @Inject constructor(
         val newStartAfterTransformation: Float
         val newEndAfterTransformation: Float
 
-        if (_hourlyChartState.value[pageIndex].yAxesStarts.isEmpty()) {
+        if (_hourlyChartState[pageIndex].value.yAxesStarts.isEmpty()) {
             newStart = start
             newStartAfterTransformation = start
             newEnd = end
@@ -570,12 +605,12 @@ class DetailViewModel @Inject constructor(
             }
 
             newEnd = newStart + newYAxisLength
-            val y1Start = _hourlyChartState.value[pageIndex].yAxesStarts[0].value
-            val y1End = _hourlyChartState.value[pageIndex].yAxesEnds[0].value
+            val y1Start = _hourlyChartState[pageIndex].value.yAxesStarts[0].value
+            val y1End = _hourlyChartState[pageIndex].value.yAxesEnds[0].value
             val scale = (y1End - y1Start) / y0Length
 
             if (scale.isEqualTo(1f)){
-                val yMovement = _hourlyChartState.value[pageIndex].yAxesStarts[0].value -
+                val yMovement = _hourlyChartState[pageIndex].value.yAxesStarts[0].value -
                         initialYAxesStarts[pageIndex][0]
                 newStartAfterTransformation = newStart + yMovement * newYAxisLength/y0Length
                 newEndAfterTransformation = newEnd + yMovement * newYAxisLength/y0Length
@@ -586,14 +621,12 @@ class DetailViewModel @Inject constructor(
                 newEndAfterTransformation = (1 - scale) * newAxisCenter + scale * newEnd
             }
         }
-        _hourlyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                this[pageIndex] = this[pageIndex].copy(
-                    curveAnimator = this[pageIndex].curveAnimator + Animatable(initialValue = curveAnimatorInitialValue),
-                    yAxesEnds = this[pageIndex].yAxesEnds + Animatable(initialValue = newEndAfterTransformation),
-                    yAxesStarts = this[pageIndex].yAxesStarts + Animatable(initialValue = newStartAfterTransformation),
-                )
-            }
+        _hourlyChartState[pageIndex].update { chartState ->
+            chartState.copy(
+                curveAnimator = chartState.curveAnimator + Animatable(initialValue = curveAnimatorInitialValue),
+                yAxesEnds = chartState.yAxesEnds + Animatable(initialValue = newEndAfterTransformation),
+                yAxesStarts = chartState.yAxesStarts + Animatable(initialValue = newStartAfterTransformation),
+            )
         }
         initialYAxesStarts[pageIndex].add(newStart)
         initialYAxesEnds[pageIndex].add(newEnd)
@@ -604,32 +637,29 @@ class DetailViewModel @Inject constructor(
         val quantityMax: Float?
         when (quantity ){
             DailyWeatherQuantity.TEMPERATUREMINMAX -> {
-                val dataMin = locationsDailyChartData.value[pageIndex].map { it.temperatureMin }
-                val dataMax = locationsDailyChartData.value[pageIndex].map { it.temperatureMax }
+                val dataMin = _locationsDailyChartData[pageIndex].value.map { it.temperatureMin }
+                val dataMax = _locationsDailyChartData[pageIndex].value.map { it.temperatureMax }
                 quantityMin = dataMin.minOfOrNull { it ?: Float.MAX_VALUE }
-                quantityMax = dataMax.maxOfOrNull { it ?: Float.MIN_VALUE }
+                quantityMax = dataMax.maxOfOrNull { it ?: -Float.MAX_VALUE }
             }
             DailyWeatherQuantity.SUNRISESET -> {
                 quantityMin = -2f
                 quantityMax = 26f
             }
             else -> {
-                val data = dailyQuantityData(locationsDailyChartData.value[pageIndex], quantity)
-                quantityMax = data.maxOfOrNull { it ?: Float.MIN_VALUE }
+                val data = dailyQuantityData(_locationsDailyChartData[pageIndex].value, quantity)
+                quantityMax = data.maxOfOrNull { it ?: -Float.MAX_VALUE }
                 quantityMin = data.minOfOrNull { it ?: Float.MAX_VALUE }
             }
         }
         if (quantityMin != null && quantityMax != null) {
             val (modifiedQuantityMin, modifiedQuantityMax) =
                 dailyQuantityMinMaxModifier(quantity, quantityMin, quantityMax)
-            _dailyChartState.update { chartStateList ->
-                chartStateList.toMutableList().apply {
-                    this[pageIndex] = this[pageIndex].copy(
-//                        curveAnimator = Animatable(initialValue = 0f),
-                        yAxesEnds = Animatable(initialValue = modifiedQuantityMax),
-                        yAxesStarts = Animatable(initialValue = modifiedQuantityMin),
-                    )
-                }
+            _dailyChartState[pageIndex].update { chartState ->
+                chartState.copy(
+                    yAxesEnds = Animatable(initialValue = modifiedQuantityMax),
+                    yAxesStarts = Animatable(initialValue = modifiedQuantityMin),
+                )
             }
             initialDailyYAxesStarts[pageIndex] = modifiedQuantityMin
             initialDailyYAxesEnds[pageIndex] = modifiedQuantityMax
@@ -637,50 +667,25 @@ class DetailViewModel @Inject constructor(
     }
 
     private fun removeYAxis(curveIndex: Int, pageIndex: Int){
-        _hourlyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                this[pageIndex] = this[pageIndex].copy(
-                    yAxesStarts = this[pageIndex].yAxesStarts.filterIndexed { index, _ ->
-                        index != curveIndex
-                    },
-                    yAxesEnds = this[pageIndex].yAxesEnds.filterIndexed { index, _ ->
-                        index != curveIndex
-                    },
-                    curveAnimator = this[pageIndex].curveAnimator.filterIndexed { index, _ ->
-                        index != curveIndex
-                    },
-                    curveValueAtIndicator =  this[pageIndex].curveValueAtIndicator.filterIndexed { index, _ ->
-                        index != curveIndex
-                    }
-                )
-            }
+        _hourlyChartState[pageIndex].update { chartState ->
+            chartState.copy(
+                yAxesStarts = chartState.yAxesStarts.filterIndexed { index, _ ->
+                    index != curveIndex
+                },
+                yAxesEnds = chartState.yAxesEnds.filterIndexed { index, _ ->
+                    index != curveIndex
+                },
+                curveAnimator = chartState.curveAnimator.filterIndexed { index, _ ->
+                    index != curveIndex
+                },
+                curveValueAtIndicator =  chartState.curveValueAtIndicator.filterIndexed { index, _ ->
+                    index != curveIndex
+                }
+            )
         }
         initialYAxesStarts[pageIndex].removeAt(curveIndex)
         initialYAxesEnds[pageIndex].removeAt(curveIndex)
     }
-
-//    private fun removeDailyYAxis(curveIndex: Int, pageIndex: Int){
-//        _dailyChartState.update { chartStateList ->
-//            chartStateList.toMutableList().apply {
-//                this[pageIndex] = this[pageIndex].copy(
-//                    yAxesStarts = this[pageIndex].yAxesStarts.filterIndexed { index, _ ->
-//                        index != curveIndex
-//                    },
-//                    yAxesEnds = this[pageIndex].yAxesEnds.filterIndexed { index, _ ->
-//                        index != curveIndex
-//                    },
-//                    curveAnimator = this[pageIndex].curveAnimator.filterIndexed { index, _ ->
-//                        index != curveIndex
-//                    },
-//                    curveValueAtIndicator =  this[pageIndex].curveValueAtIndicator.filterIndexed { index, _ ->
-//                        index != curveIndex
-//                    }
-//                )
-//            }
-//        }
-//        initialDailyYAxesStarts[pageIndex].removeAt(curveIndex)
-//        initialDailyYAxesEnds[pageIndex].removeAt(curveIndex)
-//    }
 
     fun calculateHorizontalBarSeparation(
         yStart: Float,
@@ -745,35 +750,33 @@ class DetailViewModel @Inject constructor(
     fun moveHourlyDiagramAxis(offset: Offset, pageIndex: Int) {
         viewModelScope.launch {
             val xAxisLength =
-                _hourlyChartState.value[pageIndex].let { it.xAxisEnd.value - it.xAxisStart.value }
+                _hourlyChartState[pageIndex].value.let { it.xAxisEnd.value - it.xAxisStart.value }
             val xAxisMovement = offset.x * xAxisLength
             launch {
-                _hourlyChartState.update { chartStateList ->
-                    chartStateList.toMutableList().apply {
-                        this[pageIndex] = this[pageIndex].copy(
-                            awaker = this[pageIndex].awaker + 1
-                        )
-                    }
+                _hourlyChartState[pageIndex].update { chartState ->
+                    chartState.copy(
+                        awaker = chartState.awaker + 1
+                    )
                 }
-                _hourlyChartState.value[pageIndex].xAxisStart.snapTo(
-                    _hourlyChartState.value[pageIndex].xAxisStart.value - xAxisMovement
+                _hourlyChartState[pageIndex].value.xAxisStart.snapTo(
+                    _hourlyChartState[pageIndex].value.xAxisStart.value - xAxisMovement
                 )
-                _hourlyChartState.value[pageIndex].xAxisEnd.snapTo(
-                    _hourlyChartState.value[pageIndex].xAxisEnd.value - xAxisMovement
+                _hourlyChartState[pageIndex].value.xAxisEnd.snapTo(
+                    _hourlyChartState[pageIndex].value.xAxisEnd.value - xAxisMovement
                 )
             }
 
-            val curveCount = _hourlyChartState.value[pageIndex].yAxesStarts.size
+            val curveCount = _hourlyChartState[pageIndex].value.yAxesStarts.size
             for (i in 0 until curveCount) {
                 val yAxisLength =
-                    _hourlyChartState.value[pageIndex].let { it.yAxesEnds[i].value - it.yAxesStarts[i].value }
+                    _hourlyChartState[pageIndex].value.let { it.yAxesEnds[i].value - it.yAxesStarts[i].value }
                 val yAxisMovement = offset.y * yAxisLength
                 launch {
-                    _hourlyChartState.value[pageIndex].yAxesStarts[i].snapTo(
-                        _hourlyChartState.value[pageIndex].yAxesStarts[i].value + yAxisMovement
+                    _hourlyChartState[pageIndex].value.yAxesStarts[i].snapTo(
+                        _hourlyChartState[pageIndex].value.yAxesStarts[i].value + yAxisMovement
                     )
-                    _hourlyChartState.value[pageIndex].yAxesEnds[i].snapTo(
-                        _hourlyChartState.value[pageIndex].yAxesEnds[i].value + yAxisMovement
+                    _hourlyChartState[pageIndex].value.yAxesEnds[i].snapTo(
+                        _hourlyChartState[pageIndex].value.yAxesEnds[i].value + yAxisMovement
                     )
                 }
             }
@@ -783,73 +786,67 @@ class DetailViewModel @Inject constructor(
     fun moveDailyDiagramAxis(offset: Offset, pageIndex: Int) {
         viewModelScope.launch {
             val xAxisLength =
-                _dailyChartState.value[pageIndex].let { it.xAxisEnd.value - it.xAxisStart.value }
+                _dailyChartState[pageIndex].value.let { it.xAxisEnd.value - it.xAxisStart.value }
             val xAxisMovement = offset.x * xAxisLength
             launch {
-                _dailyChartState.value[pageIndex].xAxisStart.snapTo(
-                    _dailyChartState.value[pageIndex].xAxisStart.value - xAxisMovement
+                _dailyChartState[pageIndex].value.xAxisStart.snapTo(
+                    _dailyChartState[pageIndex].value.xAxisStart.value - xAxisMovement
                 )
-                _dailyChartState.value[pageIndex].xAxisEnd.snapTo(
-                    _dailyChartState.value[pageIndex].xAxisEnd.value - xAxisMovement
+                _dailyChartState[pageIndex].value.xAxisEnd.snapTo(
+                    _dailyChartState[pageIndex].value.xAxisEnd.value - xAxisMovement
                 )
-                _dailyChartState.update { chartStateList ->
-                    chartStateList.toMutableList().apply {
-                        this[pageIndex] = this[pageIndex].copy(
-                            awaker = this[pageIndex].awaker + 1
-                        )
-                    }
+                _dailyChartState[pageIndex].update { chartState ->
+                    chartState.copy(
+                        awaker = chartState.awaker + 1
+                    )
                 }
             }
 
             val yAxisLength =
-                _dailyChartState.value[pageIndex].let { it.yAxesEnds.value - it.yAxesStarts.value }
+                _dailyChartState[pageIndex].value.let { it.yAxesEnds.value - it.yAxesStarts.value }
             val yAxisMovement = offset.y * yAxisLength
             launch {
-                _dailyChartState.value[pageIndex].yAxesStarts.snapTo(
-                    _dailyChartState.value[pageIndex].yAxesStarts.value + yAxisMovement
+                _dailyChartState[pageIndex].value.yAxesStarts.snapTo(
+                    _dailyChartState[pageIndex].value.yAxesStarts.value + yAxisMovement
                 )
-                _dailyChartState.value[pageIndex].yAxesEnds.snapTo(
-                    _dailyChartState.value[pageIndex].yAxesEnds.value + yAxisMovement
+                _dailyChartState[pageIndex].value.yAxesEnds.snapTo(
+                    _dailyChartState[pageIndex].value.yAxesEnds.value + yAxisMovement
                 )
             }
         }
     }
 
     fun scaleHourlyDiagramAxis(center: Offset, scaleX: Float, scaleY: Float, pageIndex: Int){
-        val initialXAxisLength = _hourlyChartState.value[pageIndex].let {
+        val initialXAxisLength = _hourlyChartState[pageIndex].value.let {
             it.initialXAxisEnd - it.initialXAxisStart
         }
         val xAxisLengthMin = initialXAxisLength / 20
         val xAxisLengthMax = initialXAxisLength * 9
 
-        val xAxisLength = _hourlyChartState.value[pageIndex].let { it.xAxisEnd.value - it.xAxisStart.value }
-        val centerX = _hourlyChartState.value[pageIndex].xAxisStart.value + center.x * xAxisLength
+        val xAxisLength = _hourlyChartState[pageIndex].value.let { it.xAxisEnd.value - it.xAxisStart.value }
+        val centerX = _hourlyChartState[pageIndex].value.xAxisStart.value + center.x * xAxisLength
         val effectiveScaleX = when {
             (xAxisLength < xAxisLengthMin && scaleX > 1) ||
                     (xAxisLength > xAxisLengthMax && scaleX < 1) -> 1 + (scaleX - 1) / 5
             else -> scaleX
         }
-        val xAxisStart = centerX - (centerX - _hourlyChartState.value[pageIndex].xAxisStart.value)/effectiveScaleX
-        val xAxisEnd = centerX + (_hourlyChartState.value[pageIndex].xAxisEnd.value - centerX)/effectiveScaleX
+        val xAxisStart = centerX - (centerX - _hourlyChartState[pageIndex].value.xAxisStart.value)/effectiveScaleX
+        val xAxisEnd = centerX + (_hourlyChartState[pageIndex].value.xAxisEnd.value - centerX)/effectiveScaleX
 
         viewModelScope.launch {
             launch {
-                _hourlyChartState.value[pageIndex].xAxisStart.snapTo(xAxisStart)
-                _hourlyChartState.value[pageIndex].xAxisEnd.snapTo(xAxisEnd)
-                _hourlyChartState.update { chartStateList ->
-                    chartStateList.toMutableList().apply {
-                        this[pageIndex] = this[pageIndex].copy(
-                            awaker = this[pageIndex].awaker + 1
-                        )
-                    }
+                _hourlyChartState[pageIndex].value.xAxisStart.snapTo(xAxisStart)
+                _hourlyChartState[pageIndex].value.xAxisEnd.snapTo(xAxisEnd)
+                _hourlyChartState[pageIndex].update { chartState ->
+                    chartState.copy(awaker = chartState.awaker + 1)
                 }
             }
 
-            val curveCount = _hourlyChartState.value[pageIndex].yAxesStarts.size
+            val curveCount = _hourlyChartState[pageIndex].value.yAxesStarts.size
             for (i in 0 until curveCount) {
                 val yAxisLength =
-                    _hourlyChartState.value[pageIndex].let { it.yAxesEnds[i].value - it.yAxesStarts[i].value }
-                val centerY = _hourlyChartState.value[pageIndex].yAxesEnds[i].value - center.y * yAxisLength
+                    _hourlyChartState[pageIndex].value.let { it.yAxesEnds[i].value - it.yAxesStarts[i].value }
+                val centerY = _hourlyChartState[pageIndex].value.yAxesEnds[i].value - center.y * yAxisLength
                 val initialYAxesRange = initialYAxesEnds[pageIndex][i] - initialYAxesStarts[pageIndex][i]
                 val effectiveScaleY = when {
                     (yAxisLength < initialYAxesRange / 10 && scaleX > 1) ||
@@ -858,37 +855,37 @@ class DetailViewModel @Inject constructor(
                     else -> scaleY
                 }
                 val yAxisStart =
-                    centerY - (centerY - _hourlyChartState.value[pageIndex].yAxesStarts[i].value) / effectiveScaleY
+                    centerY - (centerY - _hourlyChartState[pageIndex].value.yAxesStarts[i].value) / effectiveScaleY
                 val yAxisEnd =
-                    centerY + (_hourlyChartState.value[pageIndex].yAxesEnds[i].value - centerY) / effectiveScaleY
+                    centerY + (_hourlyChartState[pageIndex].value.yAxesEnds[i].value - centerY) / effectiveScaleY
                 launch {
-                    _hourlyChartState.value[pageIndex].yAxesStarts[i].snapTo(yAxisStart)
-                    _hourlyChartState.value[pageIndex].yAxesEnds[i].snapTo(yAxisEnd)
+                    _hourlyChartState[pageIndex].value.yAxesStarts[i].snapTo(yAxisStart)
+                    _hourlyChartState[pageIndex].value.yAxesEnds[i].snapTo(yAxisEnd)
                 }
             }
         }
     }
 
     fun scaleDailyDiagramAxis(center: Offset, scaleX: Float, scaleY: Float, pageIndex: Int){
-        val initialXAxisLength = _dailyChartState.value[pageIndex].let {
+        val initialXAxisLength = _dailyChartState[pageIndex].value.let {
             it.initialDailyXAxisEnd - it.initialDailyXAxisStart
         }
         val xAxisLengthMin = initialXAxisLength / 2
         val xAxisLengthMax = initialXAxisLength * 36
 
-        val xAxisLength = _dailyChartState.value[pageIndex].let { it.xAxisEnd.value - it.xAxisStart.value }
-        val centerX = _dailyChartState.value[pageIndex].xAxisStart.value + center.x * xAxisLength
+        val xAxisLength = _dailyChartState[pageIndex].value.let { it.xAxisEnd.value - it.xAxisStart.value }
+        val centerX = _dailyChartState[pageIndex].value.xAxisStart.value + center.x * xAxisLength
         val effectiveScaleX = when {
             (xAxisLength < xAxisLengthMin && scaleX > 1) ||
                     (xAxisLength > xAxisLengthMax && scaleX < 1) -> 1 + (scaleX - 1) / 5
             else -> scaleX
         }
-        val xAxisStart = centerX - (centerX - _dailyChartState.value[pageIndex].xAxisStart.value)/effectiveScaleX
-        val xAxisEnd = centerX + (_dailyChartState.value[pageIndex].xAxisEnd.value - centerX)/effectiveScaleX
+        val xAxisStart = centerX - (centerX - _dailyChartState[pageIndex].value.xAxisStart.value)/effectiveScaleX
+        val xAxisEnd = centerX + (_dailyChartState[pageIndex].value.xAxisEnd.value - centerX)/effectiveScaleX
 
         val yAxisLength =
-            _dailyChartState.value[pageIndex].let { it.yAxesEnds.value - it.yAxesStarts.value }
-        val centerY = _dailyChartState.value[pageIndex].yAxesEnds.value - center.y * yAxisLength
+            _dailyChartState[pageIndex].value.let { it.yAxesEnds.value - it.yAxesStarts.value }
+        val centerY = _dailyChartState[pageIndex].value.yAxesEnds.value - center.y * yAxisLength
         val initialYAxesRange = initialDailyYAxesEnds[pageIndex] - initialDailyYAxesStarts[pageIndex]
         val effectiveScaleY = when {
             (yAxisLength < initialYAxesRange / 20 && scaleX > 1) ||
@@ -897,116 +894,114 @@ class DetailViewModel @Inject constructor(
             else -> scaleY
         }
         val yAxisStart =
-            centerY - (centerY - _dailyChartState.value[pageIndex].yAxesStarts.value) / effectiveScaleY
+            centerY - (centerY - _dailyChartState[pageIndex].value.yAxesStarts.value) / effectiveScaleY
         val yAxisEnd =
-            centerY + (_dailyChartState.value[pageIndex].yAxesEnds.value - centerY) / effectiveScaleY
+            centerY + (_dailyChartState[pageIndex].value.yAxesEnds.value - centerY) / effectiveScaleY
 
         viewModelScope.launch {
             launch {
-                _dailyChartState.value[pageIndex].xAxisStart.snapTo(xAxisStart)
-                _dailyChartState.value[pageIndex].xAxisEnd.snapTo(xAxisEnd)
-                _dailyChartState.update { chartStateList ->
-                    chartStateList.toMutableList().apply {
-                        this[pageIndex] = this[pageIndex].copy(
-                            awaker = this[pageIndex].awaker + 1
-                        )
-                    }
+                _dailyChartState[pageIndex].value.xAxisStart.snapTo(xAxisStart)
+                _dailyChartState[pageIndex].value.xAxisEnd.snapTo(xAxisEnd)
+                _dailyChartState[pageIndex].update { chartState ->
+                    chartState.copy(
+                        awaker = chartState.awaker + 1
+                    )
                 }
             }
             launch {
-                _dailyChartState.value[pageIndex].yAxesStarts.snapTo(yAxisStart)
-                _dailyChartState.value[pageIndex].yAxesEnds.snapTo(yAxisEnd)
+                _dailyChartState[pageIndex].value.yAxesStarts.snapTo(yAxisStart)
+                _dailyChartState[pageIndex].value.yAxesEnds.snapTo(yAxisEnd)
             }
         }
     }
 
     suspend fun scaleToNormalHourlyDiagramAxis(center: Offset, pageIndex: Int){
-        val initialXAxisLength = _hourlyChartState.value[pageIndex].let {
+        val initialXAxisLength = _hourlyChartState[pageIndex].value.let {
             it.initialXAxisEnd - it.initialXAxisStart
         }
         val xAxisLengthMin = initialXAxisLength / 20
         val xAxisLengthMax = initialXAxisLength * 9
         withContext(context = Dispatchers.Main){
             launch {
-                val xAxisLength = _hourlyChartState.value[pageIndex].let { it.xAxisEnd.value - it.xAxisStart.value }
+                val xAxisLength = _hourlyChartState[pageIndex].value.let { it.xAxisEnd.value - it.xAxisStart.value }
                 val scaleX =
                     if (xAxisLength < xAxisLengthMin) xAxisLengthMin / xAxisLength
                     else if (xAxisLength > xAxisLengthMax) xAxisLengthMax / xAxisLength
                     else return@launch
-                val centerX = _hourlyChartState.value[pageIndex].xAxisStart.value + center.x * xAxisLength
-                val xAxisStart = centerX - scaleX * (centerX - _hourlyChartState.value[pageIndex].xAxisStart.value)
-                val xAxisEnd = centerX + scaleX * (_hourlyChartState.value[pageIndex].xAxisEnd.value - centerX)
+                val centerX = _hourlyChartState[pageIndex].value.xAxisStart.value + center.x * xAxisLength
+                val xAxisStart = centerX - scaleX * (centerX - _hourlyChartState[pageIndex].value.xAxisStart.value)
+                val xAxisEnd = centerX + scaleX * (_hourlyChartState[pageIndex].value.xAxisEnd.value - centerX)
 
                 launch {
-                    _hourlyChartState.value[pageIndex].xAxisStart.animateTo(targetValue = xAxisStart)
+                    _hourlyChartState[pageIndex].value.xAxisStart.animateTo(targetValue = xAxisStart)
                 }
                 launch {
-                    _hourlyChartState.value[pageIndex].xAxisEnd.animateTo(targetValue = xAxisEnd)
+                    _hourlyChartState[pageIndex].value.xAxisEnd.animateTo(targetValue = xAxisEnd)
                 }
             }
 
-            val curveCount = _hourlyChartState.value[pageIndex].yAxesStarts.size
+            val curveCount = _hourlyChartState[pageIndex].value.yAxesStarts.size
             for (i in 0 until curveCount) {
                 launch {
                     val yAxisLength =
-                        _hourlyChartState.value[pageIndex].let { it.yAxesEnds[i].value - it.yAxesStarts[i].value }
+                        _hourlyChartState[pageIndex].value.let { it.yAxesEnds[i].value - it.yAxesStarts[i].value }
                     val initialYAxesRange = initialYAxesEnds[pageIndex][i] - initialYAxesStarts[pageIndex][i]
                     val scaleY =
                         if (yAxisLength < initialYAxesRange / 10) initialYAxesRange / (10 * yAxisLength)
                         else if (yAxisLength > 10 * initialYAxesRange) 10 * initialYAxesRange / yAxisLength
                         else return@launch
                     val centerY =
-                        _hourlyChartState.value[pageIndex].yAxesEnds[i].value - center.y * yAxisLength
+                        _hourlyChartState[pageIndex].value.yAxesEnds[i].value - center.y * yAxisLength
                     val yAxisStart =
-                        centerY - scaleY * (centerY - _hourlyChartState.value[pageIndex].yAxesStarts[i].value)
+                        centerY - scaleY * (centerY - _hourlyChartState[pageIndex].value.yAxesStarts[i].value)
                     val yAxisEnd =
-                        centerY + scaleY * (_hourlyChartState.value[pageIndex].yAxesEnds[i].value - centerY)
+                        centerY + scaleY * (_hourlyChartState[pageIndex].value.yAxesEnds[i].value - centerY)
 
-                    launch { _hourlyChartState.value[pageIndex].yAxesStarts[i].animateTo(yAxisStart) }
-                    launch { _hourlyChartState.value[pageIndex].yAxesEnds[i].animateTo(yAxisEnd) }
+                    launch { _hourlyChartState[pageIndex].value.yAxesStarts[i].animateTo(yAxisStart) }
+                    launch { _hourlyChartState[pageIndex].value.yAxesEnds[i].animateTo(yAxisEnd) }
                 }
             }
         }
     }
 
     suspend fun scaleToNormalDailyDiagramAxis(center: Offset, pageIndex: Int){
-        val initialXAxisLength = _dailyChartState.value[pageIndex].let {
+        val initialXAxisLength = _dailyChartState[pageIndex].value.let {
             it.initialDailyXAxisEnd - it.initialDailyXAxisStart
         }
         val xAxisLengthMin = initialXAxisLength / 2
         val xAxisLengthMax = initialXAxisLength * 36
         withContext(context = Dispatchers.Main){
             launch {
-                val xAxisLength = _dailyChartState.value[pageIndex].let { it.xAxisEnd.value - it.xAxisStart.value }
+                val xAxisLength = _dailyChartState[pageIndex].value.let { it.xAxisEnd.value - it.xAxisStart.value }
                 val scaleX =
                     if (xAxisLength < xAxisLengthMin) xAxisLengthMin / xAxisLength
                     else if (xAxisLength > xAxisLengthMax) xAxisLengthMax / xAxisLength
                     else return@launch
-                val centerX = _dailyChartState.value[pageIndex].xAxisStart.value + center.x * xAxisLength
-                val xAxisStart = centerX - scaleX * (centerX - _dailyChartState.value[pageIndex].xAxisStart.value)
-                val xAxisEnd = centerX + scaleX * (_dailyChartState.value[pageIndex].xAxisEnd.value - centerX)
+                val centerX = _dailyChartState[pageIndex].value.xAxisStart.value + center.x * xAxisLength
+                val xAxisStart = centerX - scaleX * (centerX - _dailyChartState[pageIndex].value.xAxisStart.value)
+                val xAxisEnd = centerX + scaleX * (_dailyChartState[pageIndex].value.xAxisEnd.value - centerX)
 
-                launch { _dailyChartState.value[pageIndex].xAxisStart.animateTo(xAxisStart) }
-                launch { _dailyChartState.value[pageIndex].xAxisEnd.animateTo(xAxisEnd) }
+                launch { _dailyChartState[pageIndex].value.xAxisStart.animateTo(xAxisStart) }
+                launch { _dailyChartState[pageIndex].value.xAxisEnd.animateTo(xAxisEnd) }
             }
 
             launch {
                 val yAxisLength =
-                    _dailyChartState.value[pageIndex].let { it.yAxesEnds.value - it.yAxesStarts.value }
+                    _dailyChartState[pageIndex].value.let { it.yAxesEnds.value - it.yAxesStarts.value }
                 val initialYAxesRange = initialDailyYAxesEnds[pageIndex] - initialDailyYAxesStarts[pageIndex]
                 val scaleY =
                     if (yAxisLength < initialYAxesRange / 20) initialYAxesRange / (20 * yAxisLength)
                     else if (yAxisLength > 20 * initialYAxesRange) 20 * initialYAxesRange / yAxisLength
                     else return@launch
                 val centerY =
-                    _dailyChartState.value[pageIndex].yAxesEnds.value - center.y * yAxisLength
+                    _dailyChartState[pageIndex].value.yAxesEnds.value - center.y * yAxisLength
                 val yAxisStart =
-                    centerY - scaleY * (centerY - _dailyChartState.value[pageIndex].yAxesStarts.value)
+                    centerY - scaleY * (centerY - _dailyChartState[pageIndex].value.yAxesStarts.value)
                 val yAxisEnd =
-                    centerY + scaleY * (_dailyChartState.value[pageIndex].yAxesEnds.value - centerY)
+                    centerY + scaleY * (_dailyChartState[pageIndex].value.yAxesEnds.value - centerY)
 
-                launch { _dailyChartState.value[pageIndex].yAxesStarts.animateTo(yAxisStart) }
-                launch { _dailyChartState.value[pageIndex].yAxesEnds.animateTo(yAxisEnd) }
+                launch { _dailyChartState[pageIndex].value.yAxesStarts.animateTo(yAxisStart) }
+                launch { _dailyChartState[pageIndex].value.yAxesEnds.animateTo(yAxisEnd) }
             }
         }
     }
@@ -1018,37 +1013,35 @@ class DetailViewModel @Inject constructor(
         )
         withContext(context = Dispatchers.Default){
             launch {
-                _hourlyChartState.value[pageIndex].xAxisStart.animateTo(
-                    targetValue = _hourlyChartState.value[pageIndex].initialXAxisStart,
+                _hourlyChartState[pageIndex].value.xAxisStart.animateTo(
+                    targetValue = _hourlyChartState[pageIndex].value.initialXAxisStart,
                     animationSpec = animationSpec,
                     block = {
-                        _hourlyChartState.update { chartStateList ->
-                            chartStateList.toMutableList().apply {
-                                this[pageIndex] = this[pageIndex].copy(
-                                    awaker = this[pageIndex].awaker + 1
-                                )
-                            }
+                        _hourlyChartState[pageIndex].update { chartState ->
+                            chartState.copy(
+                                awaker = chartState.awaker + 1
+                            )
                         }
                     }
                 )
             }
             launch {
-                _hourlyChartState.value[pageIndex].xAxisEnd.animateTo(
-                    targetValue = _hourlyChartState.value[pageIndex].initialXAxisEnd,
+                _hourlyChartState[pageIndex].value.xAxisEnd.animateTo(
+                    targetValue = _hourlyChartState[pageIndex].value.initialXAxisEnd,
                     animationSpec = animationSpec,
                 )
             }
 
-            val curveCount = _hourlyChartState.value[pageIndex].yAxesStarts.size
+            val curveCount = _hourlyChartState[pageIndex].value.yAxesStarts.size
             for (i in 0 until curveCount) {
                 launch {
-                    _hourlyChartState.value[pageIndex].yAxesStarts[i].animateTo(
+                    _hourlyChartState[pageIndex].value.yAxesStarts[i].animateTo(
                         targetValue = initialYAxesStarts[pageIndex][i],
                         animationSpec = animationSpec
                     )
                 }
                 launch {
-                    _hourlyChartState.value[pageIndex].yAxesEnds[i].animateTo(
+                    _hourlyChartState[pageIndex].value.yAxesEnds[i].animateTo(
                         targetValue = initialYAxesEnds[pageIndex][i],
                         animationSpec = animationSpec
                     )
@@ -1065,35 +1058,33 @@ class DetailViewModel @Inject constructor(
         )
         withContext(context = Dispatchers.Default){
             launch {
-                _dailyChartState.value[pageIndex].xAxisStart.animateTo(
-                    targetValue = _dailyChartState.value[pageIndex].initialDailyXAxisStart,
+                _dailyChartState[pageIndex].value.xAxisStart.animateTo(
+                    targetValue = _dailyChartState[pageIndex].value.initialDailyXAxisStart,
                     animationSpec = animationSpec,
                     block = {
-                        _dailyChartState.update { chartStateList ->
-                            chartStateList.toMutableList().apply {
-                                this[pageIndex] = this[pageIndex].copy(
-                                    awaker = this[pageIndex].awaker + 1
-                                )
-                            }
+                        _dailyChartState[pageIndex].update { chartState ->
+                            chartState.copy(
+                                awaker = chartState.awaker + 1
+                            )
                         }
                     }
                 )
             }
             launch {
-                _dailyChartState.value[pageIndex].xAxisEnd.animateTo(
-                    targetValue = _dailyChartState.value[pageIndex].initialDailyXAxisEnd,
+                _dailyChartState[pageIndex].value.xAxisEnd.animateTo(
+                    targetValue = _dailyChartState[pageIndex].value.initialDailyXAxisEnd,
                     animationSpec = animationSpec
                 )
             }
 
             launch {
-                _dailyChartState.value[pageIndex].yAxesStarts.animateTo(
+                _dailyChartState[pageIndex].value.yAxesStarts.animateTo(
                     targetValue = initialDailyYAxesStarts[pageIndex],
                     animationSpec = animationSpec
                 )
             }
             launch {
-                _dailyChartState.value[pageIndex].yAxesEnds.animateTo(
+                _dailyChartState[pageIndex].value.yAxesEnds.animateTo(
                     targetValue = initialDailyYAxesEnds[pageIndex],
                     animationSpec = animationSpec
                 )
@@ -1171,11 +1162,9 @@ class DetailViewModel @Inject constructor(
         viewModelScope.launch {
             preferenceRepository.setHourlyDiagramWeatherConditionIconVisibility(visible)
         }
-        _hourlyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                for (i in this.indices) {
-                    this[i] = this[i].copy(weatherConditionIconsVisible = visible)
-                }
+        _hourlyChartState.forEach {
+            it.update { chartState ->
+                chartState.copy(weatherConditionIconsVisible = visible)
             }
         }
     }
@@ -1184,11 +1173,9 @@ class DetailViewModel @Inject constructor(
         viewModelScope.launch {
             preferenceRepository.setDailyDiagramWeatherConditionIconVisibility(visible)
         }
-        _dailyChartState.update { dailyChartStateList ->
-            dailyChartStateList.toMutableList().apply {
-                for (i in this.indices) {
-                    this[i] = this[i].copy(weatherConditionIconsVisible = visible)
-                }
+        _dailyChartState.forEach {
+            it.update { chartState ->
+                chartState.copy(weatherConditionIconsVisible = visible)
             }
         }
     }
@@ -1197,11 +1184,9 @@ class DetailViewModel @Inject constructor(
         viewModelScope.launch {
             preferenceRepository.setHourlyDotsOnCurveVisibility(visible)
         }
-        _hourlyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                for (i in this.indices) {
-                    this[i] = this[i].copy(dotsOnCurveVisible = visible)
-                }
+        _hourlyChartState.forEach {
+            it.update { chartState ->
+                chartState.copy(dotsOnCurveVisible = visible)
             }
         }
     }
@@ -1210,11 +1195,9 @@ class DetailViewModel @Inject constructor(
         viewModelScope.launch {
             preferenceRepository.setHourlyCurveShadowVisibility(visible)
         }
-        _hourlyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                for (i in this.indices) {
-                    this[i] = this[i].copy(curveShadowVisible = visible)
-                }
+        _hourlyChartState.forEach {
+            it.update { chartState ->
+                chartState.copy(curveShadowVisible = visible)
             }
         }
     }
@@ -1223,11 +1206,9 @@ class DetailViewModel @Inject constructor(
         viewModelScope.launch {
             preferenceRepository.setHourlySunRiseSetIconsVisibility(visible)
         }
-        _hourlyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                for (i in this.indices) {
-                    this[i] = this[i].copy(sunRiseSetIconsVisible = visible)
-                }
+        _hourlyChartState.forEach {
+            it.update { chartState ->
+                chartState.copy(sunRiseSetIconsVisible = visible)
             }
         }
     }
@@ -1236,11 +1217,9 @@ class DetailViewModel @Inject constructor(
         viewModelScope.launch {
             preferenceRepository.setHourlyChartGrid(gridType)
         }
-        _hourlyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                for (i in this.indices) {
-                    this[i] = this[i].copy(chartGrid = gridType)
-                }
+        _hourlyChartState.forEach {
+            it.update { chartState ->
+                chartState.copy(chartGrid = gridType)
             }
         }
     }
@@ -1249,55 +1228,106 @@ class DetailViewModel @Inject constructor(
         viewModelScope.launch {
             preferenceRepository.setHourlyChartTheme(theme)
         }
-        _hourlyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                for (i in this.indices) {
-                    this[i] = this[i].copy(chartTheme = theme)
-                }
+        _hourlyChartState.forEach {
+            it.update { chartState ->
+                chartState.copy(chartTheme = theme)
             }
+        }
+    }
+
+    fun updateCurvesColor(
+        @IntRange(from = 0, to = 3) curveNumber: Int,
+        color: Int,
+    ) {
+//        viewModelScope.launch {
+//            preferenceRepository.setCurvesColor(curveNumber, color)
+//        }
+        val newCurvesColor = _hourlyChartState.getOrNull(0)?.value?.curvesColor?.toMutableList()?.apply {
+            set(curveNumber, color)
+        }
+        _hourlyChartState.forEach {
+            it.update { chartState ->
+                chartState.copy(curvesColor = newCurvesColor!!)
+            }
+        }
+    }
+
+    fun updateCurvesColor(colors: List<Color>) {
+        val colorsInt = colors.map { it.toArgb() }
+        viewModelScope.launch {
+            preferenceRepository.setCurvesColor(colorsInt)
+        }
+        _hourlyChartState.forEach {
+            it.update { chartState ->
+                chartState.copy(curvesColor = colorsInt)
+            }
+        }
+    }
+
+    fun saveCurvesColor(
+        @IntRange(from = 0, to = 3) curveNumber: Int,
+        color: Color,
+    ) {
+        viewModelScope.launch {
+            preferenceRepository.setCurvesColor(curveNumber, color.toArgb())
         }
     }
 
     fun updateSliderThumbPosition(movement: Float, pageIndex: Int){
-        _hourlyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                this[pageIndex] = this[pageIndex].copy(
-                    sliderThumbPosition = (this[pageIndex].sliderThumbPosition + movement).coerceIn(0f, 1f)
-                )
-            }
+        _hourlyChartState[pageIndex].update { chartState ->
+            chartState.copy(
+                sliderThumbPosition = (chartState.sliderThumbPosition + movement).coerceIn(0f, 1f)
+            )
         }
     }
 
     fun updateDailySliderThumbPosition(movement: Float, pageIndex: Int){
-        _dailyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                this[pageIndex] = this[pageIndex].copy(
-                    sliderThumbPosition = (this[pageIndex].sliderThumbPosition + movement).coerceIn(0f, 1f)
-                )
-            }
+        _dailyChartState[pageIndex].update { chartState ->
+            chartState.copy(
+                sliderThumbPosition = (chartState.sliderThumbPosition + movement).coerceIn(0f, 1f)
+            )
         }
     }
 
     fun updateCurveValueAtIndicator(curveIndex: Int, value: Float?, pageIndex: Int){
-        _hourlyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                this[pageIndex] = this[pageIndex].copy(
-                    curveValueAtIndicator = this[pageIndex].curveValueAtIndicator.toMutableList().apply {
-                        this[curveIndex] = value
-                    }
-                )
-            }
+        _hourlyChartState[pageIndex].update { chartState ->
+            chartState.copy(
+                curveValueAtIndicator = chartState.curveValueAtIndicator.toMutableList().apply {
+                    this[curveIndex] = value
+                }
+            )
         }
     }
 
     fun updateDailyCurveValueAtIndicator(valueMin: Float, valueMax: Float, pageIndex: Int){
-        _dailyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                this[pageIndex] = this[pageIndex].copy(
-                    curveValueMinAtIndicator = valueMin,
-                    curveValueMaxAtIndicator = valueMax
-                )
+        _dailyChartState[pageIndex].update { chartState ->
+            chartState.copy(
+                curveValueMinAtIndicator = valueMin,
+                curveValueMaxAtIndicator = valueMax
+            )
+        }
+    }
+
+    fun updateCurveSmoothness(
+        weatherQuantity: WeatherQuantity,
+        @FloatRange(from = 0.0, to = 1.0) newSmoothness: Float,
+    ){
+        val newCurvesSmoothness = _hourlyChartState.getOrNull(0)?.value?.curvesSmoothness?.toMutableMap()?.apply {
+            set(weatherQuantity, newSmoothness)
+        }
+        _hourlyChartState.forEach {
+            it.update { chartState ->
+                chartState.copy(curvesSmoothness = newCurvesSmoothness!!)
             }
+        }
+    }
+
+    fun saveCurveSmoothness(
+        weatherQuantity: WeatherQuantity,
+        @FloatRange(from = 0.0, to = 1.0) newSmoothness: Float,
+    ) {
+        viewModelScope.launch {
+            preferenceRepository.setCurvesSmoothness(weatherQuantity, newSmoothness)
         }
     }
 
@@ -1319,29 +1349,19 @@ class DetailViewModel @Inject constructor(
         initialDailyYAxesEnds = initialDailyYAxesEnds.toMutableList().apply {
             swap(index1, index2)
         }
-//        locationsHourlyChartData.update {
-//            it.toMutableList().apply {
-//                add(index1, removeAt(index2))
-//            }
-//        }
-//        locationsDailyChartData = locationsDailyChartData.toMutableList().apply {
-//            add(index1, removeAt(index2))
-//        }
+
         _detailState.update {
             it.toMutableList().apply {
                 swap(index1, index2)
             }
         }
-        _hourlyChartState.update {
-            it.toMutableList().apply {
-                swap(index1, index2)
-            }
-        }
-        _dailyChartState.update {
-            it.toMutableList().apply {
-                swap(index1, index2)
-            }
-        }
+        _hourlyChartState = _hourlyChartState.apply { swap(index1, index2) }
+        _locationsHourlyChartData[index1] = hourlyChartDataFlow(index1)
+        _locationsHourlyChartData[index2] = hourlyChartDataFlow(index2)
+
+        _dailyChartState = _dailyChartState.apply { swap(index1, index2) }
+        _locationsDailyChartData[index1] = dailyChartDataFlow(index1)
+        _locationsDailyChartData[index2] = dailyChartDataFlow(index2)
     }
 
     fun updateChartsVisibility(visible: Boolean, pageIndex: Int){
@@ -1363,63 +1383,59 @@ class DetailViewModel @Inject constructor(
         val initialDailyXAxisStart = -(dailyXAxisLength / 4).toInt() - 0.5f
         val initialDailyXAxisEnd = (dailyXAxisLength * 3 / 4).toInt() + 0.5f
 
-        _hourlyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                for (i in this.indices) {
-                    this[i] = this[i].copy(initialXAxisStart = initialHourlyXAxisStart)
-                    this[i] = this[i].copy(initialXAxisEnd = initialHourlyXAxisEnd)
-                }
+        _hourlyChartState.forEach {
+            it.update { chartState ->
+                chartState.copy(
+                    initialXAxisStart = initialHourlyXAxisStart,
+                    initialXAxisEnd = initialHourlyXAxisEnd
+                )
             }
         }
-        _dailyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                for (i in this.indices) {
-                    this[i] = this[i].copy(initialDailyXAxisStart = initialDailyXAxisStart)
-                    this[i] = this[i].copy(initialDailyXAxisEnd = initialDailyXAxisEnd)
-                }
+        _dailyChartState.forEach {
+            it.update { chartState ->
+                chartState.copy(
+                    initialDailyXAxisStart = initialDailyXAxisStart,
+                    initialDailyXAxisEnd = initialDailyXAxisEnd
+                )
             }
         }
     }
 
     fun initializeXAxisBounds(pageIndex: Int){
         viewModelScope.launch {
-            _hourlyChartState.update { chartStateList ->
-                chartStateList.apply {
-                    this[pageIndex].xAxisStart.snapTo(_hourlyChartState.value[pageIndex].initialXAxisStart)
-                    this[pageIndex].xAxisEnd.snapTo(_hourlyChartState.value[pageIndex].initialXAxisEnd)
-                    this[pageIndex].yAxesStarts.forEachIndexed { index, animatable ->
+            _hourlyChartState[pageIndex].update { chartState ->
+                chartState.apply {
+                    xAxisStart.snapTo(initialXAxisStart)
+                    xAxisEnd.snapTo(initialXAxisEnd)
+                    yAxesStarts.forEachIndexed { index, animatable ->
                         animatable.snapTo(initialYAxesStarts[pageIndex][index])
                     }
-                    this[pageIndex].yAxesEnds.forEachIndexed { index, animatable ->
+                    yAxesEnds.forEachIndexed { index, animatable ->
                         animatable.snapTo(initialYAxesEnds[pageIndex][index])
                     }
                 }
             }
-            _dailyChartState.update { chartStateList ->
-                chartStateList.apply {
-                    this[pageIndex].xAxisStart.snapTo(_dailyChartState.value[pageIndex].initialDailyXAxisStart)
-                    this[pageIndex].xAxisEnd.snapTo(_dailyChartState.value[pageIndex].initialDailyXAxisEnd)
+            _dailyChartState[pageIndex].update { chartState ->
+                chartState.apply {
+                    xAxisStart.snapTo(chartState.initialDailyXAxisStart)
+                    xAxisEnd.snapTo(chartState.initialDailyXAxisEnd)
                 }
             }
         }
     }
 
     fun updateHourlySettingsStatus(status: Boolean){
-        _hourlyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                for (i in this.indices) {
-                    this[i] = this[i].copy(settingsUpdated = status)
-                }
+        _hourlyChartState.forEach { chartState ->
+            chartState.update {
+                it.copy(settingsUpdated = status)
             }
         }
     }
 
     fun updateDailySettingsStatus(status: Boolean){
-        _dailyChartState.update { chartStateList ->
-            chartStateList.toMutableList().apply {
-                for (i in this.indices) {
-                    this[i] = this[i].copy(settingsUpdated = status)
-                }
+        _dailyChartState.forEach { chartState ->
+            chartState.update {
+                it.copy(settingsUpdated = status)
             }
         }
     }

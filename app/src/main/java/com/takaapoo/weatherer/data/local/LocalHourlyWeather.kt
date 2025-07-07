@@ -1,9 +1,11 @@
 package com.takaapoo.weatherer.data.local
 
+import android.os.Parcelable
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.ForeignKey.Companion.CASCADE
+import kotlinx.parcelize.Parcelize
 
 
 @Entity(
@@ -14,6 +16,7 @@ import androidx.room.ForeignKey.Companion.CASCADE
     ],
     primaryKeys = ["location_id", "time"]
 )
+@Parcelize
 data class LocalHourlyWeather(
     @ColumnInfo(name = "location_id") val locationId: Int,
     val time: String,
@@ -108,4 +111,4 @@ data class LocalHourlyWeather(
     @ColumnInfo(name = "direct_normal_irradiance_control2_x") val directNormalIrradianceControl2X: Float? = null,
     @ColumnInfo(name = "direct_normal_irradiance_control2_y") val directNormalIrradianceControl2Y: Float? = null
 
-    )
+    ): Parcelable

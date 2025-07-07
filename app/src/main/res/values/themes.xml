@@ -12,4 +12,9 @@
 
     <style name="Theme.Weatherer" parent="android:Theme.Material.Light.NoActionBar" />
 
+    <style name="Theme.Widget" parent="android:Theme.Material.Light.NoActionBar">
+<!--        <item name="android:background">@color/transparent</item>-->
+
+    </style>
+
 </resources>

@@ -48,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.takaapoo.weatherer.R
+import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.ui.screens.detail.DiagramRailShape
 import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.diagramRailPath
@@ -55,13 +56,15 @@ import com.takaapoo.weatherer.ui.theme.DiagramShadow
 import com.takaapoo.weatherer.ui.theme.Gray10
 import com.takaapoo.weatherer.ui.theme.Gray20
 import com.takaapoo.weatherer.ui.theme.customColorScheme
-import com.takaapoo.weatherer.ui.utility.toPx
+import com.takaapoo.weatherer.utility.mostContrastColor
+import com.takaapoo.weatherer.utility.toPx
 import kotlinx.collections.immutable.ImmutableList
 
 
 @Composable
 fun QuantityChooserRail(
     modifier: Modifier = Modifier,
+    appSettings: AppSettings,
     quantities: ImmutableList<WeatherQuantity>,
     isAirQualityQuantities: Boolean,
     onRemoveChartQuantity: (WeatherQuantity) -> Unit,
@@ -140,10 +143,10 @@ fun QuantityChooserRail(
                     key = {item -> item.name}
                 ){weatherQuantity ->
                     val isSelected = quantities.contains(weatherQuantity)
-                    val chipColor = curveColors
-                        .getOrNull(quantities.indexOf(weatherQuantity))
-                        /*?.copy(alpha = 0.5f) */?: Color.Unspecified
-                    val onSelectedChipColor = Color.Black
+                    val chipColor = appSettings.curvesColor
+                        .getOrNull(quantities.indexOf(weatherQuantity))?.let { Color(it) }
+                        ?: Color.Unspecified
+                    val onSelectedChipColor = chipColor.mostContrastColor()
                     FilterChip(
                         modifier = Modifier.height(32.dp),
                         selected = isSelected,

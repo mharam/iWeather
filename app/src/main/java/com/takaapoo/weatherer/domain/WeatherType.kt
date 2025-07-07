@@ -1,6 +1,10 @@
 package com.takaapoo.weatherer.domain
 
 import android.content.Context
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -23,7 +27,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.moonPhaseMap
-import com.takaapoo.weatherer.ui.utility.toDp
+import com.takaapoo.weatherer.utility.toDp
 import kotlinx.serialization.json.double
 import kotlinx.serialization.json.jsonPrimitive
 import java.time.LocalDate
@@ -336,6 +340,83 @@ sealed class WeatherType(
                         dstOffset = topLeft,
                         dstSize = iconSize
                     )
+                }
+            }
+        }
+
+        fun drawWeatherIconOnCanvas(
+            canvas: Canvas,
+            weatherType: WeatherType,
+            context: Context,
+            topLeft: IntOffset,
+            iconSize: IntSize,
+            paint: Paint
+        ) {
+            when (weatherType) {
+                is MainlyClear -> {
+                    if (weatherType.isDay) {
+                        // Draw sunny icon
+                        val sunnyBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.sunny)
+                        val sunnyDstRect = Rect(
+                            topLeft.x - iconSize.width / 10,
+                            topLeft.y - iconSize.width / 13,
+                            topLeft.x + iconSize.width * 9 / 10 - iconSize.width / 10,
+                            topLeft.y + iconSize.height * 9 / 10 - iconSize.width / 13
+                        )
+                        canvas.drawBitmap(sunnyBitmap, null, sunnyDstRect, paint)
+                    } else {
+                        // Draw moon icon
+                        val moonBitmap = BitmapFactory.decodeResource(context.resources, moonDrawable(weatherType.moonType))
+                        val moonDstRect = Rect(topLeft.x, topLeft.y, topLeft.x + iconSize.width, topLeft.y + iconSize.height)
+                        canvas.drawBitmap(moonBitmap, null, moonDstRect, paint)
+                    }
+                    // Draw cloud1
+                    val cloud1Bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.cloud1)
+                    val cloud1DstRect = Rect(topLeft.x, topLeft.y, topLeft.x + iconSize.width, topLeft.y + iconSize.height)
+                    canvas.drawBitmap(cloud1Bitmap, null, cloud1DstRect, paint)
+                }
+                is PartlyCloudy -> {
+                    // Draw cloud1
+                    val cloud1Bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.cloud1)
+                    val cloud1DstRect = Rect(
+                        topLeft.x - iconSize.width / 5,
+                        topLeft.y,
+                        topLeft.x + iconSize.width - iconSize.width / 5,
+                        topLeft.y + iconSize.height
+                    )
+                    canvas.drawBitmap(cloud1Bitmap, null, cloud1DstRect, paint)
+
+                    if (weatherType.isDay) {
+                        // Draw sunny icon
+                        val sunnyBitmap = BitmapFactory.decodeResource(context.resources, R.drawable.sunny)
+                        val sunnyDstRect = Rect(
+                            topLeft.x - iconSize.width / 20,
+                            topLeft.y - iconSize.width / 13,
+                            topLeft.x + iconSize.width * 9 / 10 - iconSize.width / 20,
+                            topLeft.y + iconSize.height * 9 / 10 - iconSize.width / 13
+                        )
+                        canvas.drawBitmap(sunnyBitmap, null, sunnyDstRect, paint)
+                    } else {
+                        // Draw moon icon
+                        val moonBitmap = BitmapFactory.decodeResource(context.resources, moonDrawable(weatherType.moonType))
+                        val moonDstRect = Rect(
+                            topLeft.x - iconSize.width / 20,
+                            topLeft.y,
+                            topLeft.x + iconSize.width - iconSize.width / 20,
+                            topLeft.y + iconSize.height
+                        )
+                        canvas.drawBitmap(moonBitmap, null, moonDstRect, paint)
+                    }
+                    // Draw cloud2
+                    val cloud2Bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.cloud2)
+                    val cloud2DstRect = Rect(topLeft.x, topLeft.y, topLeft.x + iconSize.width, topLeft.y + iconSize.height)
+                    canvas.drawBitmap(cloud2Bitmap, null, cloud2DstRect, paint)
+                }
+                else -> {
+                    // Draw default icon
+                    val defaultBitmap = BitmapFactory.decodeResource(context.resources, weatherType.icons.first())
+                    val defaultDstRect = Rect(topLeft.x, topLeft.y, topLeft.x + iconSize.width, topLeft.y + iconSize.height)
+                    canvas.drawBitmap(defaultBitmap, null, defaultDstRect, paint)
                 }
             }
         }

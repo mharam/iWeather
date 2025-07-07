@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawOutline
@@ -31,7 +32,7 @@ import androidx.compose.ui.unit.sp
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
-import com.takaapoo.weatherer.ui.utility.BorderedText
+import com.takaapoo.weatherer.utility.BorderedText
 import kotlinx.collections.immutable.ImmutableList
 
 @Composable
@@ -84,6 +85,7 @@ fun HourlyDiagramLegend(
                 HourlyDiagramLegendRow(
                     modifier = Modifier.fillMaxWidth(),
                     curveIndex = index,
+                    color = Color(appSettings.curvesColor[index]),
                     showDot = dotsOnCurveVisible,
                     text = text[index],
                     onRemoveQuantity = {
@@ -100,6 +102,7 @@ fun HourlyDiagramLegendRow(
     modifier: Modifier = Modifier,
     text: AnnotatedString,
     curveIndex: Int,
+    color: Color,
     showDot: Boolean,
     onRemoveQuantity: () -> Unit
 ) {
@@ -112,14 +115,15 @@ fun HourlyDiagramLegendRow(
                 .width(32.dp)
                 .height(24.dp),
             curveIndex = curveIndex,
-            showDot = showDot
+            showDot = showDot,
+            color = color
         )
         Spacer(modifier = Modifier.width(8.dp))
         BorderedText(
             modifier = Modifier.weight(1f),
             text = text,
-            strokeColor = curveColors[curveIndex],
-            fillColor = curveColors[curveIndex],
+            strokeColor = color,
+            fillColor = color,
             fontSize = 16.sp
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -139,10 +143,10 @@ fun HourlyDiagramLegendRow(
 fun LegendLineIcon(
     modifier: Modifier = Modifier,
     curveIndex: Int,
-    showDot: Boolean
+    showDot: Boolean,
+    color: Color
 ) {
     val pointSize = dimensionResource(id = R.dimen.hourly_curve_point_size)
-    val color = curveColors[curveIndex]
     Canvas(
         modifier = modifier
     ) {

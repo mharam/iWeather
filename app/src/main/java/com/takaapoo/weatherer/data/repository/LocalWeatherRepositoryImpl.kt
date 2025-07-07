@@ -1,5 +1,6 @@
 package com.takaapoo.weatherer.data.repository
 
+import com.takaapoo.weatherer.data.local.LocalAirQuality
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
 import com.takaapoo.weatherer.data.local.LocalHourlyWeather
 import com.takaapoo.weatherer.data.local.Location
@@ -7,13 +8,13 @@ import com.takaapoo.weatherer.data.local.WeatherDao
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.WeatherDto
 import com.takaapoo.weatherer.domain.repository.LocalWeatherRepository
-import com.takaapoo.weatherer.ui.utility.celsiusToUnit
-import com.takaapoo.weatherer.ui.utility.cmToUnit
-import com.takaapoo.weatherer.ui.utility.kmToUnit
-import com.takaapoo.weatherer.ui.utility.kmphToUnit
-import com.takaapoo.weatherer.ui.utility.mToUnit
-import com.takaapoo.weatherer.ui.utility.mmToUnit
-import com.takaapoo.weatherer.ui.utility.paToUnit
+import com.takaapoo.weatherer.utility.celsiusToUnit
+import com.takaapoo.weatherer.utility.cmToUnit
+import com.takaapoo.weatherer.utility.kmToUnit
+import com.takaapoo.weatherer.utility.kmphToUnit
+import com.takaapoo.weatherer.utility.mToUnit
+import com.takaapoo.weatherer.utility.mmToUnit
+import com.takaapoo.weatherer.utility.paToUnit
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -99,9 +100,9 @@ class LocalWeatherRepositoryImpl @Inject constructor(
 
 
 
-//    override suspend fun getDailyWeather(time: String): Map<Location, LocalDailyWeather> {
-//        return weatherDao.getDailyWeather(time)
-//    }
+    override suspend fun getDailyWeather(startDate: String, endDate: String): Map<Location, List<LocalDailyWeather>> {
+        return weatherDao.getDailyWeather(startDate, endDate)
+    }
 //
 //    override fun getLocationDailyWeatherFlow(
 //        locationId: Int,
@@ -148,9 +149,9 @@ class LocalWeatherRepositoryImpl @Inject constructor(
         return dailyWeather
     }
 
-    override suspend fun getAllLocationsWeather(startDate: String, endDate: String): List<WeatherDto> {
-        return weatherDao.getAllLocationsWeather(startDate, endDate)
-    }
+//    override suspend fun getAllLocationsWeather(startDate: String, endDate: String): List<WeatherDto> {
+//        return weatherDao.getAllLocationsWeather(startDate, endDate)
+//    }
 
     override fun getAllTimes(): Flow<List<String>> {
         return weatherDao.getAllTimes()
@@ -162,6 +163,20 @@ class LocalWeatherRepositoryImpl @Inject constructor(
         endTime: String
     ): List<LocalHourlyWeather> {
         return weatherDao.getLocationHourlyWeatherForTime(locationId, startTime, endTime)
+    }
+
+    override suspend fun getHourlyWeather(
+        startDate: String,
+        endDate: String
+    ): Map<Location, List<LocalHourlyWeather>> {
+        return weatherDao.getHourlyWeather(startDate, endDate)
+    }
+
+    override suspend fun getHourlyAirQuality(
+        startDate: String,
+        endDate: String
+    ): Map<Location, List<LocalAirQuality>> {
+        return weatherDao.getHourlyAirQuality(startDate, endDate)
     }
 
 

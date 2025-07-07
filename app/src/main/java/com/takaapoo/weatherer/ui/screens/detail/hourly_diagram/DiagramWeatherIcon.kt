@@ -6,12 +6,14 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.takaapoo.weatherer.domain.WeatherType
 import com.takaapoo.weatherer.domain.WeatherType.Companion.drawWeatherIcon
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
+import com.takaapoo.weatherer.utility.subList
 import java.time.LocalDateTime
 import kotlin.math.log2
 import kotlin.math.pow
@@ -22,15 +24,13 @@ fun DrawScope.diagramWeatherIcon(
     hourlyChartData: List<HourlyChartDto>,
     xAxisRange: ClosedFloatingPointRange<Float>,
     cornerRadius: Float,
+    iconSize: Dp = 40.dp,
     horizontalPadding: Float,
     verticalPadding: Float,
+    firstPointX: Float
 ) {
     if (hourlyChartData.isEmpty() || hourlyChartData.getOrNull(0)?.hourlyWeather?.time == null)
         return
-    val firstPointX = timeToX(
-        time = hourlyChartData[0].hourlyWeather!!.time,
-        utcOffset = hourlyChartData[0].utcOffset ?: 0L
-    )!!
 
     val diagramBounds = Path().apply {
         addRoundRect(
@@ -43,9 +43,9 @@ fun DrawScope.diagramWeatherIcon(
             )
         )
     }
-    val iconSize = 40.dp.roundToPx()
+    val iconSizePx = iconSize.roundToPx()
     val xAxisLength = xAxisRange.endInclusive - xAxisRange.start
-    val maxIconCount = ((size.width - 2*horizontalPadding) / (2f*iconSize)).toInt()
+    val maxIconCount = ((size.width - 2*horizontalPadding) / (2f*iconSizePx)).toInt()
     val iconsSeparation = (xAxisLength / maxIconCount).iconRoundToInt()
     val weatherCodes = hourlyChartData.map { it.hourlyWeather?.weatherCode }
     val times = hourlyChartData.map { LocalDateTime.parse(it.hourlyWeather?.time) }
@@ -53,20 +53,26 @@ fun DrawScope.diagramWeatherIcon(
     clipPath(diagramBounds) {
         while (x <= xAxisRange.endInclusive + iconsSeparation) {
             val i = (x - firstPointX).toInt()
-            weatherCodes.getOrNull(i)?.let {
+            val maxWeatherCode = weatherCodes.subList(centerIndex = i, width = iconsSeparation)
+                .filter { it != null }.maxByOrNull { it!! }
+            maxWeatherCode?.let {
                 val topLeft = IntOffset(
                     x = (((firstPointX + i - xAxisRange.start) / xAxisLength) * (size.width - 2 * horizontalPadding) +
-                            horizontalPadding).toInt() - iconSize / 2,
+                            horizontalPadding).toInt() - iconSizePx / 2,
                     y = 30 + verticalPadding.toInt()
                 )
-                val isDay = if (hourlyChartData[i].sunRise.isNullOrEmpty() ||
-                    hourlyChartData[i].sunSet.isNullOrEmpty()) true
+                val isDay = if (hourlyChartData.getOrNull(i)?.sunRise.isNullOrEmpty() ||
+                    hourlyChartData.getOrNull(i)?.sunSet.isNullOrEmpty()) true
                 else
-                    times[i].isAfter(LocalDateTime.parse(hourlyChartData[i].sunRise)) &&
-                            times[i].isBefore(LocalDateTime.parse(hourlyChartData[i].sunSet))
-                val moonType = WeatherType.calculateMoonType(times[i].toLocalDate())
+                    times[i].isAfter(LocalDateTime.parse(hourlyChartData[i].sunRise)
+                        .minusMinutes(hourlyChartData[i].utcOffset?.toLong() ?: 0)) &&
+                            times[i].isBefore(LocalDateTime.parse(hourlyChartData[i].sunSet)
+                                .minusMinutes(hourlyChartData[i].utcOffset?.toLong() ?: 0))
+                val moonType = times.getOrNull(i)?.let {
+                    WeatherType.calculateMoonType(it.toLocalDate())
+                }
                 val weatherType = WeatherType.fromWMO(it, isDay, moonType)
-                drawWeatherIcon(weatherType, context, topLeft, IntSize(iconSize, iconSize))
+                drawWeatherIcon(weatherType, context, topLeft, IntSize(iconSizePx, iconSizePx))
             }
             x += iconsSeparation
         }

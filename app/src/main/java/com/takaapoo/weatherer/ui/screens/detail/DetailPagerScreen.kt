@@ -71,8 +71,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.toFontFamily
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
@@ -94,17 +92,17 @@ import com.takaapoo.weatherer.domain.model.DailyChartState
 import com.takaapoo.weatherer.domain.model.DetailState
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartState
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.cubicCurveXtoY
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.linearCurveXtoY
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.quantityControlPoints
+import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.weatherCurveXtoY
+import com.takaapoo.weatherer.ui.theme.Cmu
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
 import com.takaapoo.weatherer.ui.theme.customColorScheme
-import com.takaapoo.weatherer.ui.utility.BorderedText
-import com.takaapoo.weatherer.ui.utility.toDp
-import com.takaapoo.weatherer.ui.utility.toPx
+import com.takaapoo.weatherer.ui.theme.timeFontFamily
 import com.takaapoo.weatherer.ui.viewModels.DetailViewModel
-import com.takaapoo.weatherer.ui.viewModels.timeFontFamily
+import com.takaapoo.weatherer.utility.BorderedText
+import com.takaapoo.weatherer.utility.toDp
+import com.takaapoo.weatherer.utility.toPx
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -266,7 +264,8 @@ fun DetailPagerScreen(
                         }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
+                                contentDescription = "Back",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
@@ -282,7 +281,8 @@ fun DetailPagerScreen(
                                     .format(DateTimeFormatter.ofPattern("HH\u200C:\u200Cmm"))
                             else detailState.localDateTime.toLocalTime()
                                 .format(DateTimeFormatter.ofPattern("HH\u200C \u200Cmm")),
-                            fontFamily = timeFontFamily
+                            fontFamily = timeFontFamily,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 },
@@ -579,23 +579,23 @@ fun Temperatures(
 //        airData = detailState.currentDayHourlyAirQuality,
 //        weatherQuantity = WeatherQuantity.TEMPERATURE,
 //    )
-    val (apparentControlPoints1, apparentControlPoints2) = quantityControlPoints(
-        weatherData = detailState.currentDayHourlyWeather,
-        airData = detailState.currentDayHourlyAirQuality,
-        weatherQuantity = WeatherQuantity.APPARENTTEMP,
-    )
-    val currentTemperature = linearCurveXtoY(
-        data = detailState.currentDayHourlyWeather.map { it.temperature },
-//        controlPoints1 = controlPoints1,
-//        controlPoints2 = controlPoints2,
+//    val (apparentControlPoints1, apparentControlPoints2) = quantityControlPoints(
+//        weatherData = detailState.currentDayHourlyWeather,
+//        airData = detailState.currentDayHourlyAirQuality,
+//        weatherQuantity = WeatherQuantity.APPARENTTEMP,
+//    )
+    val currentTemperature = weatherCurveXtoY(
+        quantity = WeatherQuantity.TEMPERATURE,
+        appSettings = appSettings,
+        hourlyWeather = detailState.currentDayHourlyWeather,
         firstPointX = firstPointX,
         lastPointX = lastPointX,
         targetX = detailState.targetX
     )
-    val apparentTemperature = cubicCurveXtoY(
-        data = detailState.currentDayHourlyWeather.map { it.apparentTemperature },
-        controlPoints1 = apparentControlPoints1,
-        controlPoints2 = apparentControlPoints2,
+    val apparentTemperature = weatherCurveXtoY(
+        quantity = WeatherQuantity.APPARENTTEMP,
+        appSettings = appSettings,
+        hourlyWeather = detailState.currentDayHourlyWeather,
         firstPointX = firstPointX,
         lastPointX = lastPointX,
         targetX = detailState.targetX
@@ -628,7 +628,7 @@ fun Temperatures(
             BorderedText(
                 modifier = Modifier,
                 text = temperature,
-                fontFamily = Font(R.font.cmu_serif).toFontFamily(),
+                fontFamily = Cmu,
                 fillColor = Color.White,
                 strokeColor = Color.White,
                 fontSize = mainTempFontSize,
@@ -639,7 +639,7 @@ fun Temperatures(
             modifier = Modifier
                 .offset(y = (-16).dp)
                 .background(
-                    color = MaterialTheme.colorScheme.primaryContainer,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
                     shape = RoundedCornerShape(percent = 50)
                 )
                 .shadow(
@@ -652,7 +652,7 @@ fun Temperatures(
         ){
             BorderedText(
                 text = AnnotatedString("${minTemperature ?: ""}°"),
-                fontFamily = Font(R.font.cmu_serif).toFontFamily(),
+                fontFamily = Cmu,
                 fontSize = extremeTempFontSize,
                 fillColor = MaterialTheme.customColorScheme.minTemperature
             )
@@ -665,7 +665,7 @@ fun Temperatures(
             Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = "Feels like: ${apparentTemperatureValue ?: ""}°",
-                fontFamily = Font(R.font.cmu_serif).toFontFamily(),
+                fontFamily = Cmu,
                 fontSize = extremeTempFontSize
             )
             Spacer(modifier = Modifier.width(16.dp))
@@ -679,7 +679,7 @@ fun Temperatures(
             )
             BorderedText(
                 text = AnnotatedString("${maxTemperature ?: ""}°"),
-                fontFamily = Font(R.font.cmu_serif).toFontFamily(),
+                fontFamily = Cmu,
                 fontSize = extremeTempFontSize,
                 fillColor = Color.Red
             )

@@ -1,9 +1,13 @@
 package com.takaapoo.weatherer.data.repository
 
 import android.content.Context
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.takaapoo.weatherer.domain.repository.DataRefreshRepository
+import com.takaapoo.weatherer.ui.screens.home.RefreshWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.time.Duration
 import javax.inject.Inject
 
 class DataRefreshRepositoryImpl @Inject constructor(
@@ -15,17 +19,18 @@ class DataRefreshRepositoryImpl @Inject constructor(
     override fun refreshData() {
 //        Log.i("refresh1", "refreshData")
 //        val networkConstraint = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-//        val refreshBuilder = PeriodicWorkRequestBuilder<RefreshWorker>(
-//            repeatInterval = Duration.ofHours(6),
-////            flexTimeInterval = Duration.ofMinutes(1)
-//        ).apply {
-//            setConstraints(networkConstraint)
-////            setExpedited(policy = OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-//        }
-//        workManager.enqueueUniquePeriodicWork(
-//            /* uniqueWorkName = */ "DataRefresh",
-//            /* existingPeriodicWorkPolicy = */ ExistingPeriodicWorkPolicy.REPLACE,
-//            /* periodicWork = */ refreshBuilder.build()
-//        )
+        val refreshWork = PeriodicWorkRequestBuilder<RefreshWorker>(
+            repeatInterval = Duration.ofHours(1),
+//            flexTimeInterval = Duration.ofMinutes(1)
+        )
+//            .setConstraints(networkConstraint)
+//            .setExpedited(policy = OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+            .build()
+
+        workManager.enqueueUniquePeriodicWork(
+            /* uniqueWorkName = */ "DataRefresh",
+            /* existingPeriodicWorkPolicy = */ ExistingPeriodicWorkPolicy.UPDATE,
+            /* periodicWork = */ refreshWork
+        )
     }
 }

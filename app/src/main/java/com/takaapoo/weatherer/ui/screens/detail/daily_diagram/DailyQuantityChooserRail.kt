@@ -40,7 +40,7 @@ import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.pathInnerShadow
 import com.takaapoo.weatherer.ui.theme.DiagramShadow
 import com.takaapoo.weatherer.ui.theme.Gray20
 import com.takaapoo.weatherer.ui.theme.customColorScheme
-import com.takaapoo.weatherer.ui.utility.toPx
+import com.takaapoo.weatherer.utility.toPx
 
 @Composable
 fun DailyQuantityChooserRail(

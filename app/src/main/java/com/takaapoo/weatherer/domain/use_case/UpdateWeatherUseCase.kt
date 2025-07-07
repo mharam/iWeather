@@ -3,7 +3,10 @@ package com.takaapoo.weatherer.domain.use_case
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.data.remote.AirQuality
 import com.takaapoo.weatherer.data.remote.DailyWeather
+import com.takaapoo.weatherer.data.remote.DailyWeatherPack
 import com.takaapoo.weatherer.data.remote.HourlyWeather
+import com.takaapoo.weatherer.data.remote.HourlyWeatherPack
+import com.takaapoo.weatherer.data.remote.WholeAirQuality
 import com.takaapoo.weatherer.data.remote.toLocalAirQuality
 import com.takaapoo.weatherer.data.remote.toLocalDailyWeather
 import com.takaapoo.weatherer.data.remote.toLocalHourlyWeather
@@ -14,6 +17,9 @@ import com.takaapoo.weatherer.domain.repository.LocalWeatherRepository
 import com.takaapoo.weatherer.domain.repository.LocationRepository
 import com.takaapoo.weatherer.domain.repository.RemoteWeatherRepository
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -127,23 +133,29 @@ class UpdateWeatherUseCase @Inject constructor (
 
     suspend fun updateAllLocationsWeather(){
         val timeNow = LocalDateTime.now(ZoneId.of("UTC"))
+        val updateDeferred = mutableListOf<Deferred<Unit>>()
         coroutineScope {
             locationRepository.getAllLocationsList().forEach { location ->
                 if (location.lastModifiedTime != null &&
-                    abs(Duration.between(LocalDateTime.parse(location.lastModifiedTime), timeNow).toHours()) < 6)
+                    abs(Duration.between(LocalDateTime.parse(location.lastModifiedTime), timeNow).toHours()) < 3)
                     return@forEach
 
-                launch {
-                    try {
-                        updateALocationWeather(location, timeNow)
-                        locationRepository.updateLocationLastModifiedTime(
-                            name = location.name,
-                            lastModifiedTime = LocalDateTime.now(ZoneId.of("UTC"))
-                                .truncatedTo(ChronoUnit.SECONDS).toString()
-                        )
-                    } catch (_: Exception){ }
-                }
+                updateDeferred.add(
+                    async {
+                        try {
+                            updateALocationWeather(location, timeNow)
+                            locationRepository.updateLocationLastModifiedTime(
+                                name = location.name,
+                                lastModifiedTime = LocalDateTime.now(ZoneId.of("UTC"))
+                                    .truncatedTo(ChronoUnit.SECONDS).toString()
+                            )
+                        } catch (_: Exception){ }
+                    }
+                )
             }
+//            Log.i("def1", "Start wait: ${updateDeferred.size}")
+            if (updateDeferred.isNotEmpty()) updateDeferred.awaitAll()
+//            Log.i("def1", "End wait")
         }
     }
 
@@ -154,62 +166,60 @@ class UpdateWeatherUseCase @Inject constructor (
         val pastDays = if (location.lastModifiedTime == null) defaultPastDays
         else (Duration.between(LocalDateTime.parse(location.lastModifiedTime), timeNow).toDays() + 2)
             .toInt().coerceAtMost(defaultPastDays)
-        launch(ioDispatcher) {
-            val weatherResult = remoteWeatherRepository.getHourlyWeatherFromServer(
+
+        val hourlyResult = async(ioDispatcher) {
+            remoteWeatherRepository.getHourlyWeatherFromServer(
                 latitude = location.latitude,
                 longitude = location.longitude,
                 pastDays = pastDays
             )
-            if (weatherResult is MyResult.Success) {
-                /*val lastDateTime = weatherResult.data.hourlyWeather.time.getOrNull(0)?.let {
-                    LocalDateTime.parse(it)
-                }?.minusHours(1)
-                val lastLocalHourlyWeather = lastDateTime?.let {
-                    localWeatherRepository.getLocationHourlyWeatherForTime(
-                        locationId = location.id,
-                        startTime = it.toString(),
-                        endTime = it.toString()
-                    )
-                }?.getOrNull(0)*/
+        }
+        val dailyResult = async(ioDispatcher) {
+            remoteWeatherRepository.getDailyWeatherFromServer(
+                latitude = location.latitude,
+                longitude = location.longitude,
+                pastDays = pastDays
+            )
+        }
+        val wholeAirQualityResult = async(ioDispatcher) {
+            airQualityRepository.getAirQualityFromServer(
+                latitude = location.latitude,
+                longitude = location.longitude,
+                pastDays = pastDays
+            )
+        }
 
-                localWeatherRepository.addHourlyWeather(
-                    weatherResult.data.hourlyWeather.toLocalHourlyWeather(
+        val results = awaitAll(hourlyResult, dailyResult, wholeAirQualityResult)
+        if (results[0] is MyResult.Success) {
+            localWeatherRepository.addHourlyWeather(
+                (results[0] as MyResult.Success<HourlyWeatherPack>).data.hourlyWeather
+                    .toLocalHourlyWeather(
                         locationId = location.id,
                         lastLocalHourlyWeather = null
                     )
-                )
-            } else {
-                 throw (weatherResult as MyResult.Error).let { it.exception ?: Exception(it.message) }
-            }
-        }
-        launch(ioDispatcher) {
-            val weatherResult = remoteWeatherRepository.getDailyWeatherFromServer(
-                latitude = location.latitude,
-                longitude = location.longitude,
-                pastDays = pastDays
             )
-            if (weatherResult is MyResult.Success) {
-                localWeatherRepository.addDailyWeather(
-                    weatherResult.data.dailyWeather.toLocalDailyWeather(location.id)
-                )
-            } else {
-                throw (weatherResult as MyResult.Error).let { it.exception ?: Exception(it.message) }
-            }
+        } else {
+            throw (results[0] as MyResult.Error).let { it.exception ?: Exception(it.message) }
         }
-        launch(ioDispatcher) {
-            val wholeAirQualityResult = airQualityRepository.getAirQualityFromServer(
-                latitude = location.latitude,
-                longitude = location.longitude,
-                pastDays = pastDays
+
+        if (results[1] is MyResult.Success) {
+            localWeatherRepository.addDailyWeather(
+                (results[1] as MyResult.Success<DailyWeatherPack>).data.dailyWeather
+                    .toLocalDailyWeather(location.id)
             )
-            if (wholeAirQualityResult is MyResult.Success) {
-                airQualityRepository.addAirQuality(
-                    wholeAirQualityResult.data.airQuality.toLocalAirQuality(location.id)
-                )
-            } else {
-                throw (wholeAirQualityResult as MyResult.Error).let { it.exception ?: Exception(it.message) }
-            }
+        } else {
+            throw (results[1] as MyResult.Error as MyResult.Error).let { it.exception ?: Exception(it.message) }
         }
+
+        if (results[2] is MyResult.Success) {
+            airQualityRepository.addAirQuality(
+                (results[2] as MyResult.Success<WholeAirQuality>).data.airQuality
+                    .toLocalAirQuality(location.id)
+            )
+        } else {
+            throw (results[2] as MyResult.Error).let { it.exception ?: Exception(it.message) }
+        }
+
         launch(ioDispatcher) {
             addLocationUseCase.setLocationTime(location)
         }

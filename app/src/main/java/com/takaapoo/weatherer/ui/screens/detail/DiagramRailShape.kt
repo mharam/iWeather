@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.takaapoo.weatherer.ui.utility.toPx
+import com.takaapoo.weatherer.utility.toPx
 import kotlin.math.asin
 import kotlin.math.cos
 

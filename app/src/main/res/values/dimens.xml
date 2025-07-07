@@ -51,4 +51,30 @@
     <dimen name="rail_edge_width">2dp</dimen>
     <dimen name="tense_width">72dp</dimen>
 
+    <dimen name="notification_weather_type_size">48dp</dimen>
+    <dimen name="notification_diagram_height">186dp</dimen>
+    <dimen name="notification_temperature_width">200dp</dimen>
+
+    <dimen name="notification_height">286dp</dimen>
+    <dimen name="notification_bottom_padding">24dp</dimen>
+    <dimen name="notification_header_bottom_margin">16dp</dimen>
+    <dimen name="notification_header_margin">8dp</dimen>
+    <dimen name="notification_header_width">72dp</dimen>
+    <dimen name="notification_header_height">32dp</dimen>
+    <dimen name="notification_header_rect_corner_radius">8dp</dimen>
+    <dimen name="notification_hour_diagram_label_height">56dp</dimen>
+    <dimen name="notification_hour_diagram_label_margin_start">16dp</dimen>
+
+    <dimen name="notification_icon_size">40dp</dimen>
+    <dimen name="notification_icon_width_with_point">44dp</dimen>
+    <dimen name="notification_icon_value_width">104dp</dimen>
+    <dimen name="notification_icon_value_height">32dp</dimen>
+    <dimen name="notification_connector_height">18dp</dimen>
+    <dimen name="notification_connector_point_radius">4dp</dimen>
+    
+    <dimen name="widget1_top_gap">24dp</dimen>
+    <dimen name="widget1_circle_radius">36dp</dimen>
+    <dimen name="widget_corner_radius">24dp</dimen>
+
+
 </resources>

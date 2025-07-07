@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners
+        android:radius="@dimen/notification_header_rect_corner_radius"/>
+    <stroke
+        android:color="@color/outline_variant"
+        android:width="1dp"/>
+    <solid
+        android:color="@color/transparent"/>
+
+
+</shape>

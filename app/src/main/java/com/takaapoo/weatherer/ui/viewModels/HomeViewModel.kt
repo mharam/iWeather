@@ -7,6 +7,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.takaapoo.weatherer.R
+import com.takaapoo.weatherer.data.local.LocalAirQuality
+import com.takaapoo.weatherer.data.local.LocalDailyWeather
+import com.takaapoo.weatherer.data.local.LocalHourlyWeather
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.WeatherType.Companion.calculateMoonType
@@ -20,9 +23,19 @@ import com.takaapoo.weatherer.domain.repository.LocalWeatherRepository
 import com.takaapoo.weatherer.domain.repository.LocationRepository
 import com.takaapoo.weatherer.domain.repository.PreferenceRepository
 import com.takaapoo.weatherer.domain.use_case.UpdateWeatherUseCase
+import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.weatherCurveXtoY
+import com.takaapoo.weatherer.utility.celsiusToUnit
+import com.takaapoo.weatherer.utility.kmToUnit
+import com.takaapoo.weatherer.utility.kmphToUnit
+import com.takaapoo.weatherer.utility.mToUnit
+import com.takaapoo.weatherer.utility.mmToUnit
+import com.takaapoo.weatherer.utility.paToUnit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -45,7 +58,6 @@ import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.abs
 import kotlin.math.floor
-import kotlin.math.roundToInt
 import kotlin.math.sign
 
 enum class DialogType{
@@ -62,19 +74,6 @@ class HomeViewModel @Inject constructor(
     @ApplicationContext val applicationContext: Context,
 ): ViewModel() {
 
-    init {
-        dataRefreshRepository.refreshData()
-        viewModelScope.launch{
-            val appSettings = preferenceRepository.getSettings()
-            updateClockGaugeLock(appSettings.clockGaugeLock)
-        }
-    }
-    val locationsCount = locationRepository.locationCount()
-        .stateIn(
-            scope = viewModelScope,
-            started =  SharingStarted.WhileSubscribed(5000),
-            initialValue = -1
-        )
     private val _homeState = MutableStateFlow(HomeState())
     val homeState = _homeState
         .onStart {
@@ -91,6 +90,19 @@ class HomeViewModel @Inject constructor(
     private val _homePaneState = MutableStateFlow(HomePaneState())
     val homePaneState = _homePaneState.asStateFlow()
 
+    val allLocations = locationRepository.getAllLocations().stateIn(
+        scope = viewModelScope,
+        started =  SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    init {
+        dataRefreshRepository.refreshData()
+        viewModelScope.launch{
+            val appSettings = preferenceRepository.getSettings()
+            updateClockGaugeLock(appSettings.clockGaugeLock)
+        }
+    }
 
     private val utcDateTimeFlow = flow {
         while (true) {
@@ -120,29 +132,65 @@ class HomeViewModel @Inject constructor(
         utcDateTimeFlow,
         clockGaugeMinutesFlow,
         dayGaugeMinutesFlow,
-        preferenceRepository.getSettingsFlow()
-    ) { loc, utcTime, clockMinuteIncremented, dayMinuteIncremented, appSettings ->
+//        preferenceRepository.getSettingsFlow()
+    ) { loc, utcTime, clockMinuteIncremented, dayMinuteIncremented/*, appSettings*/ ->
         val modifiedUtcDate = utcTime
             .plusMinutes(clockMinuteIncremented + dayMinuteIncremented)
             .toLocalDate()
-        val startDate = modifiedUtcDate.minusDays(6).toString()
-        val endDate = modifiedUtcDate.plusDays(6).toString()
-        val baseData = loc.map {
-            WeatherDto(
-                locationId = it.id,
-                locationName = it.name,
-                latitude = it.latitude,
-                longitude = it.longitude,
-                utcOffset = it.utcOffset
-            )
+        val startDate = modifiedUtcDate.minusDays(4).toString()
+        val endDate = modifiedUtcDate.plusDays(4).toString()
+        val hourlyWeatherDeferred = viewModelScope.async(Dispatchers.IO) {
+            localWeatherRepository.getHourlyWeather(startDate, endDate)
         }
-        val out = localWeatherRepository.getAllLocationsWeather(
-            startDate = startDate,
-            endDate = endDate
-        ).map {
-            it.applyUnits(appSettings)
+        val hourlyAirQualityDeferred = viewModelScope.async(Dispatchers.IO) {
+            localWeatherRepository.getHourlyAirQuality(startDate, endDate)
         }
-        (baseData + out).groupBy { it.locationId }
+        val dailyWeatherDeferred = viewModelScope.async(Dispatchers.IO) {
+            localWeatherRepository.getDailyWeather(startDate, endDate)
+        }
+        val weatherData = awaitAll(hourlyWeatherDeferred, hourlyAirQualityDeferred, dailyWeatherDeferred)
+        val hourlyWeather = weatherData[0] as Map<Location, List<LocalHourlyWeather>>
+        val hourlyAirQuality = weatherData[1] as Map<Location, List<LocalAirQuality>>
+        val dailyWeather = weatherData[2] as Map<Location, List<LocalDailyWeather>>
+
+//        val baseData = loc.map { location ->
+//            WeatherDto(
+//                locationId = location.id,
+//                locationName = location.name,
+//                latitude = location.latitude,
+//                longitude = location.longitude,
+//                utcOffset = location.utcOffset
+//            )
+//        }
+
+        val out = loc.map { location ->
+            hourlyWeather[location]?.map { currentHourlyWeather ->
+                val todayWeather = dailyWeather[location]?.find {
+                    it.time == currentHourlyWeather.time.substring(0..9)
+                }
+                WeatherDto(
+                    locationId = location.id,
+                    locationName = location.name,
+                    latitude = location.latitude,
+                    longitude = location.longitude,
+                    utcOffset = location.utcOffset,
+                    currentWeather = currentHourlyWeather,
+                    currentAirQuality = hourlyAirQuality[location]?.find { it.time == currentHourlyWeather.time },
+                    todayMaxTemperature = todayWeather?.temperatureMax,
+                    todayMinTemperature = todayWeather?.temperatureMin,
+                    sunRise = todayWeather?.sunRise,
+                    sunSet = todayWeather?.sunSet
+                )
+            } ?:
+            listOf(WeatherDto(
+                locationId = location.id,
+                locationName = location.name,
+                latitude = location.latitude,
+                longitude = location.longitude,
+                utcOffset = location.utcOffset
+            ))
+        }.flatten()
+        out.groupBy { it.locationId }
     }
 
 //    val clockGaugeClickCounter = clockGaugeMinutesFlow.map { it / 60 }.distinctUntilChanged()
@@ -151,8 +199,9 @@ class HomeViewModel @Inject constructor(
             allLocationsWeatherGrouped,
             utcDateTimeFlow,
             clockGaugeMinutesFlow,
-            dayGaugeMinutesFlow
-        ){ weatherDTOMap , utcTime, clockMinuteIncremented, dayMinuteIncremented ->
+            dayGaugeMinutesFlow,
+            preferenceRepository.getSettingsFlow()
+        ){ weatherDTOMap , utcTime, clockMinuteIncremented, dayMinuteIncremented, appSettings ->
             if (weatherDTOMap.isEmpty())
                 return@combine emptyList<LocationsState>()
 
@@ -162,13 +211,13 @@ class HomeViewModel @Inject constructor(
             )
 
             return@combine List(size = locationCounts) { index ->
-                val allTimesValue = weatherDTOMap.values.elementAt(index).map { it.time }
+                val allTimesValue = weatherDTOMap.values.elementAt(index).map { it.currentWeather?.time }
                 val timeIndex = allTimesValue.indexOfFirst {
                     try { LocalDateTime.parse(it) > modifiedUtcTime }
-                    catch (_: DateTimeParseException) { false }
+                    catch (_: Exception) { false }
                 }
+                val id = weatherDTOMap.keys.elementAt(index)
                 if (timeIndex < 2) {
-                    val id = weatherDTOMap.keys.elementAt(index)
                     val dto = weatherDTOMap[id]?.firstOrNull()
                     localNow = modifiedUtcTime.plusMinutes(dto?.utcOffset ?: 0)
                     LocationsState(
@@ -197,50 +246,248 @@ class HomeViewModel @Inject constructor(
                         try { LocalDateTime.parse(it).toLocalDate() == localNow.toLocalDate() }
                         catch (_: DateTimeParseException) { false }
                     }
-                    weight2 = abs(
-                        Duration.between(modifiedUtcTime, LocalDateTime.parse(allTimesValue[timeIndex - 1]))
-                            .toSeconds()
-                    ) / 3600f
-                    weight1 = 1 - weight2
+                    val firstPointX = 0f
+                    val lastPointX = allTimesValue.size.toFloat() - 1
+                    val targetX = Duration.between(LocalDateTime.parse(allTimesValue[0]), modifiedUtcTime)
+                        .toSeconds() / 3600f
+                    val hourlyWeather = weatherDTOMap[id]?.map { it.currentWeather }
+                    val hourlyAirQuality = weatherDTOMap[id]?.map { it.currentAirQuality }
+
+//                    weight2 = abs(
+//                        Duration.between(modifiedUtcTime, LocalDateTime.parse(allTimesValue[timeIndex - 1]))
+//                            .toSeconds()
+//                    ) / 3600f
+//                    weight1 = 1 - weight2
                     LocationsState(
                         locationId = id,
                         locationName = dto!!.locationName,
                         latitude = dto.latitude,
                         longitude = dto.longitude,
-                        currentTemperature =
-                        if (weatherDTOMap[id]?.get(timeIndex - 1)?.currentTemperature == null
-                            || weatherDTOMap[id]?.get(timeIndex)?.currentTemperature == null) null
-                        else weight1 * weatherDTOMap[id]!![timeIndex - 1].currentTemperature!!
-                                + weight2 * weatherDTOMap[id]!![timeIndex].currentTemperature!!,
+                        currentTemperature = weatherCurveXtoY(
+                            WeatherQuantity.TEMPERATURE,
+                            appSettings,
+                            smoothnessFactor = null,
+                            hourlyWeather,
+                            hourlyAirQuality,
+                            firstPointX,
+                            lastPointX,
+                            targetX
+                        )?.celsiusToUnit(appSettings.temperatureUnit),
                         currentHumidity =
-                        if (weatherDTOMap[id]?.get(timeIndex - 1)?.currentHumidity == null
-                            || weatherDTOMap[id]?.get(timeIndex)?.currentHumidity == null) null
-                        else weight1 * weatherDTOMap[id]!![timeIndex - 1].currentHumidity!!
-                                + weight2 * weatherDTOMap[id]!![timeIndex].currentHumidity!!,
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.HUMIDITY))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.HUMIDITY,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )
+                            else
+                                null,
+                        currentDewPoint =
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.DEWPOINT))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.DEWPOINT,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )?.celsiusToUnit(appSettings.temperatureUnit)
+                            else
+                                null,
+                        currentApparentTemperature =
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.APPARENTTEMP))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.APPARENTTEMP,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )?.celsiusToUnit(appSettings.temperatureUnit)
+                            else
+                                null,
                         currentPrecipitationProbability =
-                        if (weatherDTOMap[id]?.get(timeIndex - 1)?.currentPrecipitationProbability == null
-                            || weatherDTOMap[id]?.get(timeIndex)?.currentPrecipitationProbability == null) null
-                        else weight1 * weatherDTOMap[id]!![timeIndex - 1].currentPrecipitationProbability!!
-                                + weight2 * weatherDTOMap[id]!![timeIndex].currentPrecipitationProbability!!,
-                        currentWeatherCode =
-                        if (weight2 > 1) weatherDTOMap[id]!![timeIndex].currentWeatherCode
-                        else weatherDTOMap[id]!![timeIndex - 1].currentWeatherCode,
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.PRECIPITATIONPROBABILITY))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.PRECIPITATIONPROBABILITY,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )
+                            else
+                                null,
+                        currentPrecipitationAmount =
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.PRECIPITATION))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.PRECIPITATION,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )?.mmToUnit(appSettings.lengthUnit)
+                            else
+                                null,
+                        currentCloudCover =
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.CLOUDCOVER))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.CLOUDCOVER,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )
+                            else
+                                null,
+                        currentSurfacePressure =
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.SURFACEPRESSURE))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.SURFACEPRESSURE,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )?.paToUnit(appSettings.pressureUnit)
+                            else
+                                null,
+                        currentVisibility =
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.VISIBILITY))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.VISIBILITY,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )?.kmToUnit(appSettings.lengthUnit)
+                            else
+                                null,
+                        currentWeatherCode = weatherDTOMap[id]!![timeIndex - 1].currentWeather?.weatherCode,
                         currentWindSpeed =
-                        if (weatherDTOMap[id]?.get(timeIndex - 1)?.currentWindSpeed == null
-                            || weatherDTOMap[id]?.get(timeIndex)?.currentWindSpeed == null) null
-                        else weight1 * weatherDTOMap[id]!![timeIndex - 1].currentWindSpeed!!
-                                + weight2 * weatherDTOMap[id]!![timeIndex].currentWindSpeed!!,
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.WINDSPEED))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.WINDSPEED,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )?.kmphToUnit(appSettings.speedUnit)
+                            else
+                                null,
                         currentWindDirection =
-                        if (weatherDTOMap[id]?.get(timeIndex - 1)?.currentWindDirection == null
-                            || weatherDTOMap[id]?.get(timeIndex)?.currentWindDirection == null) null
-                        else weight1 * weatherDTOMap[id]!![timeIndex - 1].currentWindDirection!!
-                                + weight2 * weatherDTOMap[id]!![timeIndex].currentWindDirection!!,
-                        currentAirQuality = if (weatherDTOMap[id]?.get(timeIndex - 1)?.usAQI == null
-                            || weatherDTOMap[id]?.get(timeIndex)?.usAQI == null) null
-                        else (weight1 * weatherDTOMap[id]!![timeIndex - 1].usAQI!!
-                                + weight2 * weatherDTOMap[id]!![timeIndex].usAQI!!).roundToInt(),
-                        todayMaxTemperature = weatherDTOMap[id]!!.getOrNull(dayTimeIndex)?.todayMaxTemperature,
-                        todayMinTemperature = weatherDTOMap[id]!!.getOrNull(dayTimeIndex)?.todayMinTemperature,
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.WINDSPEED))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.WINDDIRECTION,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )
+                            else
+                                null,
+                        currentUVIndex =
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.UVINDEX))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.UVINDEX,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )
+                            else
+                                null,
+                        currentFreezingLevelHeight =
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.FREEZINGLEVELHEIGHT))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.FREEZINGLEVELHEIGHT,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )?.mToUnit(appSettings.lengthUnit)
+                            else
+                                null,
+                        currentDirectRadiation =
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.DIRECTRADIATION))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.DIRECTRADIATION,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )
+                            else
+                                null,
+                        currentDirectNormalIrradiance =
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.DIRECTNORMALIRRADIANCE))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.DIRECTNORMALIRRADIANCE,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )
+                            else
+                                null,
+                        currentAirQuality =
+                            if (appSettings.cardWeatherQuantities.contains(WeatherQuantity.AQI))
+                                weatherCurveXtoY(
+                                    WeatherQuantity.AQI,
+                                    appSettings,
+                                    smoothnessFactor = null,
+                                    hourlyWeather,
+                                    hourlyAirQuality,
+                                    firstPointX,
+                                    lastPointX,
+                                    targetX
+                                )?.toInt()
+                            else
+                                null,
+                        todayMaxTemperature = weatherDTOMap[id]!!.getOrNull(dayTimeIndex)
+                            ?.todayMaxTemperature?.celsiusToUnit(appSettings.temperatureUnit),
+                        todayMinTemperature = weatherDTOMap[id]!!.getOrNull(dayTimeIndex)
+                            ?.todayMinTemperature?.celsiusToUnit(appSettings.temperatureUnit),
                         clockBigHandleRotation = if (dto.utcOffset == null) null
                         else (localNow.minute + localNow.second / 60f) * 6f,
                         clockSmallHandleRotation = if (dto.utcOffset == null) null

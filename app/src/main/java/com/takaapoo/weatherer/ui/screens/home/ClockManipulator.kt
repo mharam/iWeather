@@ -74,16 +74,18 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.takaapoo.weatherer.R
-import com.takaapoo.weatherer.ui.screens.detail.daily_diagram.drawThickText
+import com.takaapoo.weatherer.utility.drawThickText
 import com.takaapoo.weatherer.ui.screens.home.shapes.DayGaugeShape
+import com.takaapoo.weatherer.ui.theme.Cmu
 import com.takaapoo.weatherer.ui.theme.Gray20
 import com.takaapoo.weatherer.ui.theme.Gray30
 import com.takaapoo.weatherer.ui.theme.Orange40
 import com.takaapoo.weatherer.ui.theme.Orange60
 import com.takaapoo.weatherer.ui.theme.TenseGreen
 import com.takaapoo.weatherer.ui.theme.TenseRed
-import com.takaapoo.weatherer.ui.utility.BorderedText
-import com.takaapoo.weatherer.ui.utility.toPx
+import com.takaapoo.weatherer.ui.theme.timeFontFamily
+import com.takaapoo.weatherer.utility.BorderedText
+import com.takaapoo.weatherer.utility.toPx
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.floor
@@ -223,7 +225,7 @@ fun ClockManipulator(
                         textCenter = gaugeSizePx / 2,
                         textTop = 10f + bigTickSize.height,
                         fontSize = 18.sp,
-                        fontFamily =  Font(R.font.cmu_typewriter_bold).toFontFamily(),
+                        fontFamily = timeFontFamily,
                         borderWidth = if (deg == 0) 3f else 2f
                     )
                 }
@@ -337,7 +339,7 @@ fun ClockManipulator(
                                     }
                                     .wrapContentHeight(),
                                 textAlign = TextAlign.Center,
-                                fontFamily = Font(resId = R.font.cmu_serif).toFontFamily(),
+                                fontFamily = Cmu,
                                 fontSize = 18.sp
                             )
                         }
@@ -423,7 +425,7 @@ fun TenseText(
             fillColor = color,
             fontSize = 14.sp,
             strokeWidth = 1f,
-            fontFamily =  Font(R.font.cmu_typewriter_bold).toFontFamily()
+            fontFamily =  timeFontFamily
         )
     }
 }

@@ -78,10 +78,11 @@ import com.takaapoo.weatherer.ui.theme.OnDiagramLightTheme
 import com.takaapoo.weatherer.ui.theme.Transparent10
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
 import com.takaapoo.weatherer.ui.theme.customColorScheme
-import com.takaapoo.weatherer.ui.utility.BorderedText
-import com.takaapoo.weatherer.ui.utility.toDp
-import com.takaapoo.weatherer.ui.utility.toPx
-import com.takaapoo.weatherer.ui.utility.toSp
+import com.takaapoo.weatherer.ui.theme.timeFontFamily
+import com.takaapoo.weatherer.utility.BorderedText
+import com.takaapoo.weatherer.utility.toDp
+import com.takaapoo.weatherer.utility.toPx
+import com.takaapoo.weatherer.utility.toSp
 import kotlinx.collections.immutable.toImmutableList
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -362,7 +363,7 @@ fun WeatherDataColumn(
                         modifier = Modifier.padding(start = 8.dp, end = 8.dp),
                         weatherQuantity = listOf(WeatherQuantity.HUMIDITY).toImmutableList(),
                         currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
-                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
+//                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
                         targetX = detailState.targetX,
                         appSettings = appSettings,
                         topBannerHeight = headerHeight
@@ -380,11 +381,20 @@ fun WeatherDataColumn(
                         topBannerHeight = headerHeight,
 //                        scroll = currentConditionScroll
                     )
+                CurrentCondition(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    weatherQuantity = listOf(WeatherQuantity.CLOUDCOVER).toImmutableList(),
+                    currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
+//                    currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
+                    targetX = detailState.targetX,
+                    appSettings = appSettings,
+                    topBannerHeight = headerHeight
+                )
                     CurrentCondition(
                         modifier = Modifier.padding(horizontal = 8.dp),
                         weatherQuantity = listOf(WeatherQuantity.DEWPOINT).toImmutableList(),
                         currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
-                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
+//                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
                         targetX = detailState.targetX,
                         appSettings = appSettings,
                         topBannerHeight = headerHeight
@@ -393,7 +403,7 @@ fun WeatherDataColumn(
                         modifier = Modifier.padding(horizontal = 8.dp),
                         weatherQuantity = listOf(WeatherQuantity.FREEZINGLEVELHEIGHT).toImmutableList(),
                         currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
-                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
+//                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
                         targetX = detailState.targetX,
                         appSettings = appSettings,
                         topBannerHeight = headerHeight
@@ -402,7 +412,7 @@ fun WeatherDataColumn(
                         modifier = Modifier.padding(horizontal = 8.dp),
                         weatherQuantity = listOf(WeatherQuantity.SURFACEPRESSURE).toImmutableList(),
                         currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
-                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
+//                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
                         targetX = detailState.targetX,
                         appSettings = appSettings,
                         topBannerHeight = headerHeight
@@ -411,7 +421,7 @@ fun WeatherDataColumn(
                         modifier = Modifier.padding(horizontal = 8.dp),
                         weatherQuantity = listOf(WeatherQuantity.VISIBILITY).toImmutableList(),
                         currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
-                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
+//                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
                         targetX = detailState.targetX,
                         appSettings = appSettings,
                         topBannerHeight = headerHeight
@@ -486,6 +496,7 @@ fun WeatherDataColumn(
                     }
                     QuantityChooserRail(
                         modifier = Modifier.padding(end = endPadding),
+                        appSettings = appSettings,
                         quantities = hourlyChartState.chartQuantities.toImmutableList(),
                         isAirQualityQuantities = false,
                         onRemoveChartQuantity = onRemoveChartQuantity,
@@ -494,6 +505,7 @@ fun WeatherDataColumn(
                     Spacer(modifier = Modifier.height(8.dp))
                     QuantityChooserRail(
                         modifier = Modifier.padding(end = endPadding),
+                        appSettings = appSettings,
                         quantities = hourlyChartState.chartQuantities.toImmutableList(),
                         isAirQualityQuantities = true,
                         onRemoveChartQuantity = onRemoveChartQuantity,
@@ -724,7 +736,7 @@ fun Title(
                 .wrapContentHeight(),
             text = buildAnnotatedString { append(locationName) },
             fontFamily = Font(R.font.cmu_serif_bold).toFontFamily(),
-            strokeColor = MaterialTheme.colorScheme.background,
+            strokeColor = MaterialTheme.colorScheme.primaryContainer,
             fillColor = MaterialTheme.colorScheme.onPrimaryContainer,
             fontSize = fontSize.sp,
             strokeWidth = 1.5f * (fontSize - 20)
@@ -762,7 +774,7 @@ fun Time(
         ) {
             Text(
                 text = timeText,
-                fontFamily = Font(R.font.cmu_typewriter_bold).toFontFamily(),
+                fontFamily = timeFontFamily,
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
                 fontSize = dimensionResource(id = R.dimen.detail_screen_subtitle_font_size).toSp(density)
             )
@@ -800,7 +812,8 @@ fun HourlyDiagramTopLegendPreview(modifier: Modifier = Modifier) {
             text = buildAnnotatedString { append(" Hello! Hello! Hello! Hello! Hello!") },
             curveIndex = 1,
             showDot = true,
-            onRemoveQuantity = {}
+            color = Color.Red,
+            onRemoveQuantity = {},
         )
     }
 }

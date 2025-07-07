@@ -1,4 +1,4 @@
-package com.takaapoo.weatherer.ui.utility
+package com.takaapoo.weatherer.utility
 
 object MapStyle {
     val gowallaStyle = """

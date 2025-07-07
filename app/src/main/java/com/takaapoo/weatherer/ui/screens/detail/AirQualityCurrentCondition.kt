@@ -65,11 +65,7 @@ import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.LocalAirQuality
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.DetailState
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.GraphTypes
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.cubicCurveXtoY
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.linearCurveXtoY
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.quantityControlPoints
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.quantityData
+import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.weatherCurveXtoY
 import com.takaapoo.weatherer.ui.theme.AQGreen
 import com.takaapoo.weatherer.ui.theme.AQMaroon
 import com.takaapoo.weatherer.ui.theme.AQOrange
@@ -79,8 +75,8 @@ import com.takaapoo.weatherer.ui.theme.AQYellow
 import com.takaapoo.weatherer.ui.theme.Gray60
 import com.takaapoo.weatherer.ui.theme.WeatherGaugeBackground
 import com.takaapoo.weatherer.ui.theme.WeatherGaugeHandle
-import com.takaapoo.weatherer.ui.utility.BorderedText
-import com.takaapoo.weatherer.ui.utility.toPx
+import com.takaapoo.weatherer.utility.BorderedText
+import com.takaapoo.weatherer.utility.toPx
 import kotlinx.collections.immutable.ImmutableList
 import kotlin.math.PI
 import kotlin.math.roundToInt
@@ -116,15 +112,23 @@ fun AirQualityCurrentCondition(
 
     val firstPointX = 0f
     val lastPointX = currentDayHourlyAirQuality.size.toFloat() - 1
-    val data = quantityData(
-        airData = currentDayHourlyAirQuality,
-        weatherQuantity = quantity
+//    val data = quantityData(
+//        airData = currentDayHourlyAirQuality,
+//        weatherQuantity = quantity
+//    )
+//    val (controlPoints1, controlPoints2) = quantityControlPoints(
+//        airData = currentDayHourlyAirQuality,
+//        weatherQuantity = quantity
+//    )
+    val quantityValue = weatherCurveXtoY(
+        quantity = quantity,
+        appSettings = appSettings,
+        hourlyAirQuality = currentDayHourlyAirQuality,
+        firstPointX = firstPointX,
+        lastPointX = lastPointX,
+        targetX = targetX
     )
-    val (controlPoints1, controlPoints2) = quantityControlPoints(
-        airData = currentDayHourlyAirQuality,
-        weatherQuantity = quantity
-    )
-    val quantityValue = when (quantity.graphType()){
+        /*when (quantity.graphType()){
         GraphTypes.CUBIC -> cubicCurveXtoY(
             data = data,
             controlPoints1 = controlPoints1,
@@ -139,7 +143,7 @@ fun AirQualityCurrentCondition(
             lastPointX = lastPointX,
             targetX = targetX
         )
-    }
+    }*/
     val molarVolume = 22.4 * (currentTemperature / 273) / (currentPressure / 1000)
     val quantityLevels = when(quantity){
         WeatherQuantity.AQI -> listOf(50, 100, 150, 200, 300, 500)
@@ -443,6 +447,7 @@ fun AirQualityCurrentCondition2(
     modifier: Modifier = Modifier,
     detailState: DetailState,
     quantity: WeatherQuantity,
+    appSettings: AppSettings,
     currentTemperature: Float = 273f,
     currentPressure: Float = 1000f
 ) {
@@ -454,17 +459,26 @@ fun AirQualityCurrentCondition2(
 
     val firstPointX = 0f
     val lastPointX = detailState.currentDayHourlyAirQuality.size.toFloat() - 1
-    val data = quantityData(
-        weatherData = detailState.currentDayHourlyWeather,
-        airData = detailState.currentDayHourlyAirQuality,
-        weatherQuantity = quantity
+//    val data = quantityData(
+//        weatherData = detailState.currentDayHourlyWeather,
+//        airData = detailState.currentDayHourlyAirQuality,
+//        weatherQuantity = quantity
+//    )
+//    val (controlPoints1, controlPoints2) = quantityControlPoints(
+//        weatherData = detailState.currentDayHourlyWeather,
+//        airData = detailState.currentDayHourlyAirQuality,
+//        weatherQuantity = quantity
+//    )
+    var quantityValue = weatherCurveXtoY(
+        quantity = quantity,
+        appSettings = appSettings,
+        hourlyWeather = detailState.currentDayHourlyWeather,
+        hourlyAirQuality = detailState.currentDayHourlyAirQuality,
+        firstPointX = firstPointX,
+        lastPointX = lastPointX,
+        targetX = detailState.targetX
     )
-    val (controlPoints1, controlPoints2) = quantityControlPoints(
-        weatherData = detailState.currentDayHourlyWeather,
-        airData = detailState.currentDayHourlyAirQuality,
-        weatherQuantity = quantity
-    )
-    var quantityValue = when (quantity.graphType()){
+        /*when (quantity.graphType()){
         GraphTypes.CUBIC -> cubicCurveXtoY(
             data = data,
             controlPoints1 = controlPoints1,
@@ -479,7 +493,7 @@ fun AirQualityCurrentCondition2(
             lastPointX = lastPointX,
             targetX = detailState.targetX
         )
-    }
+    }*/
     if (quantity == WeatherQuantity.CO)
         quantityValue = quantityValue?.div(1000)
     val molarVolume = 22.4f * (currentTemperature / 273) / (currentPressure / 1000)

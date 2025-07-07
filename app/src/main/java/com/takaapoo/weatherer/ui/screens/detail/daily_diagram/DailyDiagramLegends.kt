@@ -29,7 +29,8 @@ import com.takaapoo.weatherer.ui.theme.Gray20
 import com.takaapoo.weatherer.ui.theme.OnDiagramDarkTheme
 import com.takaapoo.weatherer.ui.theme.OnDiagramLightTheme
 import com.takaapoo.weatherer.ui.theme.indicatorLineColor
-import com.takaapoo.weatherer.ui.viewModels.timeFontFamily
+import com.takaapoo.weatherer.utility.drawThickText
+import com.takaapoo.weatherer.ui.theme.timeFontFamily
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -160,8 +161,7 @@ fun DrawScope.dailyDiagramLegends(
         }
         val date = now.plusDays(x.toLong())
         val year = date.format(DateTimeFormatter.ofPattern("uuuu"))
-        val month = date.format(DateTimeFormatter.ofPattern("MMM d"))
-            .uppercase()
+        val month = date.format(DateTimeFormatter.ofPattern("MMM d")).uppercase()
         val day = date.format(DateTimeFormatter.ofPattern("EEE"))
         val yearMeasuredText = textMeasurer.measure(
             text = year,
@@ -285,7 +285,8 @@ fun DrawScope.dailyDiagramLegends(
             drawThickText(
                 textMeasurer,
                 text,
-                textColor,
+                annotatedString = null,
+                textColor = textColor,
                 textCenter = lineY,
                 textTop = -horizontalPadding
             )
@@ -296,24 +297,6 @@ fun DrawScope.dailyDiagramLegends(
         degrees = -90f,
         pivot = Offset.Zero
     ) {
-//        val measuredTitleOutline = textMeasurer.measure(
-//            text = chartTitle,
-//            style = TextStyle(
-//                fontFamily = Font(R.font.cmu_serif).toFontFamily(),
-//                fontSize = 14.sp,
-//                drawStyle = Stroke(width = 1.5f)
-//            )
-//        )
-//        val measuredTitleFill = textMeasurer.measure(
-//            text = chartTitle,
-//            style = TextStyle(
-//                fontFamily = Font(R.font.cmu_serif).toFontFamily(),
-//                fontSize = 14.sp,
-//                drawStyle = Fill
-//            )
-//        )
-//        val titleLeft = -(diagramHeight / 2 + verticalPadding) - measuredTitleOutline.size.width / 2f
-//        val titleTop = size.width - horizontalPadding
         drawThickText(
             textMeasurer = textMeasurer,
             text = chartTitle,

@@ -1,7 +1,6 @@
-package com.takaapoo.weatherer.ui.utility
+package com.takaapoo.weatherer.utility
 
 import android.content.Context
-import android.util.Log
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
@@ -17,7 +16,6 @@ fun readJSONFromAssets(context: Context, path: String): String {
         }
         stringBuilder.toString()
     } catch (e: Exception) {
-        Log.i("Assets","mess: ${e.message}")
         ""
     }
 }

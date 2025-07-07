@@ -1,4 +1,4 @@
-package com.takaapoo.weatherer.ui.utility
+package com.takaapoo.weatherer.utility
 
 import android.view.WindowManager
 import androidx.activity.ComponentActivity

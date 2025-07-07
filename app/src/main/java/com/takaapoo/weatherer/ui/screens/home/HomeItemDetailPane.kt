@@ -1,6 +1,7 @@
 package com.takaapoo.weatherer.ui.screens.home
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -47,15 +49,15 @@ import com.takaapoo.weatherer.domain.model.HourlyChartState
 import com.takaapoo.weatherer.ui.screens.detail.DetailPagerScreen
 import com.takaapoo.weatherer.ui.screens.detail.DetailScreen
 import com.takaapoo.weatherer.ui.screens.detail.aq_detail.AirQualityDetailScreen
-import com.takaapoo.weatherer.ui.theme.Gray30
-import com.takaapoo.weatherer.ui.utility.toDp
-import com.takaapoo.weatherer.ui.utility.toPx
+import com.takaapoo.weatherer.ui.theme.customColorScheme
 import com.takaapoo.weatherer.ui.viewModels.DetailViewModel
 import com.takaapoo.weatherer.ui.viewModels.HomeViewModel
+import com.takaapoo.weatherer.utility.toDp
+import com.takaapoo.weatherer.utility.toPx
 import kotlinx.collections.immutable.toImmutableList
 
 
-@OptIn(ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalComposeUiApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeItemDetailPane(
     modifier: Modifier = Modifier,
@@ -65,21 +67,34 @@ fun HomeItemDetailPane(
     dailyChartStateList: List<DailyChartState>,
     hourlyChartsData: List<List<HourlyChartDto>>,
     dailyChartsData: List<List<LocalDailyWeather>>,
+//    locationListState: List<LocationsState>,
+//    notificationHourlyChartData: List<HourlyChartDto>,
+
+//    sharedTransitionScope: SharedTransitionScope,
+//    animatedVisibilityScope: AnimatedVisibilityScope,
 
     singlePane: Boolean,
-    locationsCount: Int,
+//    locationsCount: Int,
+//    notificationBitmap: Bitmap?,
+//    notificationTemperatureBitmap: Bitmap?,
     permanentDrawer: Boolean,
     appSettings: AppSettings,
     weatherDataLoadStatus: Map<Int, MyResult<Unit>>,
     onMenuButtonClick: () -> Unit,
     onNavigateToAddLocationScreen: () -> Unit,
-    onReloadALocationWeatherData: (location: Location) -> Unit
+    onReloadALocationWeatherData: (location: Location) -> Unit,
+//    onUpdateNotifChannelDialogVisibility: (visible: Boolean) -> Unit,
+//    onUpdateNotificationBitmap: (bitmap: Bitmap?) -> Unit,
+//    onUpdateTemperatureBitmap: (bitmap: Bitmap?) -> Unit,
 ) {
     val density = LocalDensity.current
     val mainActivity = LocalContext.current as MainActivity
     val homePaneState by homeViewModel.homePaneState.collectAsStateWithLifecycle()
     val homeState by homeViewModel.homeState.collectAsStateWithLifecycle()
     val locationListState by homeViewModel.locationsState.collectAsStateWithLifecycle()
+
+    // temporary variable //
+    val locations by homeViewModel.allLocations.collectAsStateWithLifecycle()
 
     var homeScreenWidth by rememberSaveable { mutableFloatStateOf(0f) }
     var homeScreenHeight by rememberSaveable { mutableFloatStateOf(0f) }
@@ -154,6 +169,7 @@ fun HomeItemDetailPane(
                                     homeScreenWidth = it.width.toFloat()
                                     homeScreenHeight = it.height.toFloat()
                                 },
+                            locations = locations,
                             homeState = homeState,
                             locationListState = locationListState.toImmutableList(),
                             appSettings = appSettings,
@@ -169,6 +185,8 @@ fun HomeItemDetailPane(
                             windowRotation = windowRotation,
                             initialFirstItemIndex = homePaneState.pageNumberReturningFromDetail,
                             permanentDrawer = permanentDrawer,
+//                            sharedTransitionScope = sharedTransitionScope,
+//                            animatedVisibilityScope = animatedVisibilityScope,
 
                             onUpdateClockGaugeRotation = remember {
                                 {
@@ -321,7 +339,6 @@ fun HomeItemDetailPane(
                             onUpdateClockGaugeLock = remember { homeViewModel::updateClockGaugeLock }
                         )
                     }
-
                     else -> {
                         val pagerState = rememberPagerState(
                             initialPage = homePaneState.initialPage,
@@ -412,6 +429,8 @@ fun HomeItemDetailPane(
                         initialFirstItemIndex = homePaneState.pageNumberReturningFromDetail,
                         singlePane = false,
                         permanentDrawer = permanentDrawer,
+//                        sharedTransitionScope = sharedTransitionScope,
+//                        animatedVisibilityScope = animatedVisibilityScope,
 
                         onUpdateClockGaugeRotation = remember {
                             { rotation ->
@@ -579,7 +598,7 @@ fun HomeItemDetailPane(
                         modifier = Modifier
                             .fillMaxHeight()
                             .width(1.dp)
-                            .background(color = Gray30)
+                            .background(color = MaterialTheme.customColorScheme.paneSpacerColor)
                     )
                     Box(
                         modifier = Modifier
@@ -731,6 +750,8 @@ fun HomeItemDetailPane(
     }
     LifecycleEventEffect(event = Lifecycle.Event.ON_RESUME) {
         detailViewModel.reInitialize()
+        detailViewModel.adjustSettings()
     }
+
 
 }

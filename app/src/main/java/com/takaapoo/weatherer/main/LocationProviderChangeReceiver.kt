@@ -1,4 +1,4 @@
-package com.takaapoo.weatherer
+package com.takaapoo.weatherer.main
 
 import android.content.BroadcastReceiver
 import android.content.Context

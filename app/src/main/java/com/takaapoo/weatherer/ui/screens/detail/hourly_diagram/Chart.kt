@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
@@ -44,22 +45,19 @@ import com.takaapoo.weatherer.data.local.LocalHourlyWeather
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartState
+import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
 import com.takaapoo.weatherer.domain.unit.Temperature
 import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
-import com.takaapoo.weatherer.ui.theme.curveBlue
-import com.takaapoo.weatherer.ui.theme.curveGreen
-import com.takaapoo.weatherer.ui.theme.curveOrange
-import com.takaapoo.weatherer.ui.theme.curvePink
 import com.takaapoo.weatherer.ui.theme.customColorScheme
-import com.takaapoo.weatherer.ui.utility.cmToUnit
-import com.takaapoo.weatherer.ui.utility.kmphToUnit
-import com.takaapoo.weatherer.ui.utility.mToUnit
-import com.takaapoo.weatherer.ui.utility.mmToUnit
-import com.takaapoo.weatherer.ui.utility.paToUnit
-import com.takaapoo.weatherer.ui.utility.toAppropriateUnit
-import com.takaapoo.weatherer.ui.utility.toPx
+import com.takaapoo.weatherer.ui.theme.timeFontFamily
 import com.takaapoo.weatherer.ui.viewModels.DetailViewModel
-import com.takaapoo.weatherer.ui.viewModels.timeFontFamily
+import com.takaapoo.weatherer.utility.cmToUnit
+import com.takaapoo.weatherer.utility.kmphToUnit
+import com.takaapoo.weatherer.utility.localToUtcTime
+import com.takaapoo.weatherer.utility.mToUnit
+import com.takaapoo.weatherer.utility.mmToUnit
+import com.takaapoo.weatherer.utility.paToUnit
+import com.takaapoo.weatherer.utility.toPx
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -68,6 +66,8 @@ import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import kotlin.math.absoluteValue
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -81,8 +81,11 @@ enum class ChartTheme(@StringRes val nameId: Int){
     APPTHEME(nameId = R.string.app_theme),
     DAYNIGHT(nameId = R.string.day_night)
 }
-enum class ChartGrids{ All, MAIN, NON }
-val curveColors = listOf(curveBlue, curvePink, curveGreen, curveOrange)
+enum class ChartGrids(@StringRes val nameId: Int){
+    All(nameId = R.string.grid_all),
+    MAIN(nameId = R.string.grid_main),
+    NON(nameId = R.string.grid_non)
+}
 val mainGridWidthDp = 0.6f.dp
 val minorGridWidthDp = 0.4f.dp
 
@@ -209,8 +212,11 @@ fun HourlyChart(
                 }
             }
     ) {
+        val utcOffset = hourlyChartData.getOrNull(0)?.utcOffset
         val sunRiseSetX = hourlyChartData.map { it.sunRise to it.sunSet }.distinct()
-            .map { timeToX(it.first, 0) to timeToX(it.second, 0) }.toImmutableList()
+            .map { timeToX(it.first?.localToUtcTime(utcOffset), utcOffset, appSettings.hourlyDiagramTime) to
+                    timeToX(it.second?.localToUtcTime(utcOffset), utcOffset, appSettings.hourlyDiagramTime) }
+            .toImmutableList()
 
         DiagramFrameCanvas(
             modifier = Modifier.fillMaxSize(),
@@ -252,7 +258,9 @@ fun HourlyChart(
                         cornerRadius = cornerRadius.toPx(density),
                         horizontalPadding = diagramHorPadding,
                         verticalPadding = diagramVertPadding,
-                        curveColor = curveColors[curveNumber],
+                        appSettings = appSettings,
+                        smoothnessFactor = hourlyChartState.curvesSmoothness.getOrElse(weatherQuantity) { 0f },
+                        curveColor = Color(hourlyChartState.curvesColor[curveNumber]),
                         dotsVisible = hourlyChartState.dotsOnCurveVisible,
                         shadowVisible = hourlyChartState.curveShadowVisible,
                         dotType = DotType.entries[curveNumber],
@@ -280,6 +288,8 @@ fun HourlyChart(
             sliderThumbPosition = hourlyChartState.sliderThumbPosition,
             hourlyChartTheme = hourlyChartState.chartTheme,
             textMeasurer = textMeasurer,
+            curveColors = hourlyChartState.curvesColor.map { Color(it) },
+            timeClock = appSettings.hourlyDiagramTime,
             onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
             onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation
         )
@@ -303,6 +313,8 @@ fun DiagramIconsAndLegends(
     hourlyChartTheme: ChartTheme,
     sliderThumbPosition: Float,
     textMeasurer: TextMeasurer,
+    curveColors: List<Color>,
+    timeClock: HourlyDiagramTime,
     onCalculateHorizontalBarSeparation:
         (start: Float, end: Float, diagramHeight: Float, textMeasurer: TextMeasurer) -> Pair<Float, Float>,
     onCalculateVerticalBarSeparation:
@@ -333,7 +345,12 @@ fun DiagramIconsAndLegends(
                 xAxisRange = xAxisStart .. xAxisEnd,
                 cornerRadius = cornerRadius.toPx(),
                 horizontalPadding = diagramHorPadding,
-                verticalPadding = diagramVertPadding
+                verticalPadding = diagramVertPadding,
+                firstPointX = timeToX(
+                    time = hourlyChartData[0].hourlyWeather!!.time,
+                    utcOffset = hourlyChartData[0].utcOffset ?: 0L,
+                    timeClock = timeClock
+                )!!
             )
         }
         diagramLegends(
@@ -401,150 +418,334 @@ fun quantityControlPoints(
     hourlyChartData: List<HourlyChartDto?>? = null,
     weatherData: List<LocalHourlyWeather?>? = null,
     airData: List<LocalAirQuality?>? = null,
-    weatherQuantity: WeatherQuantity
+    weatherQuantity: WeatherQuantity,
+    smoothnessFactor: Float
 ): Pair<List<Offset?>, List<Offset?>>{
     val hourlyWeatherData = hourlyChartData?.map { it?.hourlyWeather } ?: weatherData ?: emptyList()
     val airQualityData = hourlyChartData?.map { it?.airQuality } ?: airData ?: emptyList()
+    val data = quantityData(hourlyChartData, weatherData, airData, weatherQuantity)
 
     return when (weatherQuantity){
-        WeatherQuantity.TEMPERATURE -> hourlyWeatherData.map {
-            if (it?.temperatureControl1X != null && it.temperatureControl1Y != null)
-                Offset(it.temperatureControl1X, it.temperatureControl1Y)
-            else null } to hourlyWeatherData.map {
-            if (it?.temperatureControl2X != null && it.temperatureControl2Y != null)
-                Offset(it.temperatureControl2X, it.temperatureControl2Y)
+        WeatherQuantity.TEMPERATURE -> hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.temperatureControl1X != null && it.temperatureControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.temperatureControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.temperatureControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.temperatureControl2X != null && it.temperatureControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.temperatureControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.temperatureControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.HUMIDITY -> hourlyWeatherData.map {
-            if (it?.humidityControl1X != null && it.humidityControl1Y != null)
-                Offset(it.humidityControl1X, it.humidityControl1Y)
-            else null } to hourlyWeatherData.map {
-            if (it?.humidityControl2X != null && it.humidityControl2Y != null)
-                Offset(it.humidityControl2X, it.humidityControl2Y)
+        WeatherQuantity.HUMIDITY -> hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.humidityControl1X != null && it.humidityControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.humidityControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.humidityControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.humidityControl2X != null && it.humidityControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.humidityControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.humidityControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.DEWPOINT -> hourlyWeatherData.map {
-            if (it?.dewPointControl1X != null && it.dewPointControl1Y != null)
-                Offset(it.dewPointControl1X, it.dewPointControl1Y)
-            else null } to hourlyWeatherData.map {
-            if (it?.dewPointControl2X != null && it.dewPointControl2Y != null)
-                Offset(it.dewPointControl2X, it.dewPointControl2Y)
+        WeatherQuantity.DEWPOINT -> hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.dewPointControl1X != null && it.dewPointControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.dewPointControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.dewPointControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.dewPointControl2X != null && it.dewPointControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.dewPointControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.dewPointControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.APPARENTTEMP -> hourlyWeatherData.map {
-            if (it?.apparentTemperatureControl1X != null && it.apparentTemperatureControl1Y != null)
-                Offset(it.apparentTemperatureControl1X, it.apparentTemperatureControl1Y)
-            else null } to hourlyWeatherData.map {
-            if (it?.apparentTemperatureControl2X != null && it.apparentTemperatureControl2Y != null)
-                Offset(it.apparentTemperatureControl2X, it.apparentTemperatureControl2Y)
+        WeatherQuantity.APPARENTTEMP -> hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.apparentTemperatureControl1X != null && it.apparentTemperatureControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.apparentTemperatureControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.apparentTemperatureControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.apparentTemperatureControl2X != null && it.apparentTemperatureControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.apparentTemperatureControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.apparentTemperatureControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.PRECIPITATIONPROBABILITY -> hourlyWeatherData.map {
-            if (it?.precipitationProbabilityControl1X != null && it.precipitationProbabilityControl1Y != null)
-                Offset(it.precipitationProbabilityControl1X, it.precipitationProbabilityControl1Y)
-            else null } to hourlyWeatherData.map {
-            if (it?.precipitationProbabilityControl2X != null && it.precipitationProbabilityControl2Y != null)
-                Offset(it.precipitationProbabilityControl2X, it.precipitationProbabilityControl2Y)
+        WeatherQuantity.PRECIPITATIONPROBABILITY -> hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.precipitationProbabilityControl1X != null && it.precipitationProbabilityControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.precipitationProbabilityControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.precipitationProbabilityControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.precipitationProbabilityControl2X != null && it.precipitationProbabilityControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.precipitationProbabilityControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.precipitationProbabilityControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.CLOUDCOVER -> hourlyWeatherData.map {
-            if (it?.cloudCoverControl1X != null && it.cloudCoverControl1Y != null)
-                Offset(it.cloudCoverControl1X, it.cloudCoverControl1Y)
-            else null } to hourlyWeatherData.map {
-            if (it?.cloudCoverControl2X != null && it.cloudCoverControl2Y != null)
-                Offset(it.cloudCoverControl2X, it.cloudCoverControl2Y)
+        WeatherQuantity.CLOUDCOVER -> hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.cloudCoverControl1X != null && it.cloudCoverControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.cloudCoverControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.cloudCoverControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.cloudCoverControl2X != null && it.cloudCoverControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.cloudCoverControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.cloudCoverControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.SURFACEPRESSURE -> hourlyWeatherData.map {
-            if (it?.surfacePressureControl1X != null && it.surfacePressureControl1Y != null)
-                Offset(it.surfacePressureControl1X, it.surfacePressureControl1Y)
-            else null } to hourlyWeatherData.map {
-            if (it?.surfacePressureControl2X != null && it.surfacePressureControl2Y != null)
-                Offset(it.surfacePressureControl2X, it.surfacePressureControl2Y)
+        WeatherQuantity.SURFACEPRESSURE -> hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.surfacePressureControl1X != null && it.surfacePressureControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.surfacePressureControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.surfacePressureControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.surfacePressureControl2X != null && it.surfacePressureControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.surfacePressureControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.surfacePressureControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.VISIBILITY -> hourlyWeatherData.map {
-            if (it?.visibilityControl1X != null && it.visibilityControl1Y != null)
-                Offset(it.visibilityControl1X, it.visibilityControl1Y)
-            else null } to hourlyWeatherData.map {
-            if (it?.visibilityControl2X != null && it.visibilityControl2Y != null)
-                Offset(it.visibilityControl2X, it.visibilityControl2Y)
+        WeatherQuantity.VISIBILITY -> hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.visibilityControl1X != null && it.visibilityControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.visibilityControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.visibilityControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.visibilityControl2X != null && it.visibilityControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.visibilityControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.visibilityControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.WINDSPEED -> hourlyWeatherData.map {
-            if (it?.windSpeedControl1X != null && it.windSpeedControl1Y != null)
-                Offset(it.windSpeedControl1X, it.windSpeedControl1Y)
-            else null } to hourlyWeatherData.map {
-            if (it?.windSpeedControl2X != null && it.windSpeedControl2Y != null)
-                Offset(it.windSpeedControl2X, it.windSpeedControl2Y)
+        WeatherQuantity.WINDSPEED -> hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.windSpeedControl1X != null && it.windSpeedControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.windSpeedControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.windSpeedControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.windSpeedControl2X != null && it.windSpeedControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.windSpeedControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.windSpeedControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.WINDDIRECTION -> hourlyWeatherData.map {
-            if (it?.windDirectionControl1X != null && it.windDirectionControl1Y != null)
-                Offset(it.windDirectionControl1X, it.windDirectionControl1Y)
-            else null } to hourlyWeatherData.map {
-            if (it?.windDirectionControl2X != null && it.windDirectionControl2Y != null)
-                Offset(it.windDirectionControl2X, it.windDirectionControl2Y)
+        WeatherQuantity.WINDDIRECTION -> hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.windDirectionControl1X != null && it.windDirectionControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.windDirectionControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.windDirectionControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.windDirectionControl2X != null && it.windDirectionControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.windDirectionControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.windDirectionControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.UVINDEX -> hourlyWeatherData.map {
-            if (it?.uvIndexControl1X != null && it.uvIndexControl1Y != null)
-                Offset(it.uvIndexControl1X, it.uvIndexControl1Y)
-            else null } to hourlyWeatherData.map {
-            if (it?.uvIndexControl2X != null && it.uvIndexControl2Y != null)
-                Offset(it.uvIndexControl2X, it.uvIndexControl2Y)
+        WeatherQuantity.UVINDEX -> hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.uvIndexControl1X != null && it.uvIndexControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.uvIndexControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.uvIndexControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.uvIndexControl2X != null && it.uvIndexControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.uvIndexControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.uvIndexControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.FREEZINGLEVELHEIGHT -> hourlyWeatherData.map {
-            if (it?.freezingLevelHeightControl1X != null && it.freezingLevelHeightControl1Y != null)
-                Offset(it.freezingLevelHeightControl1X, it.freezingLevelHeightControl1Y)
-            else null } to hourlyWeatherData.map {
-            if (it?.freezingLevelHeightControl2X != null && it.freezingLevelHeightControl2Y != null)
-                Offset(it.freezingLevelHeightControl2X, it.freezingLevelHeightControl2Y)
+        WeatherQuantity.FREEZINGLEVELHEIGHT -> hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.freezingLevelHeightControl1X != null && it.freezingLevelHeightControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.freezingLevelHeightControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.freezingLevelHeightControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.freezingLevelHeightControl2X != null && it.freezingLevelHeightControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.freezingLevelHeightControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.freezingLevelHeightControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.DIRECTRADIATION -> hourlyWeatherData.map {
-            if (it?.directRadiationControl1X != null && it.directRadiationControl1Y != null)
-                Offset(it.directRadiationControl1X, it.directRadiationControl1Y)
-            else null } to hourlyWeatherData.map {
-            if (it?.directRadiationControl2X != null && it.directRadiationControl2Y != null)
-                Offset(it.directRadiationControl2X, it.directRadiationControl2Y)
+        WeatherQuantity.DIRECTRADIATION -> hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.directRadiationControl1X != null && it.directRadiationControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.directRadiationControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.directRadiationControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.directRadiationControl2X != null && it.directRadiationControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.directRadiationControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.directRadiationControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.DIRECTNORMALIRRADIANCE -> hourlyWeatherData.map {
-            if (it?.directNormalIrradianceControl1X != null && it.directNormalIrradianceControl1Y != null)
-                Offset(it.directNormalIrradianceControl1X, it.directNormalIrradianceControl1Y)
-            else null } to hourlyWeatherData.map {
-            if (it?.directNormalIrradianceControl2X != null && it.directNormalIrradianceControl2Y != null)
-                Offset(it.directNormalIrradianceControl2X, it.directNormalIrradianceControl2Y)
+        WeatherQuantity.DIRECTNORMALIRRADIANCE -> hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.directNormalIrradianceControl1X != null && it.directNormalIrradianceControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.directNormalIrradianceControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.directNormalIrradianceControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to hourlyWeatherData.mapIndexed { i, it ->
+            if (it?.directNormalIrradianceControl2X != null && it.directNormalIrradianceControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.directNormalIrradianceControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.directNormalIrradianceControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.AQI -> airQualityData.map {
-            if (it?.aqiControl1X != null && it.aqiControl1Y != null) Offset(it.aqiControl1X, it.aqiControl1Y)
-            else null } to airQualityData.map {
-            if (it?.aqiControl2X != null && it.aqiControl2Y != null) Offset(it.aqiControl2X, it.aqiControl2Y)
+        WeatherQuantity.AQI -> airQualityData.mapIndexed { i, it ->
+            if (it?.aqiControl1X != null && it.aqiControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.aqiControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.aqiControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to airQualityData.mapIndexed { i, it ->
+            if (it?.aqiControl2X != null && it.aqiControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.aqiControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.aqiControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.PM10 -> airQualityData.map {
-            if (it?.pm10Control1X != null && it.pm10Control1Y != null) Offset(it.pm10Control1X, it.pm10Control1Y)
-            else null } to airQualityData.map {
-            if (it?.pm10Control2X != null && it.pm10Control2Y != null) Offset(it.pm10Control2X, it.pm10Control2Y)
+        WeatherQuantity.PM10 -> airQualityData.mapIndexed { i, it ->
+            if (it?.pm10Control1X != null && it.pm10Control1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.pm10Control1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.pm10Control1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to airQualityData.mapIndexed { i, it ->
+            if (it?.pm10Control2X != null && it.pm10Control2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.pm10Control2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.pm10Control2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.PM2_5 -> airQualityData.map {
-            if (it?.pm25Control1X != null && it.pm25Control1Y != null) Offset(it.pm25Control1X, it.pm25Control1Y)
-            else null } to airQualityData.map {
-            if (it?.pm25Control2X != null && it.pm25Control2Y != null) Offset(it.pm25Control2X, it.pm25Control2Y)
+        WeatherQuantity.PM2_5 -> airQualityData.mapIndexed { i, it ->
+            if (it?.pm25Control1X != null && it.pm25Control1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.pm25Control1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.pm25Control1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to airQualityData.mapIndexed { i, it ->
+            if (it?.pm25Control2X != null && it.pm25Control2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.pm25Control2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.pm25Control2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.CO -> airQualityData.map {
-            if (it?.coControl1X != null && it.coControl1Y != null) Offset(it.coControl1X, it.coControl1Y)
-            else null } to airQualityData.map {
-            if (it?.coControl2X != null && it.coControl2Y != null) Offset(it.coControl2X, it.coControl2Y)
+        WeatherQuantity.CO -> airQualityData.mapIndexed { i, it ->
+            if (it?.coControl1X != null && it.coControl1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.coControl1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.coControl1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to airQualityData.mapIndexed { i, it ->
+            if (it?.coControl2X != null && it.coControl2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.coControl2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.coControl2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.NO2 -> airQualityData.map {
-            if (it?.no2Control1X != null && it.no2Control1Y != null) Offset(it.no2Control1X, it.no2Control1Y)
-            else null } to airQualityData.map {
-            if (it?.no2Control2X != null && it.no2Control2Y != null) Offset(it.no2Control2X, it.no2Control2Y)
+        WeatherQuantity.NO2 -> airQualityData.mapIndexed { i, it ->
+            if (it?.no2Control1X != null && it.no2Control1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.no2Control1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.no2Control1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to airQualityData.mapIndexed { i, it ->
+            if (it?.no2Control2X != null && it.no2Control2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.no2Control2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.no2Control2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.SO2 -> airQualityData.map {
-            if (it?.so2Control1X != null && it.so2Control1Y != null) Offset(it.so2Control1X, it.so2Control1Y)
-            else null } to airQualityData.map {
-            if (it?.so2Control2X != null && it.so2Control2Y != null) Offset(it.so2Control2X, it.so2Control2Y)
+        WeatherQuantity.SO2 -> airQualityData.mapIndexed { i, it ->
+            if (it?.so2Control1X != null && it.so2Control1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.so2Control1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.so2Control1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to airQualityData.mapIndexed { i, it ->
+            if (it?.so2Control2X != null && it.so2Control2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.so2Control2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.so2Control2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
-        WeatherQuantity.Ozone -> airQualityData.map {
-            if (it?.o3Control1X != null && it.o3Control1Y != null) Offset(it.o3Control1X, it.o3Control1Y)
-            else null } to airQualityData.map {
-            if (it?.o3Control2X != null && it.o3Control2Y != null) Offset(it.o3Control2X, it.o3Control2Y)
+        WeatherQuantity.Ozone -> airQualityData.mapIndexed { i, it ->
+            if (it?.o3Control1X != null && it.o3Control1Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.o3Control1X + (1 - smoothnessFactor)/3f,
+                    smoothnessFactor * it.o3Control1Y + (1 - smoothnessFactor) *
+                            (data[i]!! + (data[i+1]!! - data[i]!!)/3f)
+                )
+            else null } to airQualityData.mapIndexed { i, it ->
+            if (it?.o3Control2X != null && it.o3Control2Y != null && data.getOrNull(i+1) != null)
+                Offset(
+                    smoothnessFactor * it.o3Control2X + (1 - smoothnessFactor)*2/3f,
+                    smoothnessFactor * it.o3Control2Y + (1 - smoothnessFactor) *
+                            (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
+                )
             else null }
         else -> hourlyWeatherData.map { null } to hourlyWeatherData.map { null }
     }
 }
 
-private fun quantityMinMaxModifier(
+fun quantityMinMaxModifier(
     weatherQuantity: WeatherQuantity,
     quantityMin: Float,
     quantityMax: Float,
@@ -687,15 +888,21 @@ private fun prepareAddCurve(
     }
 }
 
-private fun Pair<Float, Float>.toAppropriateUnit(quantity: WeatherQuantity, appSettings: AppSettings) =
-    first.toAppropriateUnit(quantity, appSettings) to second.toAppropriateUnit(quantity, appSettings)
 
-fun timeToX(time: String?, utcOffset: Long?): Float?{
+fun timeToX(time: String?, utcOffset: Long?, timeClock: HourlyDiagramTime): Float?{
     if (time == null || utcOffset == null) return null
+    val deviceUtcOffset = ZonedDateTime.now(ZoneId.systemDefault()).offset.totalSeconds / 3600f
     return Duration.between(
         LocalDate.now().atStartOfDay(),
         LocalDateTime.parse(time)
-    ).toSeconds()/3600f + utcOffset/60f
+    ).toSeconds()/3600f +
+            when (timeClock) {
+                HourlyDiagramTime.UTC -> 0f
+                HourlyDiagramTime.DEVICE -> deviceUtcOffset
+                HourlyDiagramTime.LOCATION -> utcOffset / 60f
+            }
+
+
 }
 
 

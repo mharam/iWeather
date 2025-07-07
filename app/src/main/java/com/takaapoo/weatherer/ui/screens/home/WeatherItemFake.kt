@@ -25,8 +25,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.toFontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -42,7 +40,8 @@ import com.takaapoo.weatherer.ui.screens.home.shapes.CardShape
 import com.takaapoo.weatherer.ui.theme.HomeCardDay
 import com.takaapoo.weatherer.ui.theme.HomeCardNight
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
-import com.takaapoo.weatherer.ui.utility.toPx
+import com.takaapoo.weatherer.ui.theme.timeFontFamily
+import com.takaapoo.weatherer.utility.toPx
 
 @Composable
 fun WeatherItemFake(
@@ -167,11 +166,12 @@ fun WeatherItemFake(
                     currentTemperature = itemState.currentTemperature,
                     maxTemperature = itemState.todayMaxTemperature,
                     minTemperature = itemState.todayMinTemperature,
-                    humidity = itemState.currentHumidity,
-                    precipitationProbability = itemState.currentPrecipitationProbability,
-                    windSpeed = itemState.currentWindSpeed,
-                    windDirection = itemState.currentWindDirection,
-                    airQuality = itemState.currentAirQuality,
+//                    humidity = itemState.currentHumidity,
+//                    precipitationProbability = itemState.currentPrecipitationProbability,
+//                    windSpeed = itemState.currentWindSpeed,
+//                    windDirection = itemState.currentWindDirection,
+//                    airQuality = itemState.currentAirQuality,
+                    itemState = itemState,
                     appSettings = appSettings,
                     isDay = itemState.isDay
                 )
@@ -189,7 +189,7 @@ fun WeatherItemFake(
                         .wrapContentHeight(align = Alignment.CenterVertically)
                     ,
                     text = "${itemState.dayOfWeek}., ${itemState.month} ${itemState.day}, ${itemState.year}",
-                    fontFamily = Font(resId = R.font.cmu_typewriter_bold).toFontFamily(),
+                    fontFamily = timeFontFamily,
                     fontSize = 14.sp,
                     color = textColor
                 )

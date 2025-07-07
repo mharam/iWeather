@@ -7,8 +7,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.toFontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
@@ -23,6 +22,7 @@ import com.takaapoo.weatherer.ui.theme.BarBlue
 import com.takaapoo.weatherer.ui.theme.BarOrange
 import com.takaapoo.weatherer.ui.theme.BarRed
 import com.takaapoo.weatherer.ui.theme.BarYellow
+import com.takaapoo.weatherer.ui.theme.Cmu
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.UVGreen
 import com.takaapoo.weatherer.ui.theme.UVMagenta
@@ -32,33 +32,43 @@ import com.takaapoo.weatherer.ui.theme.UVYellow
 import com.takaapoo.weatherer.ui.theme.curveBlue
 import com.takaapoo.weatherer.ui.theme.curveGreen
 import com.takaapoo.weatherer.ui.theme.curvePink
+import kotlin.math.abs
+import kotlin.math.pow
 
 enum class WeatherQuantity(
     @StringRes val nameId: Int? = null,
     val title: AnnotatedString? = null,
+    @StringRes val homeCardNameId: Int? = null,
     val airQuality: Boolean = false,
-    @DrawableRes val iconId: Int
+    @DrawableRes val iconId: Int,
+    val stepCurve: Boolean = false,
 ) {
     TEMPERATURE(nameId = R.string.temperature, iconId = R.drawable.temperature),
-    HUMIDITY(nameId = R.string.humidity, iconId = R.drawable.humidity),
-    DEWPOINT(nameId = R.string.dew_point, iconId = R.drawable.dew_point),
-    APPARENTTEMP(nameId = R.string.apparent_temp, iconId = R.drawable.temperature),
-    PRECIPITATIONPROBABILITY(nameId = R.string.precipitation_probability, iconId = R.drawable.precipitation),
-    PRECIPITATION(nameId = R.string.precipitation, iconId = R.drawable.precipitation),
-    RAIN(nameId = R.string.rain, iconId = R.drawable.precipitation),
-    SHOWERS(nameId = R.string.showers, iconId = R.drawable.precipitation),
-    SNOWFALL(nameId = R.string.snowfall, iconId = R.drawable.precipitation),
-    CLOUDCOVER(nameId = R.string.cloud_cover, iconId = R.drawable.cloud_cover),
-    SURFACEPRESSURE(nameId = R.string.surface_pressure, iconId = R.drawable.pressure),
-    VISIBILITY(nameId = R.string.visibility, iconId = R.drawable.visibility),
-    WINDSPEED(nameId = R.string.wind_speed, iconId = R.drawable.wind),
+    HUMIDITY(nameId = R.string.humidity, homeCardNameId = R.string.humidity, iconId = R.drawable.humidity),
+    DEWPOINT(nameId = R.string.dew_point, homeCardNameId = R.string.dew_point, iconId = R.drawable.dew_point),
+    APPARENTTEMP(nameId = R.string.apparent_temp, homeCardNameId = R.string.apparent_temp, iconId = R.drawable.temperature),
+    PRECIPITATIONPROBABILITY(nameId = R.string.precipitation_probability, homeCardNameId = R.string.precipitation_probability,
+        iconId = R.drawable.precipitation),
+    PRECIPITATION(nameId = R.string.precipitation, homeCardNameId = R.string.precipitation_amount,
+        iconId = R.drawable.precipitation, stepCurve = true),
+    RAIN(nameId = R.string.rain, iconId = R.drawable.precipitation, stepCurve = true),
+    SHOWERS(nameId = R.string.showers, iconId = R.drawable.precipitation, stepCurve = true),
+    SNOWFALL(nameId = R.string.snowfall, iconId = R.drawable.snowy_24px, stepCurve = true),
+    CLOUDCOVER(nameId = R.string.cloud_cover, homeCardNameId = R.string.cloud_cover, iconId = R.drawable.cloud_cover),
+    SURFACEPRESSURE(nameId = R.string.surface_pressure, homeCardNameId = R.string.surface_pressure,
+        iconId = R.drawable.pressure),
+    VISIBILITY(nameId = R.string.visibility, homeCardNameId = R.string.visibility, iconId = R.drawable.visibility),
+    WINDSPEED(nameId = R.string.wind_speed, homeCardNameId = R.string.wind, iconId = R.drawable.wind),
     WINDDIRECTION(nameId = R.string.wind_direction, iconId = R.drawable.wind),
-    UVINDEX(nameId = R.string.uv_index, iconId = R.drawable.uv),
-    FREEZINGLEVELHEIGHT(nameId = R.string.freezing_level_height, iconId = R.drawable.freeze_height),
-    DIRECTRADIATION(nameId = R.string.direct_radiation, iconId = R.drawable.solar_radiation),
-    DIRECTNORMALIRRADIANCE(nameId = R.string.direct_normal_irradiance, iconId = R.drawable.solar_radiation),
+    UVINDEX(nameId = R.string.uv_index, homeCardNameId = R.string.uv_index, iconId = R.drawable.uv),
+    FREEZINGLEVELHEIGHT(nameId = R.string.freezing_level_height, homeCardNameId = R.string.freezing_level_height,
+        iconId = R.drawable.freeze_height),
+    DIRECTRADIATION(nameId = R.string.direct_radiation, homeCardNameId = R.string.direct_radiation,
+        iconId = R.drawable.solar_radiation),
+    DIRECTNORMALIRRADIANCE(nameId = R.string.direct_normal_irradiance, homeCardNameId = R.string.direct_normal_irradiance,
+        iconId = R.drawable.solar_radiation),
 
-    AQI(nameId = R.string.AQI, iconId = R.drawable.mask, airQuality = true),
+    AQI(nameId = R.string.AQ, homeCardNameId = R.string.AQI, iconId = R.drawable.mask, airQuality = true),
     PM10(title = buildAnnotatedString {
         append("PM")
         withStyle(
@@ -177,7 +187,8 @@ enum class WeatherQuantity(
                 else -> {
                     withStyle(
                         style = SpanStyle(
-                            fontFamily = Font(R.font.cmu_serif_italic).toFontFamily()
+                            fontFamily = Cmu,
+                            fontStyle = FontStyle.Italic
                         )
                     ){ append(" µ") }
                     append("g/m")
@@ -194,7 +205,7 @@ enum class WeatherQuantity(
 
     fun floatingPointDigits(appSettings: AppSettings) =
         when (this@WeatherQuantity){
-            TEMPERATURE, DEWPOINT, APPARENTTEMP, VISIBILITY, WINDSPEED, UVINDEX, PM10, PM2_5, NO2, SO2, Ozone -> 1
+            TEMPERATURE, DEWPOINT, APPARENTTEMP, VISIBILITY, UVINDEX, PM10, PM2_5, NO2, SO2, Ozone -> 1
             PRECIPITATION, RAIN, SHOWERS -> when (appSettings.lengthUnit){
                 Length.SI -> 1
                 Length.IMPERIAL -> 3
@@ -212,11 +223,35 @@ enum class WeatherQuantity(
             else -> 0
         }
 
+    fun quantityValueText(
+        quantityValue: Float?,
+        appSettings: AppSettings,
+        unitVisible: Boolean = true
+    ): AnnotatedString {
+        val modifiedValue = when (this) {
+            HUMIDITY, PRECIPITATIONPROBABILITY, CLOUDCOVER -> quantityValue?.coerceIn(0f, 100f)
 
+            WINDSPEED, UVINDEX, DIRECTRADIATION, DIRECTNORMALIRRADIANCE, Ozone, SO2, CO, NO2, PM10,
+            PM2_5 -> quantityValue?.coerceAtLeast(0f)
 
-    fun graphType() = when (this){
-        PRECIPITATION, RAIN, SHOWERS, SNOWFALL -> GraphTypes.STEP
-        CLOUDCOVER, VISIBILITY, WINDDIRECTION, AQI -> GraphTypes.LINEAR
+            else -> quantityValue
+        }
+        val floatingPointDigits = floatingPointDigits(appSettings)
+        return buildAnnotatedString {
+            append(
+                if (modifiedValue != null) {
+                    if (abs(modifiedValue) < 10f.pow(-floatingPointDigits)) "0"
+                    else "%.${floatingPointDigits}f".format(modifiedValue)
+                } else "?"
+            )
+            if (unitVisible)
+                append(this@WeatherQuantity.unit(appSettings = appSettings))
+        }
+    }
+
+    fun graphType(curveSmoothness: Float) = when {
+        stepCurve -> GraphTypes.STEP
+        curveSmoothness == 0f -> GraphTypes.LINEAR
         else -> GraphTypes.CUBIC
     }
 
@@ -249,19 +284,6 @@ enum class DailyWeatherQuantity(
         iconId = R.drawable.temperature,
         brushColors = listOf(BarRed, BarBlue)
     ),
-    SUNRISESET(
-        nameId = R.string.sun_rise_set,
-        iconId = R.drawable.sun_rise_set,
-        brushColors = listOf(BarOrange, BarYellow, BarOrange)
-    ),
-    UVINDEXMAX(
-        nameId = R.string.uv_index_MAX,
-        iconId = R.drawable.uv,
-        brushColors = listOf(
-            UVGreen, UVGreen, UVGreen, UVYellow, UVYellow, UVYellow, UVOrange, UVOrange,
-            UVRed, UVRed, UVRed, UVMagenta
-        )
-    ),
     PRECIPITATIONSUM(
         nameId = R.string.precipitation_sum,
         iconId = R.drawable.precipitation,
@@ -277,9 +299,22 @@ enum class DailyWeatherQuantity(
         nameId = R.string.wind_speed_MAX,
         iconId = R.drawable.wind,
         brushColors = listOf(curvePink, curvePink)
+    ),
+    SUNRISESET(
+        nameId = R.string.sun_rise_set,
+        iconId = R.drawable.sun_rise_set,
+        brushColors = listOf(BarOrange, BarYellow, BarOrange)
+    ),
+    UVINDEXMAX(
+        nameId = R.string.uv_index_MAX,
+        iconId = R.drawable.uv,
+        brushColors = listOf(
+            UVGreen, UVGreen, UVGreen, UVYellow, UVYellow, UVYellow, UVOrange, UVOrange,
+            UVRed, UVRed, UVRed, UVMagenta
+        )
     );
 
-    fun unit(appSettings: AppSettings): AnnotatedString{
+    fun unit(appSettings: AppSettings): AnnotatedString {
         return buildAnnotatedString{
             when (this@DailyWeatherQuantity){
                 TEMPERATUREMINMAX -> {
@@ -315,6 +350,23 @@ enum class DailyWeatherQuantity(
         PRECIPITATIONSUM -> curveBlue
         PRECIPITATIONPROBABILITYMAX -> lerpMultipleColors(brushColors, fraction.coerceIn(0f, 1f))
         WINDSPEEDMAX -> curvePink
+    }
+
+    fun quantityValueText(
+        quantityValue: Float?,
+        appSettings: AppSettings,
+        unitVisible: Boolean = true
+    ): AnnotatedString {
+        return buildAnnotatedString {
+            append(
+                if (quantityValue != null) {
+                    if (abs(quantityValue) < 10f.pow(- this@DailyWeatherQuantity.floatingPointDigits)) "0"
+                    else "%.${this@DailyWeatherQuantity.floatingPointDigits}f".format(quantityValue)
+                } else "?"
+            )
+            if (unitVisible)
+                append(this@DailyWeatherQuantity.unit(appSettings = appSettings))
+        }
     }
 }
 

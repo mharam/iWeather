@@ -17,7 +17,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.takaapoo.weatherer.ui.screens.detail.daily_diagram.drawThickText
+import com.takaapoo.weatherer.utility.drawThickText
 import com.takaapoo.weatherer.ui.theme.DiagramShadow
 import com.takaapoo.weatherer.ui.theme.Gray20
 import com.takaapoo.weatherer.ui.theme.OnDiagramDarkTheme
@@ -242,6 +242,7 @@ fun DrawScope.diagramLegends(
                     drawThickText(
                         textMeasurer,
                         text,
+                        annotatedString = null,
                         yAxesColors[index],
                         textCenter = (if (index%2 == 0) 1 else -1) * lineY,
                         textTop = textTop
