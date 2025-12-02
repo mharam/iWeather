@@ -61,9 +61,13 @@ import com.takaapoo.weatherer.domain.unit.Speed
 import com.takaapoo.weatherer.domain.unit.Temperature
 import com.takaapoo.weatherer.ui.screens.detail.ChooseDiagramThemeDialog
 import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartGrids
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
+import com.takaapoo.weatherer.ui.screens.settings.dialogs.ChooseDiagramGridDialog
+import com.takaapoo.weatherer.ui.screens.settings.dialogs.ChooseLocationDialog
+import com.takaapoo.weatherer.ui.screens.settings.dialogs.ChooseThemeDialog
+import com.takaapoo.weatherer.ui.screens.settings.dialogs.ChooseTimeAxisDialog
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
 import com.takaapoo.weatherer.ui.theme.customColorScheme
 import kotlinx.collections.immutable.ImmutableList
@@ -81,6 +85,7 @@ fun SettingsScreen(
     notificationHourlyChartData: List<HourlyChartDto>,
     notificationDailyChartData: List<LocalDailyWeather>,
     allLocations: List<Location>,
+    drawerOpen: Boolean,
 
     onUpdateVibration: (vibrate: Boolean) -> Unit,
     onUpdateSilence: (silent: Boolean) -> Unit,
@@ -99,7 +104,7 @@ fun SettingsScreen(
     onUpdateNotificationVisibility: (visible: Boolean) -> Unit,
     onUpdatePaneContent: (content: SettingsPaneContent, previousContent: SettingsPaneContent?) -> Unit,
     onUpdateDiagramThemeDialogVisibility: (visible: Boolean) -> Unit,
-    onUpdateCardWeatherQuantities: (quantity: WeatherQuantity, add: Boolean) -> Unit,
+    onUpdateCardWeatherQuantities: (quantity: HourlyWeatherQuantity, add: Boolean) -> Unit,
     onUpdateHomeCardQuantityUnitsVisibility: (visible: Boolean) -> Unit,
     onUpdateInitialXAxisBounds: (Dp) -> Unit,
     onAddYAxis: (start: Float, end: Float, diagramHeight: Float,
@@ -117,12 +122,12 @@ fun SettingsScreen(
     onUpdateCurvesColor: (curveIndex: Int, color: Int) -> Unit,
     onUpdateWholeCurvesColor: (colors: List<Color>) -> Unit,
     onSaveCurvesColor: (curveIndex: Int, color: Color) -> Unit,
-    onUpdateCurvesSmoothness: (quantity: WeatherQuantity, value: Float) -> Unit,
-    onSaveCurvesSmoothness: (quantity: WeatherQuantity, value: Float) -> Unit,
-    onAddRemoveQuantity: (quantity: WeatherQuantity, addRemove: Boolean) -> Unit,
-    onUpdateNotificationCurrentQuantities: (quantity: WeatherQuantity, addRemove: Boolean) -> Unit,
+    onUpdateCurvesSmoothness: (quantity: HourlyWeatherQuantity, value: Float) -> Unit,
+    onSaveCurvesSmoothness: (quantity: HourlyWeatherQuantity, value: Float) -> Unit,
+    onAddRemoveQuantity: (quantity: HourlyWeatherQuantity, addRemove: Boolean) -> Unit,
+    onUpdateNotificationCurrentQuantities: (quantity: HourlyWeatherQuantity, addRemove: Boolean) -> Unit,
     onUpdateNotificationHourlyDiagramIconsVisibility: (visible: Boolean) -> Unit,
-    onUpdateNotificationHourlyQuantities: (quantity: WeatherQuantity, addRemove: Boolean) -> Unit,
+    onUpdateNotificationHourlyQuantities: (quantity: HourlyWeatherQuantity, addRemove: Boolean) -> Unit,
     onUpdateNotificationCurveShadowVisibility: (visible: Boolean) -> Unit,
     onSaveNotificationCurvesColor: (curveIndex: Int, color: Color) -> Unit,
     onUpdateWholeNotificationCurvesColor: (colors: List<Color>) -> Unit,
@@ -401,7 +406,7 @@ fun SettingsScreen(
             }
         }
     }
-    BackHandler {
+    BackHandler(enabled = !drawerOpen) {
         when (settingsState.paneContent) {
             SettingsPaneContent.MAIN -> onNavigateUp()
             SettingsPaneContent.CARD_WEATHER_QUANTITY -> {

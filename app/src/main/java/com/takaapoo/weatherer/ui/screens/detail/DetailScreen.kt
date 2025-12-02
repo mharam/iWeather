@@ -21,6 +21,8 @@ import com.takaapoo.weatherer.data.local.LocalDailyWeather
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.DailyChartState
 import com.takaapoo.weatherer.domain.model.DetailState
+import com.takaapoo.weatherer.domain.model.HistoricDailyChartDto
+import com.takaapoo.weatherer.domain.model.HistoricHourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartState
 import com.takaapoo.weatherer.ui.viewModels.DetailViewModel
@@ -39,35 +41,30 @@ fun DetailScreen(
     dailyChartStateList: List<DailyChartState>,
     hourlyChartsData: List<List<HourlyChartDto>>,
     dailyChartsData: List<List<LocalDailyWeather>>,
+    historicalHourlyChartData: List<List<HistoricHourlyChartDto>>,
+    historicalDailyChartData: List<List<HistoricDailyChartDto>>,
+    historicalChartStateList: List<HourlyChartState>,
+    historicalDailyChartStateList: List<DailyChartState>,
     detailViewModel: DetailViewModel,
 //    sharedTransitionScope: SharedTransitionScope,
 //    animatedContentScope: AnimatedContentScope,
     onUpdateHomeSelectedItemIndex: (index: Int) -> Unit,
     onNavigateUp: (pageNumber: Int) -> Unit,
-    onNavigateToAQDetail: (pageNumber: Int, scrollValue: Int) -> Unit
+    onNavigateToAQDetail: (pageNumber: Int, scrollValue: Int) -> Unit,
+    onNavigateToDonateScreen: () -> Unit,
 ) {
-//    val detailState by detailViewModel.detailState.collectAsStateWithLifecycle()
-//    val chartStateList by detailViewModel.hourlyChartState.collectAsStateWithLifecycle()
-//    val dailyChartStateList by detailViewModel.dailyChartState.collectAsStateWithLifecycle()
-//
-//    val hourlyChartsData by detailViewModel.locationsHourlyChartData
-//        .collectAsStateWithLifecycle()
-//    val dailyChartsData by detailViewModel.locationsDailyChartData
-//        .collectAsStateWithLifecycle()
 
     var offsetY by remember { mutableFloatStateOf(0f) }
-//    val scrollStates = List(size = pagerState.pageCount){ index ->
-//        rememberScrollState(initial = detailState[index].scrollValue)
-//    }
 
     LaunchedEffect(key1 = pagerState.currentPage) {
         onUpdateHomeSelectedItemIndex(pagerState.currentPage)
+        detailViewModel.updateDetailPagerIndex(pagerState.currentPage)
     }
     HorizontalPager(
         modifier = modifier
             .pointerInteropFilter {
                 offsetY = it.y
-                val touchPosition = Offset(it.x, it.y)
+                /*val touchPosition = Offset(it.x, it.y)
                 if (detailState.isNotEmpty()) {
                     if (detailState[pagerState.currentPage].hourlyDiagramSettingOpen) {
                         if (!detailState[pagerState.currentPage].hourlyDiagramSettingRectangle.contains(touchPosition)) {
@@ -92,9 +89,10 @@ fun DetailScreen(
                         return@pointerInteropFilter !detailState[pagerState.currentPage]
                             .dailyDiagramSettingRectangle.contains(touchPosition)
                     }
-                }
+                }*/
                 return@pointerInteropFilter false
-                                  },
+                                  }
+        ,
         state = pagerState,
         beyondViewportPageCount = 0,
         pageSpacing = 8.dp,
@@ -152,6 +150,14 @@ fun DetailScreen(
             detailViewModel = detailViewModel,
             hourlyChartState = chartStateList.getOrElse(index = page, defaultValue = { HourlyChartState() }),
             dailyChartState = dailyChartStateList.getOrElse(index = page, defaultValue = { DailyChartState() }),
+            historicalChartState = historicalChartStateList.getOrElse(
+                index = page,
+                defaultValue = { HourlyChartState( chartQuantities = emptyList()) }
+            ),
+            historicalDailyChartState = historicalDailyChartStateList.getOrElse(
+                index = page,
+                defaultValue = { DailyChartState()}
+            ),
             hourlyChartData = hourlyChartsData.getOrElse(
                 index = page,
                 defaultValue = { emptyList() }
@@ -160,9 +166,18 @@ fun DetailScreen(
                 index = page,
                 defaultValue = { emptyList() }
             ),
+            historicalHourlyData = historicalHourlyChartData.getOrElse(
+                index = page,
+                defaultValue = { emptyList() }
+            ),
+            historicalDailyData = historicalDailyChartData.getOrElse(
+                index = page,
+                defaultValue = { emptyList() }
+            ),
             pageNumber = page,
-//            scrollState = scrollStates[page],
             appSettings = appSettings,
+            initialLandscape = detailViewModel.initialLandScape,
+
             onResetScrollStates = {
                 detailState.filterIndexed { index, _ ->
                     index != page
@@ -173,7 +188,8 @@ fun DetailScreen(
                 }
             },
             onNavigateUp = remember { onNavigateUp },
-            onNavigateToAQDetail = remember { onNavigateToAQDetail }
+            onNavigateToAQDetail = remember { onNavigateToAQDetail },
+            onNavigateToDonateScreen = remember { onNavigateToDonateScreen },
 //            sharedTransitionScope = sharedTransitionScope,
 //            animatedContentScope = animatedContentScope
         )

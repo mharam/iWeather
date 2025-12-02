@@ -29,7 +29,7 @@ class RefreshWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         return try {
             if (NetworkUtils.isConnectedToInternet(context))
-                updateWeatherUseCase.updateAllLocationsWeather()
+                updateWeatherUseCase.updateAllLocationsWeatherBatch()
 
 //            if (Build.VERSION.SDK_INT >= 31 && !alarmManager.canScheduleExactAlarms()) {
             notify(

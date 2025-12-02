@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.IntentSender
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.common.api.ResolvableApiException
@@ -16,30 +17,41 @@ import com.google.android.gms.maps.model.LatLng
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.model.MapState
+import com.takaapoo.weatherer.domain.repository.LocationRepository
+import com.takaapoo.weatherer.domain.repository.RemoteWeatherRepository
 import com.takaapoo.weatherer.domain.use_case.AddLocationUseCase
 import com.takaapoo.weatherer.domain.use_case.UpdateWeatherUseCase
 import com.takaapoo.weatherer.ui.screens.add_location.REQUEST_CHECK_SETTINGS
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.coroutines.EmptyCoroutineContext.plus
 import kotlin.math.pow
 
 
 @HiltViewModel
 class AddLocationViewModel @Inject constructor(
     private val updateWeatherUseCase: UpdateWeatherUseCase,
-    private val addLocationUseCase: AddLocationUseCase
+    private val addLocationUseCase: AddLocationUseCase,
+    locationRepository: LocationRepository,
+    private val remoteWeatherRepository: RemoteWeatherRepository,
 ): ViewModel() {
 
     private val origin = LatLng(0.0, 0.0)
     private val _mapState = MutableStateFlow(MapState(destinationLocationLatLng = origin))
     val mapState = _mapState.asStateFlow()
 //    var triggerMapRelocation: Int by mutableIntStateOf(0)
+    val locationsCount = locationRepository.locationsCount()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(),
+            initialValue = 0
+        )
 
     fun resetAddResult(){
         _mapState.update {
@@ -97,8 +109,24 @@ class AddLocationViewModel @Inject constructor(
     fun updateAddLocationDialogVisibility(state: Boolean){
         _mapState.update {
             it.copy(
-                addLocationDialogVisibility = state,
+                addLocationDialogVisible = state,
                 selectedLocationName = ""
+            )
+        }
+    }
+
+    fun updateDonateDialogVisibility(state: Boolean){
+        _mapState.update {
+            it.copy(
+                donateDialogVisible = state,
+            )
+        }
+    }
+
+    fun updateLocationCountDialogVisibility(state: Boolean){
+        _mapState.update {
+            it.copy(
+                locationCountDialogVisible = state,
             )
         }
     }
@@ -198,7 +226,7 @@ class AddLocationViewModel @Inject constructor(
         }
     }
 
-    fun updateWeatherDataLoadingStatus(locationId: Int, status: MyResult<Unit>){
+    fun updateWeatherDataLoadingStatus(locationId: Int, status: MyResult<*>){
         _mapState.update {
             it.copy(
                 weatherDataLoadStatus = it.weatherDataLoadStatus.plus(locationId to status)
@@ -250,6 +278,20 @@ class AddLocationViewModel @Inject constructor(
                     }
                 }
             }
+    }
+
+    fun showPrecipitation(location: LatLng) {
+        Log.i("prec1", "Wait to Show ...")
+        viewModelScope.launch {
+            val yearlyWeatherResult = remoteWeatherRepository.getYearlyWeatherFromServer(
+                latitude = location.latitude.toFloat(),
+                longitude = location.longitude.toFloat(),
+                weatherQuantities = listOf("precipitation_sum")
+            )
+            if (yearlyWeatherResult is MyResult.Success) {
+                Log.i("prec1", "Yearly precipitation = ${yearlyWeatherResult.data[0]}")
+            }
+        }
     }
 }
 

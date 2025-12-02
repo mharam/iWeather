@@ -53,22 +53,37 @@ import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.get
 import androidx.navigation.NavController
+import com.google.android.gms.maps.model.LatLng
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.Screen
+import com.takaapoo.weatherer.data.local.LocalDailyWeather
+import com.takaapoo.weatherer.data.local.LocalHourlyWeather
+import com.takaapoo.weatherer.data.local.LocationType
+import com.takaapoo.weatherer.domain.WeatherType
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.unit.Length
 import com.takaapoo.weatherer.domain.unit.Pressure
 import com.takaapoo.weatherer.domain.unit.Speed
 import com.takaapoo.weatherer.domain.unit.Temperature
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.daily_diagram.measureText
+import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.indicesOf
 import com.takaapoo.weatherer.ui.theme.DarkColorScheme
 import com.takaapoo.weatherer.ui.theme.LightColorScheme
+import kotlinx.serialization.SerialName
+import java.time.Duration
 import java.time.LocalDateTime
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.acos
+import kotlin.math.atan2
 import kotlin.math.ceil
+import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlin.reflect.KProperty1
+import kotlin.reflect.full.memberProperties
 
 fun <T> MutableList<T>.swap(index1: Int, index2: Int) {
     this[index1] = this[index2].also { this[index2] = this[index1] }
@@ -147,19 +162,34 @@ fun Float.mToUnit(unit: Length) = when (unit) {
     Length.IMPERIAL -> this * 3.28084f
 }
 
-fun Float.toAppropriateUnit(quantity: WeatherQuantity, appSettings: AppSettings): Float = when (quantity){
-    WeatherQuantity.TEMPERATURE, WeatherQuantity.DEWPOINT, WeatherQuantity.APPARENTTEMP ->
+fun Float.toAppropriateUnit(quantity: HourlyWeatherQuantity, appSettings: AppSettings): Float = when (quantity){
+    HourlyWeatherQuantity.TEMPERATURE, HourlyWeatherQuantity.DEWPOINT, HourlyWeatherQuantity.APPARENTTEMP ->
         this.celsiusToUnit(appSettings.temperatureUnit)
-    WeatherQuantity.PRECIPITATION, WeatherQuantity.RAIN, WeatherQuantity.SHOWERS ->
+    HourlyWeatherQuantity.PRECIPITATION, HourlyWeatherQuantity.RAIN, HourlyWeatherQuantity.SHOWERS ->
         this.mmToUnit(appSettings.lengthUnit)
-    WeatherQuantity.SNOWFALL -> this.cmToUnit(appSettings.lengthUnit)
-    WeatherQuantity.SURFACEPRESSURE -> this.paToUnit(appSettings.pressureUnit)
-    WeatherQuantity.VISIBILITY -> this.kmToUnit(appSettings.lengthUnit)
-    WeatherQuantity.WINDSPEED -> this.kmphToUnit(appSettings.speedUnit)
-    WeatherQuantity.FREEZINGLEVELHEIGHT -> this.mToUnit(appSettings.lengthUnit)
+    HourlyWeatherQuantity.SNOWFALL -> this.cmToUnit(appSettings.lengthUnit)
+    HourlyWeatherQuantity.SURFACEPRESSURE -> this.paToUnit(appSettings.pressureUnit)
+    HourlyWeatherQuantity.VISIBILITY -> this.kmToUnit(appSettings.lengthUnit)
+    HourlyWeatherQuantity.WINDSPEED -> this.kmphToUnit(appSettings.speedUnit)
+    HourlyWeatherQuantity.FREEZINGLEVELHEIGHT -> this.mToUnit(appSettings.lengthUnit)
 //    WeatherQuantity.DIRECTRADIATION -> TODO()
 //    WeatherQuantity.DIRECTNORMALIRRADIANCE -> TODO()
     else -> this
+}
+
+fun Color.darker(factor: Float): Color {
+    require(factor in 0f..1f) { "Lightness factor must be between 0 and 1" }
+    // Convert to HSL
+    val max = maxOf(red, green, blue)
+    val min = minOf(red, green, blue)
+    val l = (max + min) / 2f
+
+    val newLightness = (l + (0 - l) * factor).coerceIn(0f, 1f)
+    return Color.hsl(
+        hue = this.hue(),
+        saturation = this.saturation(),
+        lightness = newLightness
+    )
 }
 
 fun Color.lighter(factor: Float): Color {
@@ -572,11 +602,34 @@ fun Color.mostContrastColor(): Color {
 fun String.localToUtcTime(utcOffset: Long?) = LocalDateTime.parse(this).minusMinutes(utcOffset ?: 0).toString()
 
 fun <T>List<T>.subList(centerIndex: Int, width: Int) = this.subList(
-    fromIndex = (centerIndex - floor(width / 2f).roundToInt()).coerceAtLeast(0),
-    toIndex = (centerIndex + ceil(width / 2f).roundToInt()).coerceAtMost(this.size)
+    fromIndex = (centerIndex - floor(width / 2f).roundToInt()).coerceIn(0, this.size),
+    toIndex = (centerIndex + ceil(width / 2f).roundToInt()).coerceIn(0, this.size)
 )
 
+fun <T> List<T>.split(element: T): List<List<T>> {
+    if (isEmpty()) return emptyList()
+    val elementIndices = indicesOf(element).toMutableList()
+    elementIndices.add(0, -1)
+    elementIndices.add(size)
+    val outList = MutableList<List<T>>(size = elementIndices.size - 1) { emptyList() }
 
+    elementIndices.forEachIndexed { i, index ->
+        if (i == elementIndices.size - 1) return@forEachIndexed
+        outList[i] = subList(index + 1, elementIndices[i+1])
+    }
+
+    return outList
+}
+
+fun List<LocalDateTime>.oldest(): LocalDateTime? {
+    if (this.isEmpty()) return null
+    var oldest = this.first()
+    for (i in 1 until this.size){
+        if (this[i].isBefore(oldest))
+            oldest = this[i]
+    }
+    return oldest
+}
 
 
 
@@ -601,4 +654,113 @@ fun getColorScheme(context: Context, dynamicColor: Boolean = true): ColorScheme 
         systemDarkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
+}
+
+fun determineLocationType(context: Context, location: LatLng): LocationType {
+//    val t0 = System.currentTimeMillis()
+    val landPolygons = readPolygonsBinFromAssets(context)
+    val caspianPolygon = readPolygonsBinFromAssets(context, "caspian_polygon.bin").first()
+    val surroundingPoints = calculateLocationSurroundingPoints(location, 16)
+    val surroundingInLand = BooleanArray(size = surroundingPoints.size)
+    val center = Point(location.longitude.toFloat(), location.latitude.toFloat())
+
+//    val t1 = System.currentTimeMillis()
+    var i = 0
+    while (i < landPolygons.size && !landPolygons[i].isPointInside(center)) {
+        i++
+    }
+    val centerInLand = i < landPolygons.size && !caspianPolygon.isPointInside(center)
+//    val t2 = System.currentTimeMillis()
+
+    surroundingPoints.forEachIndexed { index, latLng ->
+        val surroundingPoint = Point(latLng.longitude.toFloat(), latLng.latitude.toFloat())
+        var i = 0
+        while (i < landPolygons.size &&
+            !landPolygons[i].isPointInside(surroundingPoint)) {
+            i++
+        }
+        surroundingInLand[index] = i < landPolygons.size && !caspianPolygon.isPointInside(surroundingPoint)
+    }
+//    val t3 = System.currentTimeMillis()
+//    Log.i("loc1", "Dt1 = ${t1 - t0} , Dt2 = ${t2 - t1} , Dt3 = ${t3 - t2}")
+
+    return when {
+        centerInLand && !surroundingInLand.contains(false) -> LocationType.LAND
+        centerInLand && surroundingInLand.contains(false) ||
+                !centerInLand && surroundingInLand.contains(true) -> LocationType.BEACH
+        else -> LocationType.OCEAN
+    }
+}
+
+const val earthRadius = 6378
+fun calculateLocationSurroundingPoints(location: LatLng, pointsCount: Int): List<LatLng> {
+    val radius = 20f
+    val delta = (radius / earthRadius)
+    val theta0 = abs(location.latitude - 90) * PI/180
+    val phi0 = ((location.longitude)) * PI/180
+    val alpha = 2*PI/pointsCount
+    return List(size = pointsCount) { i ->
+        val t = i*alpha
+        val lat = 90 - acos(cos(theta0)*cos(delta) + sin(theta0)*sin(delta)*cos(t)) * 180/PI
+        val lng = (phi0 +
+                atan2(sin(delta)*sin(t), sin(theta0)*cos(delta) - cos(theta0)*sin(delta)*cos(t))
+                ) * 180/PI
+        LatLng(lat, lng)
+    }
+}
+
+@Suppress("UNCHECKED_CAST")
+fun <R> getPropertyBySerialName(instance: Any, serialNameValue: String): R? {
+    return instance::class.memberProperties
+        .firstOrNull { property ->
+            // Find the property that has a @SerialName annotation with the target value
+            property.annotations
+                .filterIsInstance<SerialName>()
+                .any { it.value == serialNameValue }
+        }
+        ?.let { property ->
+            // Get the property value and cast it to the expected type R
+            (property as KProperty1<Any, *>).get(instance) as? R
+        }
+}
+
+fun landScapeName(
+    todayWeather: LocalDailyWeather?,
+    currentWeather: LocalHourlyWeather?,
+    utcOffset: Long?,
+    utcTime: LocalDateTime
+): String {
+    val sunRise = todayWeather?.sunRise?.let { LocalDateTime.parse(it) }
+        ?.minusMinutes(utcOffset ?: 0)
+    val sunSet = todayWeather?.sunSet?.let { LocalDateTime.parse(it) }
+        ?.minusMinutes(utcOffset ?: 0)
+
+    val isSunRise = sunRise?.let {
+        abs(Duration.between(utcTime, it).toMinutes()) <= 30
+    } ?: false
+    val isSunSet = sunSet?.let {
+        abs(Duration.between(utcTime, it).toMinutes()) <= 30
+    } ?: false
+    val isDay = if (sunRise != null && sunSet != null)
+        utcTime.isAfter(sunRise) && utcTime.isBefore(sunSet)
+    else (currentWeather?.isDay == 1)
+
+    val timeIndex = if (sunRise?.isEqual(sunSet) == true) {
+        if (currentWeather?.isDay == 1) 1 else 3
+    } else {
+        when {
+            isSunRise -> 4
+            isSunSet -> 2
+            isDay -> 1
+            else -> 3
+        }
+    }
+    val skyIndex = WeatherType.fromWMO(
+        code = currentWeather?.weatherCode,
+        isDay = true,
+        moonType = null
+    ).picIndex
+    val groundIndex = if ((currentWeather?.snowDepth ?: 0f) > 0.1f) 3 else 1
+
+    return "${skyIndex}_${groundIndex}_${timeIndex}"
 }

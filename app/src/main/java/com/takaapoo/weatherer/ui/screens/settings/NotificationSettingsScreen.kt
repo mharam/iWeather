@@ -119,7 +119,8 @@ import com.takaapoo.weatherer.ui.notification.custom_views.HourlyChartLabel
 import com.takaapoo.weatherer.ui.notification.custom_views.SmallNotification
 import com.takaapoo.weatherer.ui.notification.custom_views.StatusBarIcon
 import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HistoricalState
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.theme.Gray30
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.utility.getColorScheme
@@ -152,9 +153,9 @@ fun NotificationSettingsScreen(
     notificationDailyChartData: List<LocalDailyWeather>,
 
     onUpdateNotificationVisibility: (visible: Boolean) -> Unit,
-    onUpdateNotificationCurrentQuantities: (quantity: WeatherQuantity, addRemove: Boolean) -> Unit,
+    onUpdateNotificationCurrentQuantities: (quantity: HourlyWeatherQuantity, addRemove: Boolean) -> Unit,
     onUpdateNotificationHourlyDiagramIconsVisibility: (visible: Boolean) -> Unit,
-    onUpdateNotificationHourlyQuantities: (quantity: WeatherQuantity, addRemove: Boolean) -> Unit,
+    onUpdateNotificationHourlyQuantities: (quantity: HourlyWeatherQuantity, addRemove: Boolean) -> Unit,
     onUpdateNotificationCurveShadowVisibility: (visible: Boolean) -> Unit,
     onSaveCurvesColor: (curveIndex: Int, color: Color) -> Unit,
     onUpdateWholeCurvesColor: (colors: List<Color>) -> Unit,
@@ -189,7 +190,7 @@ fun NotificationSettingsScreen(
 
     val smallNotificationHeight = 88.dp
     val settingsBoxHeight = 80.dp
-    var outerColumnScrollMax = (settingsBoxHeight + 16.dp).toPx(density)
+    val outerColumnScrollMax = (settingsBoxHeight + 16.dp).toPx(density)
 
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
@@ -248,7 +249,7 @@ fun NotificationSettingsScreen(
         StatusBarIcon(
             context = context,
             hourlyChartData = notificationHourlyChartData,
-            quantity = WeatherQuantity.TEMPERATURE,
+            quantity = HourlyWeatherQuantity.TEMPERATURE,
             appSettings = appSettings
         ).apply {
             val widthSpec = View.MeasureSpec.makeMeasureSpec(
@@ -1070,12 +1071,12 @@ private fun NotificationLarge2Binding.header3Layout(
 @Composable
 fun Header1Settings(
     modifier: Modifier = Modifier,
-    notificationCurrentQuantities: List<WeatherQuantity>,
+    notificationCurrentQuantities: List<HourlyWeatherQuantity>,
     paddingValues: PaddingValues,
     scrollState: ScrollState,
     outerColumnScrollState: ScrollState,
     spacerInitialHeight: Dp,
-    onUpdateNotificationCurrentQuantities: (quantity: WeatherQuantity, addRemove: Boolean) -> Unit
+    onUpdateNotificationCurrentQuantities: (quantity: HourlyWeatherQuantity, addRemove: Boolean) -> Unit
 ) {
     val density = LocalDensity.current
     Column(
@@ -1087,7 +1088,7 @@ fun Header1Settings(
             modifier = Modifier.fillMaxWidth(),
             title = "Weather quantities (${notificationCurrentQuantities.size} out of 7)"
         )
-        (listOf(WeatherQuantity.TEMPERATURE) + WeatherQuantity.entries.filter { it.homeCardNameId != null })
+        (listOf(HourlyWeatherQuantity.TEMPERATURE) + HourlyWeatherQuantity.entries.filter { it.homeCardNameId != null })
             .forEach { quantity ->
                 SettingsRow1(
                     modifier = Modifier.fillMaxWidth(),
@@ -1126,7 +1127,7 @@ fun Header2Settings(
     appSettings: AppSettings,
 
     onUpdateNotificationHourlyDiagramIconsVisibility: (visible: Boolean) -> Unit,
-    onUpdateNotificationHourlyQuantities: (quantity: WeatherQuantity, addRemove: Boolean) -> Unit,
+    onUpdateNotificationHourlyQuantities: (quantity: HourlyWeatherQuantity, addRemove: Boolean) -> Unit,
     onUpdateNotificationCurveShadowVisibility: (visible: Boolean) -> Unit,
     onUpdateColorBottomSheetVisible: (visible: Boolean) -> Unit,
     onUpdateNotificationTimeAxisDialogVisibility: (visible: Boolean) -> Unit
@@ -1211,7 +1212,7 @@ fun Header2Settings(
             modifier = Modifier.fillMaxWidth(),
             title = "Weather quantities (${appSettings.notificationHourlyQuantities.size} out of 2)"
         )
-        WeatherQuantity.entries.forEach { quantity ->
+        HourlyWeatherQuantity.entries.forEach { quantity ->
             SettingsRow1(
                 modifier = Modifier.fillMaxWidth(),
                 icon = quantity.iconId,
@@ -1291,7 +1292,9 @@ fun Header3Settings(
             modifier = Modifier.fillMaxWidth(),
             title = "Weather quantity"
         )
-        DailyWeatherQuantity.entries.filterNot { it == DailyWeatherQuantity.SUNRISESET }
+        DailyWeatherQuantity.entries
+            .filter { it.historicalState != HistoricalState.HISTORIC_ONLY }
+            .filterNot { it == DailyWeatherQuantity.SUNRISESET }
             .forEach { quantity ->
                 SettingsRow1(
                     modifier = Modifier.fillMaxWidth(),

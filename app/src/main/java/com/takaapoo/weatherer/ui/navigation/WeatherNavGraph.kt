@@ -1,11 +1,11 @@
 package com.takaapoo.weatherer.ui.navigation
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextMeasurer
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -33,6 +33,7 @@ import com.takaapoo.weatherer.ui.viewModels.DonateViewModel
 import com.takaapoo.weatherer.ui.viewModels.HomeViewModel
 import com.takaapoo.weatherer.ui.viewModels.PreferenceViewModel
 import com.takaapoo.weatherer.utility.KeepScreenOn
+import com.takaapoo.weatherer.utility.isDestinationInBackStack
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -52,6 +53,7 @@ fun WeatherNavGraph(
     modifier: Modifier = Modifier,
     singlePane: Boolean,
     permanentDrawer: Boolean,
+    drawerOpen: Boolean,
     onMenuButtonClick: () -> Unit = {}
 ) {
 //    val lifecycleOwner = LocalLifecycleOwner.current
@@ -79,6 +81,18 @@ fun WeatherNavGraph(
                 val dailyChartsData = detailViewModel.locationsDailyChartData.map {
                     it.collectAsStateWithLifecycle().value
                 }
+                val historicalChartStateList = detailViewModel.historicalHourlyChartState.map {
+                    it.collectAsStateWithLifecycle().value
+                }
+                val historicalHourlyChartData = detailViewModel.historicalHourlyChartData.map {
+                    it.collectAsStateWithLifecycle().value
+                }
+                val historicalDailyChartStateList = detailViewModel.historicalDailyChartState.map {
+                    it.collectAsStateWithLifecycle().value
+                }
+                val historicalDailyChartData = detailViewModel.historicalDailyChartData.map {
+                    it.collectAsStateWithLifecycle().value
+                }
 
                 HomeItemDetailPane(
                     modifier = Modifier.fillMaxSize(),
@@ -88,15 +102,15 @@ fun WeatherNavGraph(
                     dailyChartStateList = dailyChartStateList,
                     hourlyChartsData = hourlyChartsData,
                     dailyChartsData = dailyChartsData,
-//                    locationListState = locationListState,
-//                    notificationHourlyChartData = notificationHourlyChartData,
+                    historicalHourlyChartData = historicalHourlyChartData,
+                    historicalDailyChartData = historicalDailyChartData,
+                    historicalChartStateList = historicalChartStateList,
+                    historicalDailyChartStateList = historicalDailyChartStateList,
 //                    sharedTransitionScope = this@SharedTransitionLayout,
 //                    animatedVisibilityScope = this,
                     singlePane = singlePane,
-    //                locationsCount = locationsCount,
-//                    notificationBitmap = appUiState.notificationBitmap,
-//                    notificationTemperatureBitmap = appUiState.notificationTemperatureBitmap,
                     permanentDrawer = permanentDrawer,
+                    drawerOpen = drawerOpen,
                     appSettings = appSettings,
                     weatherDataLoadStatus = mapState.weatherDataLoadStatus,
                     onMenuButtonClick = onMenuButtonClick,
@@ -106,9 +120,12 @@ fun WeatherNavGraph(
                     onReloadALocationWeatherData = { location ->
                         addLocationViewModel.loadALocationWeatherData(location)
                     },
-//                    onUpdateNotifChannelDialogVisibility = appViewModel::updateNotifChannelDialogVisibility,
-//                    onUpdateNotificationBitmap = appViewModel::updateNotificationBitmap,
-//                    onUpdateTemperatureBitmap = appViewModel::updateNotificationTemperatureBitmap
+                    onUpdateNotificationLocationId = preferenceViewModel::updateNotificationLocationId,
+                    onUpdateNotificationVisibility = preferenceViewModel::updateNotificationVisibility,
+                    onUpdateWidgetLocationId = preferenceViewModel::updateWidgetLocationId,
+                    onNavigateToDonateScreen = {
+
+                    }
                 )
             }
     //        composable<Home> { backStackEntry ->
@@ -126,6 +143,7 @@ fun WeatherNavGraph(
     //            )
     //        }
             composable<AddLocation> {
+                val locationsCount by addLocationViewModel.locationsCount.collectAsStateWithLifecycle()
                 AddLocationScreen(
 //                    modifier = Modifier.sharedBounds(
 //                        sharedContentState = rememberSharedContentState(
@@ -134,6 +152,8 @@ fun WeatherNavGraph(
 //                        animatedVisibilityScope = this
 //                    ),
                     mapState = mapState,
+                    locationsCount = locationsCount,
+                    appSettings = appSettings,
                     onUpdateLocationPermissionGranted = addLocationViewModel::updateLocationPermissionGranted,
                     onUpdateDeviceLocationEnabled = addLocationViewModel::updateDeviceLocationEnabled,
                     onUpdateTriggerMapRelocation = addLocationViewModel::updateTriggerMapRelocation,
@@ -147,7 +167,18 @@ fun WeatherNavGraph(
                     onUpdateAddLocationDialogVisibility = addLocationViewModel::updateAddLocationDialogVisibility,
                     onAddLocationToDB = addLocationViewModel::addLocationToDB,
                     onUpdateSelectedLocationName = addLocationViewModel::updateSelectedLocationName,
-                    onNavigateUp = navController::navigateUp
+                    onNavigateUp = navController::navigateUp,
+                    onUpdateDonateDialogVisibility = addLocationViewModel::updateDonateDialogVisibility,
+                    onUpdateLocationCountDialogVisibility = addLocationViewModel::updateLocationCountDialogVisibility,
+                    onUpdateAddLocationHelpVisibility = preferenceViewModel::updateAddLocationHelpVisibility,
+                    onNavigateToDonateScreen = {
+                        val screenAlreadyVisited = isDestinationInBackStack(navController, Donate)
+                        if (screenAlreadyVisited)
+                            navController.popBackStack(route = Donate, inclusive = false)
+                        else
+                            navController.navigate(route = Donate)
+                    },
+                    onShowPrecipitation =  addLocationViewModel::showPrecipitation
                 )
             }
     //        composable<Detail> { backStackEntry ->
@@ -222,6 +253,7 @@ fun WeatherNavGraph(
                     notificationHourlyChartData = notificationHourlyChartData,
                     notificationDailyChartData = notificationDailyChartData,
                     allLocations = allLocations,
+                    drawerOpen = drawerOpen,
 
                     onUpdateSilence = preferenceViewModel::updateSilent,
                     onUpdateVibration = preferenceViewModel::updateVibration,
@@ -246,11 +278,10 @@ fun WeatherNavGraph(
                     onAddYAxis = {
                             start: Float, end: Float, diagramHeight: Float,
                             textMeasurer: TextMeasurer, axisIndex: Int?,
-                            curveAnimatorInitialValue: Float
-                        ->
+                            curveAnimatorInitialValue: Float ->
                         detailViewModel.addYAxis(
                             start, end, 0, diagramHeight, textMeasurer, axisIndex,
-                            curveAnimatorInitialValue
+                            curveAnimatorInitialValue, isHistoric = false
                         )
                     },
                     onMoveHourlyDiagramAxis = {
@@ -280,9 +311,9 @@ fun WeatherNavGraph(
                     onSaveCurvesSmoothness = detailViewModel::saveCurveSmoothness,
                     onAddRemoveQuantity = { quantity, addRemove ->
                         if (addRemove)
-                            detailViewModel.addChartQuantity(quantity, 0)
+                            detailViewModel.addChartQuantity(quantity, 0, isHistoric = false)
                         else
-                            detailViewModel.removeChartQuantity(quantity, 0)
+                            detailViewModel.removeChartQuantity(quantity, 0, isHistoric = false)
                     },
                     onUpdateNotificationCurrentQuantities =
                         preferenceViewModel::updateNotificationCurrentWeatherQuantities,
@@ -324,12 +355,13 @@ fun WeatherNavGraph(
 //                    viewModelStoreOwner = parentEntry
 //                )
                 val donateState by donateViewModel.donateState.collectAsStateWithLifecycle()
-                val activity = LocalContext.current as MainActivity
+                val activity = LocalActivity.current as MainActivity
                 DonateScreen(
                     modifier = Modifier.fillMaxSize(),
                     singlePane = singlePane,
                     donateState = donateState,
                     billingConnectionState = donateViewModel.billingClient.connectionState,
+                    drawerOpen = drawerOpen,
 
                     onNavigateUp = {
                         navController.navigateUp()

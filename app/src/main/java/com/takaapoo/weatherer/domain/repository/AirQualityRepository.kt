@@ -21,5 +21,11 @@ interface AirQualityRepository {
         latitude: Float,
         longitude: Float,
         pastDays: Int
-    ): MyResult<WholeAirQuality>
+    ): MyResult<out WholeAirQuality>
+
+    suspend fun getAirQualityBatchFromServer(
+        latitude: List<Float>,
+        longitude: List<Float>,
+        pastDays: Int
+    ): MyResult<out List<WholeAirQuality>>
 }

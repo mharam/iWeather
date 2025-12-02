@@ -5,24 +5,20 @@ import android.content.res.Resources
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffColorFilter
 import android.graphics.Rect
 import android.text.TextPaint
 import android.view.View
-import androidx.appcompat.content.res.AppCompatResources
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.content.res.ResourcesCompat
-import androidx.core.graphics.drawable.toBitmap
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.WeatherType
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.weatherCurveXtoY
 import com.takaapoo.weatherer.utility.spToFloat
 import com.takaapoo.weatherer.utility.toPx
@@ -80,7 +76,7 @@ class SmallNotification(
 
     val indicatorX = Duration.between(now.truncatedTo(ChronoUnit.HOURS), now).toMinutes() / 60f
     val curveValueAtIndicator = weatherCurveXtoY(
-        quantity = WeatherQuantity.TEMPERATURE,
+        quantity = HourlyWeatherQuantity.TEMPERATURE,
         appSettings = appSettings,
         hourlyWeather = hourlyChartData.map { it.hourlyWeather },
         hourlyAirQuality = hourlyChartData.map { it.airQuality },
@@ -90,10 +86,11 @@ class SmallNotification(
     )?.roundToInt()
 
     val currentTextPaint = TextPaint().apply {
-        textSize = spToFloat(context, 20f)
+        textSize = spToFloat(context, 32f)
         typeface = ResourcesCompat.getFont(context, R.font.cmu_serif)
         color = colorInt
-        style = Paint.Style.FILL
+        style = Paint.Style.FILL_AND_STROKE
+        strokeWidth = 1f
         isAntiAlias = true
         textAlign = Paint.Align.RIGHT
     }
@@ -106,15 +103,15 @@ class SmallNotification(
     val minTempBound = Rect()
 
     val arrowSize = 20.dp.toPx(myDensity).toInt()
-    val arrowBitmap = AppCompatResources.getDrawable(context, R.drawable.south_24)!!.toBitmap(
-        arrowSize, arrowSize, null
-    )
-    val arrowPaint = Paint()
-    val upArrowColorFilter = PorterDuffColorFilter(Color.RED, PorterDuff.Mode.SRC_IN)
-    val downArrowColorFilter = PorterDuffColorFilter(
-        context.getColor(R.color.notif_min_temperature),
-        PorterDuff.Mode.SRC_IN
-    )
+//    val arrowBitmap = AppCompatResources.getDrawable(context, R.drawable.south_24)!!.toBitmap(
+//        arrowSize, arrowSize, null
+//    )
+//    val arrowPaint = Paint()
+//    val upArrowColorFilter = PorterDuffColorFilter(Color.RED, PorterDuff.Mode.SRC_IN)
+//    val downArrowColorFilter = PorterDuffColorFilter(
+//        context.getColor(R.color.notif_min_temperature),
+//        PorterDuff.Mode.SRC_IN
+//    )
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -126,23 +123,22 @@ class SmallNotification(
                 (height + currentTempBound.height()) / 2f,
                 currentTextPaint
             )
-            save()
-            scale(1f, -1f)
-            val arrowLeft = width - currentTextPaint.measureText(currentTempText) -
-                    /*8.dp.toPx(myDensity) -*/ arrowSize
-            drawBitmap(
-                arrowBitmap,
-                arrowLeft,
-                - arrowSize.toFloat(),
-                arrowPaint.apply { colorFilter = upArrowColorFilter }
-            )
-            restore()
-            drawBitmap(
-                arrowBitmap,
-                arrowLeft,
-                height.toFloat() - arrowSize,
-                arrowPaint.apply { colorFilter = downArrowColorFilter }
-            )
+//            save()
+//            scale(1f, -1f)
+            val arrowLeft = width - currentTextPaint.measureText(currentTempText) - 4.dp.toPx(myDensity) /*- arrowSize*/
+//            drawBitmap(
+//                arrowBitmap,
+//                arrowLeft,
+//                - arrowSize.toFloat(),
+//                arrowPaint.apply { colorFilter = upArrowColorFilter }
+//            )
+//            restore()
+//            drawBitmap(
+//                arrowBitmap,
+//                arrowLeft,
+//                height.toFloat() - arrowSize,
+//                arrowPaint.apply { colorFilter = downArrowColorFilter }
+//            )
 
             val maxTemperaturePaint = currentTextPaint.apply {
                 textSize = spToFloat(context, 14f)
@@ -155,13 +151,13 @@ class SmallNotification(
             drawText(
                 maxTempText,
                 arrowLeft,
-                (arrowSize + maxTempBound.height()) / 2f,
+                /*(arrowSize + maxTempBound.height())*/(height - 8.dp.toPx(myDensity)) / 2f,
                 maxTemperaturePaint
             )
             drawText(
                 minTempText,
                 arrowLeft,
-                height - (arrowSize - maxTempBound.height()) / 2f,
+                /*height - (arrowSize - maxTempBound.height()) / 2f*/(height + 8.dp.toPx(myDensity)) / 2f + minTempBound.height(),
                 maxTemperaturePaint.apply { color = context.getColor(R.color.notif_min_temperature) }
             )
 

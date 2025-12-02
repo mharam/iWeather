@@ -15,7 +15,7 @@ import com.takaapoo.weatherer.ui.notification.NotificationLayout
 import com.takaapoo.weatherer.ui.notification.custom_views.HourlyChart
 import com.takaapoo.weatherer.ui.notification.custom_views.HourlyChartLabel
 import com.takaapoo.weatherer.utility.getColorScheme
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.utility.renderViewToBitmap
 import com.takaapoo.weatherer.utility.spToFloat
 import com.takaapoo.weatherer.utility.toPx
@@ -28,7 +28,7 @@ class Header2Layout(
     context: Context,
     notificationHourlyChartData: List<HourlyChartDto>,
     val settings: AppSettings,
-    chartQuantities: List<WeatherQuantity>,
+    chartQuantities: List<HourlyWeatherQuantity>,
 ): NotificationLayout {
     val density = Density(context)
     val colorScheme = getColorScheme(context, settings.dynamicColor)

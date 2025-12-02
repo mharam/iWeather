@@ -1,5 +1,8 @@
 package com.takaapoo.weatherer.ui.screens.home
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,14 +13,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -25,13 +26,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
-import androidx.core.content.ContextCompat
-import androidx.core.graphics.drawable.toBitmap
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.WeatherType
 import com.takaapoo.weatherer.domain.model.AppSettings
@@ -42,27 +41,27 @@ import com.takaapoo.weatherer.ui.theme.HomeCardNight
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
 import com.takaapoo.weatherer.ui.theme.timeFontFamily
 import com.takaapoo.weatherer.utility.toPx
+import java.io.File
 
 @Composable
 fun WeatherItemFake(
     windowRotation: Float,
     modifier: Modifier = Modifier,
     itemState: LocationsState,
-    pageNumber: Int,
     appSettings: AppSettings,
+    @DrawableRes landscapeId: Int? = null,
+
+    onUpdateInitialLandscape: (bitmap: Bitmap) -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val density : Density = LocalDensity.current
-    val imageBitmap: ImageBitmap? by remember(key1 = pageNumber) {
-        mutableStateOf(
-            ContextCompat.getDrawable(
-                context,
-                when(pageNumber){
-                    0 -> R.drawable.ax2
-                    1 -> R.drawable.ax3
-                    else -> R.drawable.ax4
-                }
-            )?.toBitmap()?.asImageBitmap()
+    val density = LocalDensity.current
+    val picFile = File(
+        LocalContext.current.filesDir,
+        "pictures/pic${itemState.lastPicId}/${itemState.picName}.jpeg"
+    )
+    val bitmap = remember(picFile) { BitmapFactory.decodeFile(picFile.absolutePath) }
+    LaunchedEffect(bitmap) {
+        onUpdateInitialLandscape(
+            bitmap.copy(Bitmap.Config.ARGB_8888, false)
         )
     }
 
@@ -85,35 +84,25 @@ fun WeatherItemFake(
                     shape = cardShape
                 )
         ) {
-            imageBitmap?.let {
+            if (landscapeId != null) {
                 Image(
-                    bitmap = it,
-                    contentDescription = null,
+                    painter = painterResource(landscapeId),
                     modifier = Modifier
                         .fillMaxSize()
-                        .align(Alignment.Center)
-//                        .clip(cardShape)
-                    ,
-                    contentScale = ContentScale.FillHeight
+                        .align(Alignment.Center),
+                    contentDescription = null,
+                    contentScale = ContentScale.FillHeight,
+                )
+            } else if (picFile.exists()){
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .align(Alignment.Center),
+                    contentDescription = null,
+                    contentScale = ContentScale.FillHeight,
                 )
             }
-
-            /*Image(
-                painter = painterResource(
-                    when(pageNumber){
-                        0 -> R.drawable.ax2
-                        1 -> R.drawable.ax3
-                        else -> R.drawable.ax4
-                    }
-                ),
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .align(Alignment.Center)
-                    .clip(cardShape)
-                ,
-                contentScale = ContentScale.FillHeight
-            )*/
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -163,14 +152,6 @@ fun WeatherItemFake(
                 )
                 WeatherData(
                     modifier = Modifier.fillMaxSize(),
-                    currentTemperature = itemState.currentTemperature,
-                    maxTemperature = itemState.todayMaxTemperature,
-                    minTemperature = itemState.todayMinTemperature,
-//                    humidity = itemState.currentHumidity,
-//                    precipitationProbability = itemState.currentPrecipitationProbability,
-//                    windSpeed = itemState.currentWindSpeed,
-//                    windDirection = itemState.currentWindDirection,
-//                    airQuality = itemState.currentAirQuality,
                     itemState = itemState,
                     appSettings = appSettings,
                     isDay = itemState.isDay
@@ -225,8 +206,9 @@ fun WeatherItemFakePreview() {
                 month = "DEC",
                 year = 2023
             ),
-            pageNumber = 0,
             appSettings = AppSettings(),
+
+            onUpdateInitialLandscape = {}
         )
     }
 }

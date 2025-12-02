@@ -1,13 +1,9 @@
 package com.takaapoo.weatherer.ui.screens.detail
 
+import android.graphics.Bitmap
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.VectorConverter
-import androidx.compose.animation.core.animateValue
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -33,9 +29,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -44,9 +42,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -61,27 +60,33 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
-import androidx.core.content.ContextCompat
-import androidx.core.graphics.drawable.toBitmap
+import androidx.core.graphics.createBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.imageLoader
+import coil3.request.ImageRequest
+import coil3.request.transformations
+import coil3.toBitmap
+import coil3.transform.Transformation
 import com.google.android.renderscript.Toolkit
 import com.takaapoo.weatherer.MainActivity
 import com.takaapoo.weatherer.R
@@ -90,15 +95,19 @@ import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.DailyChartState
 import com.takaapoo.weatherer.domain.model.DetailState
+import com.takaapoo.weatherer.domain.model.HistoricDailyChartDto
+import com.takaapoo.weatherer.domain.model.HistoricHourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartState
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.quantityControlPoints
+import com.takaapoo.weatherer.ui.screens.detail.daily_diagram.DailyDiagramSettingsOptions
+import com.takaapoo.weatherer.ui.screens.detail.historical.HistoricHourlyDiagramSettingsOptions
+import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.HourlyDiagramSettingsOptions
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.weatherCurveXtoY
 import com.takaapoo.weatherer.ui.theme.Cmu
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
 import com.takaapoo.weatherer.ui.theme.customColorScheme
-import com.takaapoo.weatherer.ui.theme.timeFontFamily
+import com.takaapoo.weatherer.ui.theme.gerdFontFamily
 import com.takaapoo.weatherer.ui.viewModels.DetailViewModel
 import com.takaapoo.weatherer.utility.BorderedText
 import com.takaapoo.weatherer.utility.toDp
@@ -106,10 +115,11 @@ import com.takaapoo.weatherer.utility.toPx
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.time.format.DateTimeFormatter
+import java.io.File
 
 var detailScreenWidth = 0
-//const val LAST_PAGE_NUMBER = "last_page_number"
+const val bitmapWidth = 1248
+const val bitmapHeight = 832
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,18 +129,23 @@ fun DetailPagerScreen(
     detailViewModel: DetailViewModel,
     hourlyChartState: HourlyChartState = HourlyChartState(),
     dailyChartState: DailyChartState = DailyChartState(),
+    historicalChartState: HourlyChartState = HourlyChartState(),
+    historicalDailyChartState: DailyChartState = DailyChartState(),
     hourlyChartData: List<HourlyChartDto> = emptyList(),
     dailyChartData: List<LocalDailyWeather> = emptyList(),
+    historicalHourlyData: List<HistoricHourlyChartDto> = emptyList(),
+    historicalDailyData: List<HistoricDailyChartDto> = emptyList(),
     pageNumber: Int = 0,
     singlePane: Boolean = true,
     appSettings: AppSettings = AppSettings(),
+    initialLandscape: Bitmap,
 //    sharedTransitionScope: SharedTransitionScope,
 //    animatedContentScope: AnimatedContentScope,
     onResetScrollStates: suspend CoroutineScope.() -> Unit,
     onNavigateUp: (pageNumber: Int) -> Unit,
-    onNavigateToAQDetail: (pageNumber: Int, scrollValue: Int) -> Unit
+    onNavigateToAQDetail: (pageNumber: Int, scrollValue: Int) -> Unit,
+    onNavigateToDonateScreen: () -> Unit,
 ) {
-//    Log.i("comp1", "DetailPagerScreen")
     val context = LocalContext.current
     val density = LocalDensity.current
     val statusBarHeight = WindowInsets.statusBars.getTop(density)
@@ -151,7 +166,6 @@ fun DetailPagerScreen(
 
     val titleCornerRadius = ((spaceAboveTitle - scrollState.value)/headerHeight).coerceIn(0f,1f) * 32.dp
     val temperatureY = when {
-//        scrollState.value < titleInitialScroll -> (scrollState.value - titleInitialScroll) / 5
         scrollState.value < 1.2f * titleInitialScroll -> 0f
         else -> -scrollState.value + 1.2f * titleInitialScroll
     }
@@ -160,27 +174,48 @@ fun DetailPagerScreen(
         derivedStateOf { scrollState.value < context.windowHeight }
     }
 
-    val imageBitmap by remember(key1 = pageNumber) {
-        mutableStateOf(ContextCompat.getDrawable(
-            context,
-            when(pageNumber){
-                0 -> R.drawable.ax2_c
-                1 -> R.drawable.ax3_c
-                else -> R.drawable.ax4_c
+    var imageBitmap by remember { mutableStateOf(initialLandscape) }
+    LaunchedEffect(
+        key1 = detailState.lastPicId,
+        key2 = detailState.picName,
+        key3 = detailState.currentPictureUrl
+    ) {
+        Log.i("land1", "lastPicId = ${detailState.lastPicId} , picName = ${detailState.picName} , url = ${detailState.currentPictureUrl}")
+        val file = File(
+            context.filesDir,
+            "pictures/pic${detailState.lastPicId}/${detailState.picName}.jpeg"
+        )
+        val request = ImageRequest.Builder(context)
+            .data(
+                if (file.exists()) file
+                else "${detailState.currentPictureUrl}/${detailState.picName}.jpeg"
+            )
+            .transformations(object : Transformation() {
+                override val cacheKey: String = "force_alpha"
+                override suspend fun transform(input: coil3.Bitmap, size: coil3.size.Size): coil3.Bitmap {
+                    return input.copy(Bitmap.Config.ARGB_8888, true)
+                }
+            })
+            .target {
+                Log.i("land1", "image width = ${it.width}")
+                imageBitmap = it.toBitmap()
             }
-        )!!.toBitmap())
-//            ImageBitmap.imageResource(R.drawable.ax2).asAndroidBitmap()
+            .build()
+
+        context.imageLoader.execute(request)
     }
-    val blurredImage by remember(key1 = pageNumber) {
+
+    val blurredImage by remember(key1 = imageBitmap) {
         mutableStateOf(Toolkit.blur(inputBitmap = imageBitmap, radius = 3).asImageBitmap())
-//        mutableStateOf(ContextCompat.getDrawable(context, R.drawable.ax4_c)!!.toBitmap().asImageBitmap())
     }
+    var infoBottomSheetVisible by rememberSaveable { mutableStateOf(false) }
+    val infoSheetState = rememberModalBottomSheetState()
 
     LaunchedEffect(scrollState.isScrollInProgress){
         if (!scrollState.isScrollInProgress &&
             scrollState.value.toFloat() in spaceAboveTitle - statusBarHeight .. spaceAboveTitle){
             scrollState.animateScrollTo(
-                value = spaceAboveTitle.toInt(),
+                value = spaceAboveTitle.toInt() + 1,
                 animationSpec = tween(durationMillis = 300)
             )
         }
@@ -194,7 +229,7 @@ fun DetailPagerScreen(
                     animationSpec = tween(durationMillis = 500)
                 )
                 delay(100)
-                detailViewModel.initializeXAxisBounds(updatingPageNumber)
+//                detailViewModel.initializeXAxisBounds(updatingPageNumber)
                 detailViewModel.updateChartsVisibility(visible = true, pageIndex = updatingPageNumber)
             }
         }
@@ -215,7 +250,7 @@ fun DetailPagerScreen(
     }
 
 
-    val infiniteTransition = rememberInfiniteTransition(label = "clock")
+    /*val infiniteTransition = rememberInfiniteTransition(label = "clock")
     val clockColonVisibility by infiniteTransition.animateValue(
         initialValue = 0f,
         targetValue = 1f,
@@ -225,74 +260,175 @@ fun DetailPagerScreen(
             repeatMode = RepeatMode.Restart
         ),
         label = "clock colon"
-    )
-    val subtitleVerticalSpace = (dimensionResource(id = R.dimen.detail_screen_subtitle_height) +
-            dimensionResource(id = R.dimen.detail_screen_subtitle_vertical_padding) * 2).toPx(density)
-    val timeAlpha by remember(key1 = pageNumber) {
-        derivedStateOf {
-            when {
-                scrollState.value < spaceAboveTitle -> 1f
-                else -> ((spaceAboveTitle + subtitleVerticalSpace - scrollState.value)/subtitleVerticalSpace)
-                    .coerceAtLeast(0f)
-            }
-        }
-    }
+    )*/
+//    val subtitleVerticalSpace = (dimensionResource(id = R.dimen.detail_screen_subtitle_height) +
+//            dimensionResource(id = R.dimen.detail_screen_subtitle_vertical_padding) * 2).toPx(density)
+//    val timeAlpha by remember(key1 = pageNumber) {
+//        derivedStateOf {
+//            when {
+//                scrollState.value < spaceAboveTitle -> 1f
+//                else -> ((spaceAboveTitle + subtitleVerticalSpace - scrollState.value)/subtitleVerticalSpace)
+//                    .coerceAtLeast(0f)
+//            }
+//        }
+//    }
 
+    var topTabHeight = 0
     val layoutDirection = LocalLayoutDirection.current
+    val scrollBehavior = customScrollBehavior(
+        contentScrollState = scrollState,
+        topBarScrollLimit = spaceAboveTitle,
+        canScroll = detailState::scrollEnabled
+    )
+
     Scaffold(
         modifier = modifier,
         topBar = {
-            CenterAlignedTopAppBar(
+            Column(
                 modifier = Modifier.background(
                     if (showTemperature) Transparent
                     else MaterialTheme.colorScheme.primaryContainer
                 ),
-                title = {
-                    Text(
-                        text = if (showTemperature) "" else  location.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                },
-                navigationIcon = {
-                    if (singlePane) {
-                        IconButton(onClick = {
-                            detailViewModel.updateNavigateBack(
-                                state = true,
-                                pageIndex = pageNumber
-                            )
-                        }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    if (timeAlpha < 1f) {
+            ){
+                CenterAlignedTopAppBar(
+                    title = {
                         Text(
-                            modifier = Modifier
-                                .padding(horizontal = 8.dp)
-                                .alpha(1 - timeAlpha),
-                            text = if (clockColonVisibility <= 0.5f)
-                                detailState.localDateTime.toLocalTime()
-                                    .format(DateTimeFormatter.ofPattern("HH\u200C:\u200Cmm"))
-                            else detailState.localDateTime.toLocalTime()
-                                .format(DateTimeFormatter.ofPattern("HH\u200C \u200Cmm")),
-                            fontFamily = timeFontFamily,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            text = if (showTemperature) "" else  location.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color(0x00FFFFFF)
-                ),
-                windowInsets = WindowInsets(
-                    left = 0, top = TopAppBarDefaults.windowInsets.getTop(density), right = 0, bottom = 0
+                    },
+                    navigationIcon = {
+                        if (singlePane) {
+                            IconButton(onClick = {
+                                detailViewModel.updateNavigateBack(
+                                    state = true,
+                                    pageIndex = pageNumber
+                                )
+                            }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    },
+                    actions = {
+                        when(detailState.selectedTab) {
+                            DetailTabs.Now -> {}
+                            DetailTabs.Hourly -> {
+                                HourlyDiagramSettingsOptions(
+                                    hourlyChartState = hourlyChartState,
+                                    settingsOpen = detailState.hourlyDiagramSettingOpen,
+                                    pageNumber = pageNumber,
+                                    onUpdateHourlyDiagramSettingOpen = remember(pageNumber) {
+                                        detailViewModel::updateHourlyDiagramSettingOpen
+                                    },
+                                    onUpdateChartWeatherConditionVisibility = remember(pageNumber) {
+                                        detailViewModel::updateHourlyChartWeatherIconVisibility
+                                    },
+                                    onUpdateChartDotsOnCurveVisibility = remember(pageNumber) {
+                                        detailViewModel::updateHourlyChartDotsOnCurveVisibility
+                                    },
+                                    onUpdateChartCurveShadowVisibility = remember(pageNumber) {
+                                        detailViewModel::updateHourlyChartCurveShadowVisibility
+                                    },
+                                    onUpdateChartSunRiseSetIconsVisibility = remember(pageNumber) {
+                                        detailViewModel::updateHourlyChartSunRiseSetIconsVisibility
+                                    },
+                                    onUpdateChartGrids = remember(pageNumber) {
+                                        detailViewModel::updateHourlyChartGrid
+                                    },
+                                    onUpdateChartTheme = remember(pageNumber) {
+                                        detailViewModel::updateHourlyChartTheme
+                                    }
+                                )
+                            }
+                            DetailTabs.Daily -> {
+                                DailyDiagramSettingsOptions(
+                                    hourlyChartState = hourlyChartState,
+                                    settingsOpen = detailState.dailyDiagramSettingOpen,
+                                    pageNumber = pageNumber,
+                                    weatherConditionIconsVisible = dailyChartState.weatherConditionIconsVisible,
+                                    onUpdateDailyDiagramSettingOpen = remember(pageNumber) {
+                                        detailViewModel::updateDailyDiagramSettingOpen
+                                    },
+                                    onUpdateChartWeatherConditionVisibility = remember(pageNumber) {
+                                        detailViewModel::updateDailyChartWeatherIconVisibility
+                                    },
+                                    onUpdateChartCurveShadowVisibility = remember(pageNumber) {
+                                        detailViewModel::updateHourlyChartCurveShadowVisibility
+                                    },
+                                    onUpdateChartGrids = remember(pageNumber) {
+                                        detailViewModel::updateHourlyChartGrid
+                                    },
+                                    onUpdateChartTheme = remember(pageNumber) {
+                                        detailViewModel::updateHourlyChartTheme
+                                    }
+                                )
+                            }
+                            DetailTabs.History -> {
+                                if (appSettings.hasDonated) {
+                                    HistoricHourlyDiagramSettingsOptions(
+                                        hourlyChartState = hourlyChartState,
+                                        settingsOpen = detailState.hourlyDiagramSettingOpen,
+                                        pageNumber = pageNumber,
+                                        onUpdateHourlyDiagramSettingOpen = remember(pageNumber) {
+                                            detailViewModel::updateHourlyDiagramSettingOpen
+                                        },
+                                        onUpdateChartWeatherConditionVisibility = remember(
+                                            pageNumber
+                                        ) {
+                                            detailViewModel::updateHourlyChartWeatherIconVisibility
+                                        },
+                                        onUpdateChartDotsOnCurveVisibility = remember(pageNumber) {
+                                            detailViewModel::updateHourlyChartDotsOnCurveVisibility
+                                        },
+                                        onUpdateChartCurveShadowVisibility = remember(pageNumber) {
+                                            detailViewModel::updateHourlyChartCurveShadowVisibility
+                                        },
+                                        onUpdateChartGrids = remember(pageNumber) {
+                                            detailViewModel::updateHourlyChartGrid
+                                        },
+                                        onUpdateChartTheme = remember(pageNumber) {
+                                            detailViewModel::updateHourlyChartTheme
+                                        }
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        infoBottomSheetVisible = !infoBottomSheetVisible
+                                    }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.info_24px),
+                                        contentDescription = "information"
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Transparent,
+                        scrolledContainerColor = Transparent
+                    ),
+                    windowInsets = WindowInsets(
+                        left = 0, top = TopAppBarDefaults.windowInsets.getTop(density), right = 0, bottom = 0
+                    ),
+                    scrollBehavior = scrollBehavior
                 )
-            )
+                topTabHeight = detailPagerTopTabs(
+                    modifier = Modifier.graphicsLayer {
+                        alpha = if (showTemperature) 0f else 1f
+                    },
+                    localDateTime = detailState.localDateTime,
+                    selectedTabIndex = detailState.selectedTab.ordinal,
+                    onUpdateSelectedTabIndex = {
+                        detailViewModel.updateSelectedTabIndex(tab = it, pageIndex = pageNumber)
+                    }
+                )
+            }
         }
     ) { paddingValues ->
         AnimatedVisibility (detailState.chooseDiagramThemeDialogVisible) {
@@ -318,13 +454,7 @@ fun DetailPagerScreen(
             if (showTemperature) {
                 Image(
                     modifier = Modifier.fillMaxSize(),
-                    painter = painterResource(
-                        when (pageNumber) {
-                            0 -> R.drawable.ax2
-                            1 -> R.drawable.ax3
-                            else -> R.drawable.ax4
-                        }
-                    ),
+                    bitmap = imageBitmap.asImageBitmap(),
                     contentDescription = null,
                     contentScale = ContentScale.FillHeight
                 )
@@ -368,148 +498,177 @@ fun DetailPagerScreen(
                             ) {
                                 this@drawWithContent.drawContent()
                             }
-                        }
-                        /*.graphicsLayer {
-                            scaleX = axScale
-                            scaleY = axScale
-                        }*/,
+                        },
                     bitmap = blurredImage,
                     contentDescription = null,
                     contentScale = ContentScale.FillHeight
                 )
             }
 
-//            Image(
-//                modifier = Modifier
-//                    .fillMaxSize()
-//                    .drawWithContent {
-//                        clipPath(
-//                            path = Path().apply {
-//                                addRoundRect(
-//                                    RoundRect(
-//                                        rect = Rect(
-//                                            offset = Offset(0f, detailState.headerTopPosition),
-//                                            size = Size(detailScreenWidth.toFloat(), 5000f)
-//                                        ),
-//                                        cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx())
-//                                    )
-//                                )
-//                            }
-//                        ){
-//                            this@drawWithContent.drawContent()
-//                        }
-//                    }
-//                    .blur(
-//                        radius = 4.dp,
-//                        edgeTreatment = BlurredEdgeTreatment.Rectangle
-//                    ),
-//                painter = painterResource(R.drawable.ax2_c),
-//                contentDescription = null,
-//                contentScale = ContentScale.FillHeight
-//            )
-            WeatherDataColumn(
+            WeatherDataColumn2(
+                modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
                 endPadding = paddingValues.calculateEndPadding(layoutDirection),
                 hourlyChartData = hourlyChartData,
                 dailyChartData = dailyChartData,
-//                pageIndex = pageNumber,
+                historicalHourlyData = historicalHourlyData,
+                historicalDailyData = historicalDailyData,
                 appSettings = appSettings,
                 detailState = detailState,
                 hourlyChartState = hourlyChartState,
                 dailyChartState = dailyChartState,
-//                scrollState = scrollState,
-//                showTemperature = showTemperature,
+                historicalChartState = historicalChartState,
+                historicalDailyChartState = historicalDailyChartState,
                 spaceAboveTitle = spaceAboveTitle,
                 bottomPadding = paddingValues.calculateBottomPadding(),
                 headerHeight = headerHeight,
                 cornerRadius = titleCornerRadius,
-                timeAlpha = timeAlpha,
-                onAddYAxis = remember(pageNumber) {{ start, end, diagramHeight, textMeasurer,
-                                                     axisIndex: Int?, curveAnimatorInitialValue: Float ->
-                    detailViewModel.addYAxis(
-                        start,
-                        end,
-                        updatingPageNumber,
-                        diagramHeight,
-                        textMeasurer,
-                        axisIndex,
-                        curveAnimatorInitialValue
-                    )
-                }},
-                onUpdateDailyYAxis = remember(pageNumber) {{ quantity: DailyWeatherQuantity->
-                    detailViewModel.updateDailyYAxis(quantity, updatingPageNumber)
-                }},
-                onMoveHourlyDiagramAxis = remember(pageNumber) {{ offset ->
-                    detailViewModel.moveHourlyDiagramAxis(
-                        offset = offset,
-                        pageIndex = updatingPageNumber
-                    )
-                }},
-                onScaleHourlyDiagramAxis = remember(pageNumber) {{ center, zoomX, zoomY ->
-                    detailViewModel.scaleHourlyDiagramAxis(
-                        center = center,
-                        scaleX = zoomX,
-                        scaleY = zoomY,
-                        pageIndex = updatingPageNumber
-                    )
-                }},
-                onScaleBack = remember(pageNumber) {{ center ->
-                    coroutineScope.launch {
-                        detailViewModel.scaleToNormalHourlyDiagramAxis(center, updatingPageNumber)
+                tab = detailState.selectedTab,
+                tabHeight = topTabHeight.toFloat(),
+//                timeAlpha = timeAlpha,
+                onAddYAxis = remember(pageNumber) {
+                    {
+                        start, end, diagramHeight, textMeasurer, axisIndex: Int?,
+                        curveAnimatorInitialValue: Float, isHistoric,
+                        ->
+                        detailViewModel.addYAxis(
+                            start = start,
+                            end = end,
+                            pageIndex = updatingPageNumber,
+                            diagramHeight = diagramHeight,
+                            textMeasurer = textMeasurer,
+                            axisIndex = axisIndex,
+                            curveAnimatorInitialValue = curveAnimatorInitialValue,
+                            isHistoric = isHistoric
+                        )
                     }
-                }},
-                undoHourlyDiagramScaleMove = remember(pageNumber) {{
-                    coroutineScope.launch {
-                        detailViewModel.undoHourlyDiagramAxisMoveScale(updatingPageNumber)
+                },
+                onUpdateDailyYAxis = remember(pageNumber) {
+                    { quantity, curveAnimatorInitialValue, isHistoric ->
+                        detailViewModel.updateDailyYAxis(
+                            quantity, updatingPageNumber,
+                            isHistoric = isHistoric,
+                            curveAnimatorInitialValue
+                        )
                     }
-                }},
-                onMoveDailyDiagramAxis = remember(pageNumber) {{ offset ->
-                    detailViewModel.moveDailyDiagramAxis(
-                        offset = offset,
-                        pageIndex = updatingPageNumber
-                    )
-                }},
-                onScaleDailyDiagramAxis = remember(pageNumber) {{ center, zoomX, zoomY ->
-                    detailViewModel.scaleDailyDiagramAxis(
-                        center = center,
-                        scaleX = zoomX,
-                        scaleY = zoomY,
-                        pageIndex = updatingPageNumber
-                    )
-                }},
-                onScaleBackDaily = remember(pageNumber) {{ center ->
-                    coroutineScope.launch {
-                        detailViewModel.scaleToNormalDailyDiagramAxis(center, updatingPageNumber)
+                },
+                onMoveHourlyDiagramAxis = remember(pageNumber) {
+                    { offset, isHistoric ->
+                        detailViewModel.moveHourlyDiagramAxis(
+                            offset = offset,
+                            pageIndex = updatingPageNumber,
+                            isHistoric = isHistoric
+                        )
                     }
-                }},
-                undoDailyDiagramScaleMove = remember(pageNumber){{
-                    coroutineScope.launch {
-                        detailViewModel.undoDailyDiagramAxisMoveScale(updatingPageNumber)
+                },
+                onScaleHourlyDiagramAxis = remember(pageNumber) {
+                    { center, zoomX, zoomY, isHistoric ->
+                        detailViewModel.scaleHourlyDiagramAxis(
+                            center = center,
+                            scaleX = zoomX,
+                            scaleY = zoomY,
+                            pageIndex = updatingPageNumber,
+                            isHistoric = isHistoric
+                        )
                     }
-                }},
+                },
+                onScaleBack = remember(pageNumber) {
+                    { center, isHistoric ->
+                        coroutineScope.launch {
+                            detailViewModel.scaleToNormalHourlyDiagramAxis(
+                                center,
+                                updatingPageNumber,
+                                isHistoric
+                            )
+                        }
+                    }
+                },
+                undoHourlyDiagramScaleMove = remember(pageNumber) {
+                    {
+                        coroutineScope.launch {
+                            detailViewModel.undoHourlyDiagramAxisMoveScale(updatingPageNumber)
+                        }
+                    }
+                },
+                onMoveDailyDiagramAxis = remember(pageNumber) {
+                    { offset, isHistoric ->
+                        detailViewModel.moveDailyDiagramAxis(
+                            offset = offset,
+                            pageIndex = updatingPageNumber,
+                            isHistoric = isHistoric
+                        )
+                    }
+                },
+                onScaleDailyDiagramAxis = remember(pageNumber) {
+                    { center, zoomX, zoomY, isHistoric ->
+                        detailViewModel.scaleDailyDiagramAxis(
+                            center = center,
+                            scaleX = zoomX,
+                            scaleY = zoomY,
+                            pageIndex = updatingPageNumber,
+                            isHistoric = isHistoric
+                        )
+                    }
+                },
+                onScaleBackDaily = remember(pageNumber) {
+                    { center, isHistoric ->
+                        coroutineScope.launch {
+                            detailViewModel.scaleToNormalDailyDiagramAxis(
+                                center,
+                                updatingPageNumber,
+                                isHistoric
+                            )
+                        }
+                    }
+                },
+                undoDailyDiagramScaleMove = remember(pageNumber) {
+                    {
+                        coroutineScope.launch {
+                            detailViewModel.undoDailyDiagramAxisMoveScale(updatingPageNumber)
+                        }
+                    }
+                },
                 onCalculateHorizontalBarSeparation = remember(pageNumber) {
                     detailViewModel::calculateHorizontalBarSeparation
                 },
                 onCalculateVerticalBarSeparation = remember(pageNumber) {
                     detailViewModel::calculateVerticalBarSeparation
                 },
-                onAddChartQuantity = remember(pageNumber) {{
-                    detailViewModel.addChartQuantity(it, updatingPageNumber)
-                }},
-                onRemoveChartQuantity = remember(pageNumber) {{
-                     detailViewModel.removeChartQuantity(it, updatingPageNumber)
-                }},
-                onUpdateDailyChartQuantity = remember(pageNumber) {{
-                    detailViewModel.updateDailyChartQuantity(it, updatingPageNumber)
-                }},
+                onAddHourlyChartQuantity = remember(pageNumber) {
+                    { hourlyWeatherQuantity, isHistoric ->
+                        detailViewModel.addChartQuantity(
+                            hourlyWeatherQuantity,
+                            updatingPageNumber,
+                            isHistoric
+                        )
+                    }
+                },
+                onRemoveHourlyChartQuantity = remember(pageNumber) {
+                    { hourlyWeatherQuantity, isHistoric ->
+                        detailViewModel.removeChartQuantity(
+                            hourlyWeatherQuantity,
+                            updatingPageNumber,
+                            isHistoric
+                        )
+                    }
+                },
+                onUpdateDailyChartQuantity = remember(pageNumber) {
+                    { quantity, isHistoric ->
+                        detailViewModel.updateDailyChartQuantity(quantity, updatingPageNumber, isHistoric)
+                    }
+                },
 //                onRemoveDailyChartQuantity = {
 //                    detailViewModel.removeDailyChartQuantity(it, pageNumber)
 //                },
-                onUpdateHourlyDiagramSettingOpen = remember(pageNumber) {{
-                    detailViewModel.updateHourlyDiagramSettingOpen(it, updatingPageNumber)
-                }},
-                onUpdateDailyDiagramSettingOpen = remember(pageNumber) {{
-                    detailViewModel.updateDailyDiagramSettingOpen(it, updatingPageNumber)
-                }},
+                onUpdateHourlyDiagramSettingOpen = remember(pageNumber) {
+                    {
+                        detailViewModel.updateHourlyDiagramSettingOpen(it, updatingPageNumber)
+                    }
+                },
+                onUpdateDailyDiagramSettingOpen = remember(pageNumber) {
+                    {
+                        detailViewModel.updateDailyDiagramSettingOpen(it, updatingPageNumber)
+                    }
+                },
                 onUpdateChartWeatherConditionVisibility = remember(pageNumber) {
                     detailViewModel::updateHourlyChartWeatherIconVisibility
                 },
@@ -528,37 +687,125 @@ fun DetailPagerScreen(
                 onUpdateChartGrids = remember(pageNumber) {
                     detailViewModel::updateHourlyChartGrid
                 },
-                onUpdateChooseDiagramThemeDialogVisibility = remember(pageNumber) {{
-                    detailViewModel.updateChooseDiagramThemeDialogVisibility(
-                        visible = true,
-                        pageIndex = updatingPageNumber
-                    )
-                }},
-                onUpdateHourlyDiagramSettingRectangle = remember(pageNumber) {{
-                    detailViewModel.updateHourlyDiagramSettingRectangle(it, updatingPageNumber)
-                }},
-                onUpdateDailyDiagramSettingRectangle = remember(pageNumber) {{
-                    detailViewModel.updateDailyDiagramSettingRectangle(it, updatingPageNumber)
-                }},
-                onUpdateHourlyThumbPosition = remember(pageNumber) {{
-                    detailViewModel.updateSliderThumbPosition(it, updatingPageNumber)
-                }},
-                onUpdateDailyThumbPosition = remember(pageNumber) {{
-                    detailViewModel.updateDailySliderThumbPosition(it, updatingPageNumber)
-                }},
-                onUpdateHourlyCurveValueAtIndicator = remember(pageNumber) {{ curveIndex, value ->
-                    detailViewModel.updateCurveValueAtIndicator(curveIndex, value, updatingPageNumber)
-                }},
-                onUpdateDailyCurveValueAtIndicator = remember(pageNumber) {{ valueMin, valueMax ->
-                    detailViewModel.updateDailyCurveValueAtIndicator(valueMin, valueMax, updatingPageNumber)
-                }},
-                onNavigateToAQDetailScreen = remember(pageNumber) {{
-                    onNavigateToAQDetail(updatingPageNumber, scrollState.value)
-                }},
+                onUpdateChooseDiagramThemeDialogVisibility = remember(pageNumber) {
+                    {
+                        detailViewModel.updateChooseDiagramThemeDialogVisibility(
+                            visible = true,
+                            pageIndex = updatingPageNumber
+                        )
+                    }
+                },
+                onUpdateHourlyDiagramSettingRectangle = remember(pageNumber) {
+                    {
+                        detailViewModel.updateHourlyDiagramSettingRectangle(it, updatingPageNumber)
+                    }
+                },
+                onUpdateDailyDiagramSettingRectangle = remember(pageNumber) {
+                    {
+                        detailViewModel.updateDailyDiagramSettingRectangle(it, updatingPageNumber)
+                    }
+                },
+                onUpdateHourlyThumbPosition = remember(pageNumber) {
+                    { movement, isHistoric ->
+                        detailViewModel.updateSliderThumbPosition(
+                            movement,
+                            updatingPageNumber,
+                            isHistoric
+                        )
+                    }
+                },
+                onUpdateDailyThumbPosition = remember(pageNumber) {
+                    { movement, isHistoric ->
+                        detailViewModel.updateDailySliderThumbPosition(movement, updatingPageNumber, isHistoric)
+                    }
+                },
+                onUpdateHourlyCurveValueAtIndicator = remember(pageNumber) {
+                    { curveIndex, value, isHistoric ->
+                        detailViewModel.updateCurveValueAtIndicator(
+                            curveIndex,
+                            value,
+                            updatingPageNumber,
+                            isHistoric
+                        )
+                    }
+                },
+                onUpdateDailyCurveValueAtIndicator = remember(pageNumber) {
+                    { valueMin, valueMax, isHistoric ->
+                        detailViewModel.updateDailyCurveValueAtIndicator(
+                            valueMin,
+                            valueMax,
+                            updatingPageNumber,
+                            isHistoric
+                        )
+                    }
+                },
+                onNavigateToAQDetailScreen = remember(pageNumber) {
+                    {
+                        onNavigateToAQDetail(updatingPageNumber, scrollState.value)
+                    }
+                },
+                onUpdateSelectedTab = remember(pageNumber) {
+                    { tab ->
+                        detailViewModel.updateSelectedTabIndex(
+                            tab = tab,
+                            pageIndex = updatingPageNumber
+                        )
+                    }
+                },
+                onAnimateHourlyDiagramAxis = remember(pageNumber) {
+                    { date ->
+                        coroutineScope.launch {
+                            detailViewModel.animateHourlyDiagramAxis(
+                                date = date,
+                                pageIndex = updatingPageNumber
+                            )
+                        }
+                    }
+                },
+                onReloadHistoricalData = remember(pageNumber) {
+                    { detailViewModel.reloadHistoricalData(updatingPageNumber) }
+                },
+                onAnimateDailyDiagramAxis = remember(pageNumber) {
+                    { date ->
+                        coroutineScope.launch {
+                            detailViewModel.animateDailyDiagramAxis(
+                                date = date,
+                                pageIndex = updatingPageNumber
+                            )
+                        }
+                    }
+                },
+                onReloadHistoricalDailyData = remember(pageNumber) {
+                    { detailViewModel.reloadHistoricalDailyData(updatingPageNumber) }
+                },
+                onNavigateToDonateScreen = onNavigateToDonateScreen,
+
 //                sharedTransitionScope = sharedTransitionScope,
 //                animatedContentScope = animatedContentScope
             )
 
+        }
+        if (infoBottomSheetVisible) {
+            ModalBottomSheet(
+                sheetState = infoSheetState,
+                onDismissRequest = {
+                    infoBottomSheetVisible = false
+                }
+            ) {
+                Text(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    text = "Historical Weather",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontFamily = gerdFontFamily
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    text = stringResource(R.string.history_weather_description),
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Start
+                )
+            }
         }
     }
 
@@ -569,7 +816,7 @@ fun Temperatures(
     modifier: Modifier = Modifier,
     detailState: DetailState,
     appSettings: AppSettings,
-    topSpacerHeight: Dp
+    topSpacerHeight: Dp,
 ) {
     val tempUnit = appSettings.temperatureUnit
     val firstPointX = 0f
@@ -585,7 +832,7 @@ fun Temperatures(
 //        weatherQuantity = WeatherQuantity.APPARENTTEMP,
 //    )
     val currentTemperature = weatherCurveXtoY(
-        quantity = WeatherQuantity.TEMPERATURE,
+        quantity = HourlyWeatherQuantity.TEMPERATURE,
         appSettings = appSettings,
         hourlyWeather = detailState.currentDayHourlyWeather,
         firstPointX = firstPointX,
@@ -593,7 +840,7 @@ fun Temperatures(
         targetX = detailState.targetX
     )
     val apparentTemperature = weatherCurveXtoY(
-        quantity = WeatherQuantity.APPARENTTEMP,
+        quantity = HourlyWeatherQuantity.APPARENTTEMP,
         appSettings = appSettings,
         hourlyWeather = detailState.currentDayHourlyWeather,
         firstPointX = firstPointX,
@@ -615,7 +862,7 @@ fun Temperatures(
                 baselineShift = BaselineShift.Superscript
             )
         ){
-            append(WeatherQuantity.TEMPERATURE.unit(appSettings).trim('°'))
+            append(HourlyWeatherQuantity.TEMPERATURE.unit(appSettings).trim('°'))
         }
     }
 
@@ -704,9 +951,11 @@ fun DetailPagerScreenPreview() {
                     detailState = DetailState(),
                     detailViewModel = hiltViewModel(),
 //                    scrollState = rememberScrollState(),
+                    initialLandscape = createBitmap(bitmapWidth, bitmapHeight),
                     onResetScrollStates = {},
                     onNavigateUp = {_ -> },
-                    onNavigateToAQDetail = {_, _ -> }
+                    onNavigateToAQDetail = {_, _ -> },
+                    onNavigateToDonateScreen = {}
 //                    sharedTransitionScope = this@SharedTransitionLayout,
 //                    animatedContentScope = this
                 )

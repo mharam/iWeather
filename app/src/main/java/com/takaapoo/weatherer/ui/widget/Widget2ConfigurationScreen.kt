@@ -29,8 +29,8 @@ import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
-import com.takaapoo.weatherer.ui.screens.settings.ChooseLocationDialog
-import com.takaapoo.weatherer.ui.screens.settings.ChooseTimeAxisDialog
+import com.takaapoo.weatherer.ui.screens.settings.dialogs.ChooseLocationDialog
+import com.takaapoo.weatherer.ui.screens.settings.dialogs.ChooseTimeAxisDialog
 import com.takaapoo.weatherer.ui.screens.settings.SettingsRow1
 
 @OptIn(ExperimentalMaterial3Api::class)

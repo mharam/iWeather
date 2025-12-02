@@ -1,6 +1,7 @@
 package com.takaapoo.weatherer.ui.screens.home
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloat
@@ -16,19 +17,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,8 @@ import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.DailyChartState
 import com.takaapoo.weatherer.domain.model.DetailState
+import com.takaapoo.weatherer.domain.model.HistoricDailyChartDto
+import com.takaapoo.weatherer.domain.model.HistoricHourlyChartDto
 import com.takaapoo.weatherer.domain.model.HomePaneContent
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartState
@@ -67,28 +70,29 @@ fun HomeItemDetailPane(
     dailyChartStateList: List<DailyChartState>,
     hourlyChartsData: List<List<HourlyChartDto>>,
     dailyChartsData: List<List<LocalDailyWeather>>,
-//    locationListState: List<LocationsState>,
-//    notificationHourlyChartData: List<HourlyChartDto>,
+    historicalHourlyChartData:  List<List<HistoricHourlyChartDto>>,
+    historicalDailyChartData:  List<List<HistoricDailyChartDto>>,
+    historicalChartStateList: List<HourlyChartState>,
+    historicalDailyChartStateList: List<DailyChartState>,
 
 //    sharedTransitionScope: SharedTransitionScope,
 //    animatedVisibilityScope: AnimatedVisibilityScope,
 
     singlePane: Boolean,
-//    locationsCount: Int,
-//    notificationBitmap: Bitmap?,
-//    notificationTemperatureBitmap: Bitmap?,
     permanentDrawer: Boolean,
+    drawerOpen: Boolean,
     appSettings: AppSettings,
-    weatherDataLoadStatus: Map<Int, MyResult<Unit>>,
+    weatherDataLoadStatus: Map<Int, MyResult<*>>,
     onMenuButtonClick: () -> Unit,
     onNavigateToAddLocationScreen: () -> Unit,
     onReloadALocationWeatherData: (location: Location) -> Unit,
-//    onUpdateNotifChannelDialogVisibility: (visible: Boolean) -> Unit,
-//    onUpdateNotificationBitmap: (bitmap: Bitmap?) -> Unit,
-//    onUpdateTemperatureBitmap: (bitmap: Bitmap?) -> Unit,
+    onUpdateNotificationLocationId: (id: Int?) -> Unit,
+    onUpdateNotificationVisibility: (visible: Boolean) -> Unit,
+    onUpdateWidgetLocationId: (id: Int?) -> Unit,
+    onNavigateToDonateScreen: () -> Unit,
 ) {
     val density = LocalDensity.current
-    val mainActivity = LocalContext.current as MainActivity
+    val mainActivity = LocalActivity.current as MainActivity
     val homePaneState by homeViewModel.homePaneState.collectAsStateWithLifecycle()
     val homeState by homeViewModel.homeState.collectAsStateWithLifecycle()
     val locationListState by homeViewModel.locationsState.collectAsStateWithLifecycle()
@@ -102,6 +106,7 @@ fun HomeItemDetailPane(
 
     val cardHeightPx = dimensionResource(R.dimen.home_card_max_height).toPx(density)
     val zoomMax = mainActivity.windowHeight / cardHeightPx
+    var width by remember { mutableStateOf(0.dp) }
 
     val transition = updateTransition(
         targetState = homeState.zoom,
@@ -143,18 +148,48 @@ fun HomeItemDetailPane(
     ) { state -> if (state) 90f else 0f }
     val detailState by detailViewModel.detailState.collectAsStateWithLifecycle()
 
-    if (locationListState.isEmpty()){
+    LaunchedEffect(width) {
+        detailViewModel.reInitialize()
+        detailViewModel.updateInitialXAxisBounds(
+            detailScreenWidth = if (singlePane) width else width / 2
+        )
+        for (pageIndex in detailState.indices) {
+            detailViewModel.initializeXAxisBounds(pageIndex)
+        }
+    }
+
+    val locationIDs = locationListState.map { it.locationId }
+    LaunchedEffect(key1 = locationIDs) {
+        if (locationListState.firstOrNull()?.locationId != -2) {
+            if (locationListState.isEmpty()) {
+                onUpdateNotificationLocationId(null)
+                onUpdateNotificationVisibility(false)
+                onUpdateWidgetLocationId(null)
+            } else {
+                if (appSettings.notificationLocationId == null ||
+                    locationListState.find { it.locationId == appSettings.notificationLocationId } == null
+                ) {
+                    onUpdateNotificationLocationId(locationListState.first().locationId)
+                }
+                if (appSettings.widgetLocationId == null ||
+                    locationListState.find { it.locationId == appSettings.widgetLocationId } == null
+                ) {
+                    onUpdateWidgetLocationId(locationListState.first().locationId)
+                }
+            }
+        }
+    }
+
+    if (locations.isEmpty()){
         HomeStartScreen(
             onNavigateToAddLocationScreen = onNavigateToAddLocationScreen
         )
-    } else if (locationListState.first().locationId != -2) {
+    }
+    else if (locations.first().id != -2) {
         Box(
             modifier = modifier.fillMaxSize()
                 .onSizeChanged {
-                    val width = it.width.toDp(density)
-                    detailViewModel.updateInitialXAxisBounds(
-                        detailScreenWidth = if (singlePane) width else width / 2
-                    )
+                    width = it.width.toDp(density)
                 }
         ) {
             var currentPage by rememberSaveable {
@@ -238,14 +273,14 @@ fun HomeItemDetailPane(
                                     homeViewModel.updateDayGaugeIndex(newVisibleDay = it)
                                 }
                             },
-                            onHandleClickSound = remember {
+                            /*onHandleClickSound = remember {
                                 { currentRotation, previousRotation ->
                                     homeViewModel.handleClickSound(
                                         currentRotation,
                                         previousRotation
                                     )
                                 }
-                            },
+                            },*/
                             onUpdateDialogVisibility = remember {
                                 { dialogType, visible ->
                                     homeViewModel.updateDialogVisibility(dialogType, visible)
@@ -336,7 +371,13 @@ fun HomeItemDetailPane(
                                 }
                             },
                             onReloadALocationWeatherData = onReloadALocationWeatherData,
-                            onUpdateClockGaugeLock = remember { homeViewModel::updateClockGaugeLock }
+                            onUpdateClockGaugeLock = remember { homeViewModel::updateClockGaugeLock },
+                            onDownloadAndSaveLandscapes = remember {
+                                { context, picId, picUrl, picName ->
+                                    homeViewModel.downloadAndSaveLandscapes(context, picId, picUrl, picName)
+                                }
+                            },
+                            onUpdateInitialLandscape = remember { detailViewModel::updateInitialLandScape }
                         )
                     }
                     else -> {
@@ -353,6 +394,10 @@ fun HomeItemDetailPane(
                             dailyChartStateList = dailyChartStateList,
                             hourlyChartsData = hourlyChartsData,
                             dailyChartsData = dailyChartsData,
+                            historicalHourlyChartData = historicalHourlyChartData,
+                            historicalDailyChartData = historicalDailyChartData,
+                            historicalChartStateList = historicalChartStateList,
+                            historicalDailyChartStateList = historicalDailyChartStateList,
                             detailViewModel = detailViewModel,
                             appSettings = appSettings,
                             pagerState = pagerState,
@@ -376,10 +421,11 @@ fun HomeItemDetailPane(
 //                            detailViewModel.updateScrollValue(value = scrollValue, pageIndex = pageNumber)
                                     homeViewModel.updateHomePaneContent(HomePaneContent.AIRQUALITY)
                                 }
-                            }
+                            },
+                            onNavigateToDonateScreen = onNavigateToDonateScreen,
                         )
                         if (homePaneState.paneContent == HomePaneContent.WEATHERDETAIL) {
-                            BackHandler {
+                            BackHandler(enabled = !drawerOpen) {
                                 detailViewModel.updateNavigateBack(
                                     state = true,
                                     pageIndex = pagerState.currentPage
@@ -396,6 +442,7 @@ fun HomeItemDetailPane(
                                     defaultValue = { DetailState() }),
                                 location = location,
                                 appSettings = appSettings,
+                                drawerOpen = drawerOpen,
                                 onNavigateUp = {
                                     homeViewModel.updateHomePaneContent(HomePaneContent.WEATHERDETAIL)
                                 }
@@ -413,6 +460,7 @@ fun HomeItemDetailPane(
                                 homeScreenWidth = it.width.toFloat()
                                 homeScreenHeight = it.height.toFloat()
                             },
+                        locations = locations,
                         homeState = homeState,
                         locationListState = locationListState.toImmutableList(),
                         appSettings = appSettings,
@@ -482,11 +530,11 @@ fun HomeItemDetailPane(
                                 homeViewModel.updateDayGaugeIndex(newVisibleDay = it)
                             }
                         },
-                        onHandleClickSound = remember {
+                        /*onHandleClickSound = remember {
                             { currentRotation, previousRotation ->
                                 homeViewModel.handleClickSound(currentRotation, previousRotation)
                             }
-                        },
+                        },*/
                         onUpdateDialogVisibility = remember {
                             { dialogType, visible ->
                                 homeViewModel.updateDialogVisibility(dialogType, visible)
@@ -592,7 +640,13 @@ fun HomeItemDetailPane(
                             }
                         },
                         onReloadALocationWeatherData = onReloadALocationWeatherData,
-                        onUpdateClockGaugeLock = remember { homeViewModel::updateClockGaugeLock }
+                        onUpdateClockGaugeLock = remember { homeViewModel::updateClockGaugeLock },
+                        onDownloadAndSaveLandscapes = remember {
+                            { context, picId, picUrl, picName ->
+                                homeViewModel.downloadAndSaveLandscapes(context, picId, picUrl, picName)
+                            }
+                        },
+                        onUpdateInitialLandscape = remember { detailViewModel::updateInitialLandScape }
                     )
                     Spacer(
                         modifier = Modifier
@@ -605,41 +659,13 @@ fun HomeItemDetailPane(
                             .fillMaxHeight()
                             .weight(1f)
                             .pointerInteropFilter {
-                                val touchPosition = Offset(it.x, it.y)
-                                if (detailState.isNotEmpty()) {
-                                    if (detailState[homePaneState.initialPage].hourlyDiagramSettingOpen) {
-                                        if (!detailState[homePaneState.initialPage].hourlyDiagramSettingRectangle.contains(
-                                                touchPosition
-                                            )
-                                        ) {
-                                            detailViewModel.updateHourlyDiagramSettingOpen(
-                                                open = false,
-                                                pageIndex = homePaneState.initialPage
-                                            )
-                                        }
-                                        return@pointerInteropFilter !detailState[homePaneState.initialPage]
-                                            .hourlyDiagramSettingRectangle.contains(touchPosition)
-                                    }
-                                    if (detailState[homePaneState.initialPage].dailyDiagramSettingOpen) {
-                                        if (!detailState[homePaneState.initialPage].dailyDiagramSettingRectangle.contains(
-                                                touchPosition
-                                            )
-                                        ) {
-                                            detailViewModel.updateDailyDiagramSettingOpen(
-                                                open = false,
-                                                pageIndex = homePaneState.initialPage
-                                            )
-                                        }
-                                        return@pointerInteropFilter !detailState[homePaneState.initialPage]
-                                            .dailyDiagramSettingRectangle.contains(touchPosition)
-                                    }
-                                }
                                 return@pointerInteropFilter false
                             },
                     ) {
                         if (homePaneState.initialPage >= 0 && detailState.isNotEmpty() &&
                             homePaneState.initialPage < detailState.size
                         ) {
+                            detailViewModel.updateDetailPagerIndex(homePaneState.initialPage)
                             DetailPagerScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -657,6 +683,14 @@ fun HomeItemDetailPane(
                                     index = homePaneState.initialPage,
                                     defaultValue = { DailyChartState() }
                                 ),
+                                historicalChartState = historicalChartStateList.getOrElse(
+                                    index = homePaneState.initialPage,
+                                    defaultValue = { HourlyChartState( chartQuantities = emptyList() ) }
+                                ),
+                                historicalDailyChartState = historicalDailyChartStateList.getOrElse(
+                                    index = homePaneState.initialPage,
+                                    defaultValue = { DailyChartState()}
+                                ),
                                 hourlyChartData = hourlyChartsData.getOrElse(
                                     index = homePaneState.initialPage,
                                     defaultValue = { emptyList() }
@@ -665,10 +699,20 @@ fun HomeItemDetailPane(
                                     index = homePaneState.initialPage,
                                     defaultValue = { emptyList() }
                                 ),
+                                historicalHourlyData = historicalHourlyChartData.getOrElse(
+                                    index = homePaneState.initialPage,
+                                    defaultValue = { emptyList() }
+                                ),
+                                historicalDailyData = historicalDailyChartData.getOrElse(
+                                    index = homePaneState.initialPage,
+                                    defaultValue = { emptyList() }
+                                ),
                                 pageNumber = homePaneState.initialPage,
 //                            scrollState = scrollStates[homePaneState.initialPage],
                                 singlePane = false,
                                 appSettings = appSettings,
+                                initialLandscape = detailViewModel.initialLandScape,
+
                                 onResetScrollStates = {},
                                 onNavigateUp = remember {
                                     { pageNumber ->
@@ -681,45 +725,15 @@ fun HomeItemDetailPane(
                                         currentPage = pageNumber
                                         homeViewModel.updateHomePaneContent(HomePaneContent.AIRQUALITY)
                                     }
-                                }
+                                },
+                                onNavigateToDonateScreen = remember { onNavigateToDonateScreen },
                             )
                         }
 
-                        /*val pagerState = rememberPagerState(
-                        initialPage = homePaneState.initialPage,
-                        pageCount = { homePaneState.listItemCount }
-                    )
-                    DetailScreen(
-                        modifier = Modifier.fillMaxSize()
-                            .alpha(if (homePaneState.paneContent == HomePaneContent.WEATHERDETAIL) 1f else 0f),
-                        detailState = detailState,
-                        detailViewModel = detailViewModel,
-                        appSettings = appSettings,
-                        pagerState = pagerState,
-                        onUpdateHomeSelectedItemIndex = { index: Int ->
-                            homeViewModel.updateSelectedItemIndexOffset(index = index)
-                        },
-                        onNavigateUp = remember {
-                            { pageNumber ->
-                                homeViewModel.updatePageNumberReturningFromDetail(page = pageNumber)
-                                homeViewModel.updateHomePaneContent(HomePaneContent.LOCATIONLIST)
-                            }
-                        },
-                        onNavigateToAQDetail = remember {{ pageNumber, scrollValue ->
-                            currentPage = pageNumber
-                            homeViewModel.updateHomePaneContent(HomePaneContent.AIRQUALITY)
-                        }}
-                    )*/
                         when (homePaneState.paneContent) {
                             HomePaneContent.WEATHERDETAIL -> {
-                                /*BackHandler {
-                                detailViewModel.updateNavigateBack(
-                                    state = true,
-                                    pageIndex = pagerState.currentPage
-                                )
-                            }*/
-                            }
 
+                            }
                             HomePaneContent.AIRQUALITY -> {
                                 val location = detailViewModel.allLocations.getOrElse(
                                     index = currentPage,
@@ -732,12 +746,12 @@ fun HomeItemDetailPane(
                                         defaultValue = { DetailState() }),
                                     location = location,
                                     appSettings = appSettings,
+                                    drawerOpen = drawerOpen,
                                     onNavigateUp = {
                                         homeViewModel.updateHomePaneContent(HomePaneContent.WEATHERDETAIL)
                                     }
                                 )
                             }
-
                             else -> {
                                 Spacer(modifier = Modifier.fillMaxSize())
                             }
@@ -748,6 +762,7 @@ fun HomeItemDetailPane(
             }
         }
     }
+
     LifecycleEventEffect(event = Lifecycle.Event.ON_RESUME) {
         detailViewModel.reInitialize()
         detailViewModel.adjustSettings()

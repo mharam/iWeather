@@ -36,6 +36,7 @@ import com.takaapoo.weatherer.ui.theme.OnDiagramDarkTheme
 import com.takaapoo.weatherer.ui.theme.OnDiagramLightTheme
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.utility.drawThickText
+import kotlin.math.abs
 
 
 @Composable
@@ -61,7 +62,6 @@ fun DailyDiagramCurve(
     barOrCurveGraph: Boolean,
     sliderPosition: Float,
 ) {
-//    Log.i("chart1", "DailyDiagramCurve")
     firstPointX ?: return
     val curveValueColor = when (chartTheme){
         ChartTheme.LIGHT, ChartTheme.DAYNIGHT -> OnDiagramLightTheme
@@ -193,6 +193,7 @@ fun curveBrush(
     verticalPadding: Float
 ): Brush {
     val yAxisLength = yAxisRange.endInclusive - yAxisRange.start
+    if (yAxisLength == 0f) return Brush.verticalGradient(colors = weatherQuantity.brushColors)
     return when(weatherQuantity){
         DailyWeatherQuantity.TEMPERATUREMINMAX -> {
             Brush.verticalGradient(
@@ -217,14 +218,14 @@ fun curveBrush(
             Brush.verticalGradient(
                 colors = weatherQuantity.brushColors,
                 startY = normalizedY(
-                    dataMax,
+                    24f,
                     yAxisRange.start,
                     yAxisLength,
                     verticalPadding,
                     diagramHeight
                 ),
                 endY = normalizedY(
-                    dataMin,
+                    0f,
                     yAxisRange.start,
                     yAxisLength,
                     verticalPadding,
@@ -251,12 +252,14 @@ fun curveBrush(
                 )
             )
         }
-        DailyWeatherQuantity.PRECIPITATIONSUM -> {
+        DailyWeatherQuantity.PRECIPITATIONSUM, DailyWeatherQuantity.TEMPERATUREMEAN,
+        DailyWeatherQuantity.WINDSPEEDMAX -> {
             Brush.verticalGradient(
                 colors = weatherQuantity.brushColors,
             )
         }
-        DailyWeatherQuantity.PRECIPITATIONPROBABILITYMAX -> {
+        DailyWeatherQuantity.PRECIPITATIONPROBABILITYMAX, DailyWeatherQuantity.CLOUDCOVERMEAN,
+        DailyWeatherQuantity.HUMIDITYMEAN -> {
             Brush.verticalGradient(
                 colors = weatherQuantity.brushColors,
                 startY = normalizedY(
@@ -273,11 +276,6 @@ fun curveBrush(
                     verticalPadding,
                     diagramHeight
                 )
-            )
-        }
-        DailyWeatherQuantity.WINDSPEEDMAX -> {
-            Brush.verticalGradient(
-                colors = weatherQuantity.brushColors,
             )
         }
     }
@@ -300,11 +298,19 @@ fun DrawScope.diagramBar(
 ){
     val xAxisLength = xAxisRange.endInclusive - xAxisRange.start
     val yAxisLength = yAxisRange.endInclusive - yAxisRange.start
+    if (yAxisLength == 0f) return
     var x = firstPointX
 
     data.forEach { dataRange ->
         dataRange?.let {
-            val rectangleHeight = (it.endInclusive - it.start) * diagramHeight / yAxisLength
+            if (weatherQuantity == DailyWeatherQuantity.SUNRISESET &&
+                abs(dataRange.start - dataRange.endInclusive) < 0.001f) return@let
+
+            val rectangleHeight =  when (weatherQuantity) {
+                DailyWeatherQuantity.TEMPERATUREMINMAX, DailyWeatherQuantity.SUNRISESET ->
+                    (it.endInclusive - it.start) * diagramHeight / yAxisLength
+                else -> it.endInclusive * diagramHeight / yAxisLength
+            }
             val rectangleWidth = 8.dp.toPx()
             val rectangleShadowWidth = 6.dp.toPx()
             val cornerRadius = rectangleWidth / 2
@@ -333,62 +339,84 @@ fun DrawScope.diagramBar(
             val eraseColor = Color(0xAFFFFFFF)
             when (weatherQuantity){
                 DailyWeatherQuantity.TEMPERATUREMINMAX, DailyWeatherQuantity.SUNRISESET -> {
-                    val eraserSize = Size(
-                        width = rectangleWidth + 2 * rectangleShadowWidth + 2f,
-                        height = rectangleHeight - 2 * cornerRadius
-                    )
-                    drawRoundRect(
-                        brush = barBrush,
-                        topLeft = Offset(x = left - rectangleShadowWidth, y = top - rectangleShadowWidth),
-                        size = shadowSize,
-                        cornerRadius = CornerRadius(shadowSize.width / 2),
+                    if (rectangleHeight < rectangleWidth) {
+                        val color = when (weatherQuantity) {
+                            DailyWeatherQuantity.SUNRISESET -> weatherQuantity.color(
+                                fraction = if (dataMax == dataMin) 0f
+                                else (dataRange.endInclusive - 0) / 24
+                            )
+                            else -> weatherQuantity.color(
+                                fraction = if (dataMax == dataMin) 0f
+                                else (dataRange.endInclusive - dataMin) / (dataMax - dataMin)
+                            )
+                        }
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(color, Transparent),
+                                center = Offset(x = left + rectangleWidth/2, y = top + rectangleHeight/2),
+                                radius = cornerRadius + rectangleShadowWidth
+                            ),
+                            center = Offset(x = left + rectangleWidth/2, y = top + rectangleHeight/2),
+                            radius = rectangleWidth/2 + rectangleShadowWidth
+                        )
+                    } else {
+                        val eraserSize = Size(
+                            width = rectangleWidth + 2 * rectangleShadowWidth + 2f,
+                            height = (rectangleHeight - 2 * cornerRadius).coerceAtLeast(0f)
+                        )
+                        drawRoundRect(
+                            brush = barBrush,
+                            topLeft = Offset(x = left - rectangleShadowWidth, y = top - rectangleShadowWidth),
+                            size = shadowSize,
+                            cornerRadius = CornerRadius(shadowSize.width / 2),
 //                        alpha = 0.7f
-                    )
-                    drawArc(
-                        brush = Brush.radialGradient(
-                            colors = listOf(eraseColor, Transparent),
-                            center = Offset(left + cornerRadius, top + cornerRadius),
-                            radius = cornerRadius + rectangleShadowWidth
-                        ),
-                        startAngle = 180f,
-                        sweepAngle = 180f,
-                        useCenter = true,
-                        topLeft = Offset(x = left - rectangleShadowWidth - 1f, y = top - rectangleShadowWidth - 1f),
-                        size = Size(
-                            width = rectangleWidth + 2 * rectangleShadowWidth + 2f,
-                            height = rectangleWidth + 2 * rectangleShadowWidth + 2f
-                        ),
-                        blendMode = BlendMode.DstIn
-                    )
-                    drawArc(
-                        brush = Brush.radialGradient(
-                            colors = listOf(eraseColor, Transparent),
-                            center = Offset(left + cornerRadius, top + rectangleHeight - cornerRadius),
-                            radius = cornerRadius + rectangleShadowWidth
-                        ),
-                        startAngle = 0f,
-                        sweepAngle = 180f,
-                        useCenter = true,
-                        topLeft = Offset(
-                            x = left - rectangleShadowWidth - 1f,
-                            y = top + rectangleHeight - 2 * cornerRadius - rectangleShadowWidth - 1f
-                        ),
-                        size = Size(
-                            width = rectangleWidth + 2 * rectangleShadowWidth + 2f,
-                            height = rectangleWidth + 2 * rectangleShadowWidth + 2f
-                        ),
-                        blendMode = BlendMode.DstIn
-                    )
-                    drawRect(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(Transparent, eraseColor, Transparent),
-                            startX = left - rectangleShadowWidth,
-                            endX = left + rectangleWidth + rectangleShadowWidth
-                        ),
-                        topLeft = Offset(x = left - rectangleShadowWidth - 1f, y = top + cornerRadius),
-                        size = eraserSize,
-                        blendMode = BlendMode.DstIn
-                    )
+                        )
+                        drawArc(
+                            brush = Brush.radialGradient(
+                                colors = listOf(eraseColor, Transparent),
+                                center = Offset(left + cornerRadius, top + cornerRadius),
+                                radius = cornerRadius + rectangleShadowWidth
+                            ),
+                            startAngle = 180f,
+                            sweepAngle = 180f,
+                            useCenter = true,
+                            topLeft = Offset(x = left - rectangleShadowWidth - 1f, y = top - rectangleShadowWidth - 1f),
+                            size = Size(
+                                width = rectangleWidth + 2 * rectangleShadowWidth + 2f,
+                                height = rectangleWidth + 2 * rectangleShadowWidth + 2f
+                            ),
+                            blendMode = BlendMode.DstIn
+                        )
+                        drawArc(
+                            brush = Brush.radialGradient(
+                                colors = listOf(eraseColor, Transparent),
+                                center = Offset(left + cornerRadius, top + rectangleHeight - cornerRadius),
+                                radius = cornerRadius + rectangleShadowWidth
+                            ),
+                            startAngle = 0f,
+                            sweepAngle = 180f,
+                            useCenter = true,
+                            topLeft = Offset(
+                                x = left - rectangleShadowWidth - 1f,
+                                y = top + rectangleHeight - 2 * cornerRadius - rectangleShadowWidth - 1f
+                            ),
+                            size = Size(
+                                width = rectangleWidth + 2 * rectangleShadowWidth + 2f,
+                                height = rectangleWidth + 2 * rectangleShadowWidth + 2f
+                            ),
+                            blendMode = BlendMode.DstIn
+                        )
+                        drawRect(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(Transparent, eraseColor, Transparent),
+                                startX = left - rectangleShadowWidth,
+                                endX = left + rectangleWidth + rectangleShadowWidth
+                            ),
+                            topLeft = Offset(x = left - rectangleShadowWidth - 1f, y = top + cornerRadius),
+                            size = eraserSize,
+                            blendMode = BlendMode.DstIn
+                        )
+                    }
                     drawRoundRect(
                         brush = barBrush,
                         topLeft = Offset(x = left, y = top),
@@ -475,6 +503,89 @@ fun DrawScope.diagramBar(
                             brush = barBrush
                         )
                     }
+                    else if (rectangleHeight < -0.001f) {
+                        val path = Path().apply {
+                            moveTo(left, top - cornerRadius)
+                            arcTo(
+                                Rect(
+                                    offset = Offset(left, top - rectangleWidth),
+                                    size = Size(
+                                        rectangleWidth,
+                                        rectangleWidth.coerceAtMost(2 * abs(rectangleHeight))
+                                    )
+                                ),
+                                startAngleDegrees = 180f,
+                                sweepAngleDegrees = -180f,
+                                forceMoveTo = true
+                            )
+                            lineTo(left + rectangleWidth, top + rectangleHeight)
+                            lineTo(left, top + rectangleHeight)
+                            close()
+                        }
+                        val shadowPath = Path().apply {
+                            moveTo(left - rectangleShadowWidth, top - cornerRadius)
+                            arcTo(
+                                Rect(
+                                    offset = Offset(
+                                        left - rectangleShadowWidth,
+                                        top - rectangleWidth - rectangleShadowWidth
+                                    ),
+                                    size = Size(
+                                        rectangleWidth + 2 * rectangleShadowWidth,
+                                        (rectangleWidth + 2 * rectangleShadowWidth)
+                                            .coerceAtMost(2 * (abs(rectangleHeight) + rectangleShadowWidth))
+                                    )
+                                ),
+                                startAngleDegrees = 180f,
+                                sweepAngleDegrees = -180f,
+                                forceMoveTo = true
+                            )
+                            lineTo(left + rectangleWidth + rectangleShadowWidth, top + rectangleHeight)
+                            lineTo(left - rectangleShadowWidth, top + rectangleHeight)
+                            close()
+                        }
+                        drawPath(
+                            path = shadowPath,
+                            brush = barBrush
+                        )
+                        drawArc(
+                            brush = Brush.radialGradient(
+                                colors = listOf(eraseColor, Transparent),
+                                center = Offset(left + cornerRadius, top - cornerRadius),
+                                radius = cornerRadius + rectangleShadowWidth
+                            ),
+                            startAngle = 180f,
+                            sweepAngle = -180f,
+                            useCenter = true,
+                            topLeft = Offset(
+                                x = left - rectangleShadowWidth - 1f,
+                                y = top - rectangleWidth - rectangleShadowWidth - 1f
+                            ),
+                            size = Size(
+                                width = rectangleWidth + 2 * rectangleShadowWidth + 2f,
+                                height = (rectangleWidth + 2 * rectangleShadowWidth)
+                                    .coerceAtMost(2 * (abs(rectangleHeight) + rectangleShadowWidth)) + 2f
+                            ),
+                            blendMode = BlendMode.DstIn
+                        )
+                        drawRect(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(Transparent, eraseColor, Transparent),
+                                startX = left - rectangleShadowWidth,
+                                endX = left + rectangleWidth + rectangleShadowWidth
+                            ),
+                            topLeft = Offset(x = left - rectangleShadowWidth - 1f, y = top + rectangleHeight),
+                            size =  Size(
+                                width = rectangleWidth + 2 * rectangleShadowWidth + 2f,
+                                height = abs(rectangleHeight) - cornerRadius
+                            ),
+                            blendMode = BlendMode.DstIn
+                        )
+                        drawPath(
+                            path = path,
+                            brush = barBrush
+                        )
+                    }
                 }
             }
             val maxValue = if (weatherQuantity == DailyWeatherQuantity.SUNRISESET)
@@ -489,26 +600,50 @@ fun DrawScope.diagramBar(
                 degrees = 90f,
                 pivot = Offset.Zero
             ) {
-                drawThickText(
-                    textMeasurer,
-                    text = maxValue,
-                    textColor = if (weatherQuantity == DailyWeatherQuantity.UVINDEXMAX) curveValueColor else
-                    weatherQuantity.color(
+                val textColor = when (weatherQuantity) {
+                    DailyWeatherQuantity.UVINDEXMAX -> curveValueColor
+                    DailyWeatherQuantity.SUNRISESET -> weatherQuantity.color(
+                        fraction = if (dataMax == dataMin) 0f
+                        else (dataRange.endInclusive - 0) / 24
+                    )
+                    else -> weatherQuantity.color(
                         fraction = if (dataMax == dataMin) 0f
                         else (dataRange.endInclusive - dataMin) / (dataMax - dataMin)
-                    ),
-                    textRight = top - 8.dp.toPx(),
-                    textMiddle = -left - rectangleWidth/2,
-                )
+                    )
+                }
+                if (rectangleHeight >= 0f) {
+                    drawThickText(
+                        textMeasurer,
+                        text = maxValue,
+                        textColor = textColor,
+                        textRight = top - 8.dp.toPx(),
+                        textMiddle = -left - rectangleWidth / 2,
+                    )
+                } else {
+                    drawThickText(
+                        textMeasurer,
+                        text = maxValue,
+                        textColor = textColor,
+                        textLeft = top + 8.dp.toPx(),
+                        textMiddle = -left - rectangleWidth / 2,
+                    )
+                }
                 if (weatherQuantity == DailyWeatherQuantity.TEMPERATUREMINMAX ||
                     weatherQuantity == DailyWeatherQuantity.SUNRISESET) {
                     drawThickText(
                         textMeasurer,
                         text = minValue,
-                        textColor = weatherQuantity.color(
-                            fraction = if (dataMax == dataMin) 0f
-                            else (dataRange.start - dataMin) / (dataMax - dataMin)
-                        ),
+                        textColor =
+                            when (weatherQuantity) {
+                                DailyWeatherQuantity.SUNRISESET -> weatherQuantity.color(
+                                    fraction = if (dataMax == dataMin) 0f
+                                    else (dataRange.start - 0) / 24
+                                )
+                                else -> weatherQuantity.color(
+                                    fraction = if (dataMax == dataMin) 0f
+                                    else (dataRange.start - dataMin) / (dataMax - dataMin)
+                                )
+                            },
                         textLeft = top + rectangleHeight + 8.dp.toPx(),
                         textMiddle = -left - rectangleWidth / 2,
                     )
@@ -538,9 +673,9 @@ fun DrawScope.diagramCurve(
     val pathMax: Path?
     val filledPath = Path()
     val lastPointX = firstPointX + data.size - 1
-//    Log.i("first1", "data = ${data.map { it?.start }}")
     val yAxisLength = yAxisRange.endInclusive - yAxisRange.start
-    val xAxisLength = xAxisRange.endInclusive - xAxisRange.start
+    if (yAxisLength == 0f) return
+
     val curveBrush = curveBrush(weatherQuantity, dataMin, dataMax, diagramHeight,
         yAxisRange, verticalPadding)
     val phase = 0.5f
@@ -575,7 +710,7 @@ fun DrawScope.diagramCurve(
             val curveMaxSegments = pathMax?.divide()
             val minCurveData = data.map { it?.start }.nonNullDataSegments().values.toList()
             val maxCurveData = data.map { it?.endInclusive }.nonNullDataSegments().values.toList()
-//Log.i("size1", "size = ${curveMinSegments?.size} , ${minCurveData.size} , data = ${data.map { it?.start }}")
+
             if (pathMin != null && pathMax != null && curveMinSegments?.size == curveMaxSegments?.size) {
                 val size = curveMinSegments!!.size
                 filledPath.apply {
@@ -634,8 +769,8 @@ fun DrawScope.diagramCurve(
                             diagramHeight
                         )
                         addPath(curve)
-                        filledPath.lineTo(x = curveBounds.right, y = yZero)
-                        filledPath.lineTo(x = curveBounds.left, y = yZero)
+                        filledPath.lineTo(x = curveBounds.right, y = size.height)
+                        filledPath.lineTo(x = curveBounds.left, y = size.height)
                         filledPath.close()
                     }
                 }

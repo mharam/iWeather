@@ -1,5 +1,6 @@
 package com.takaapoo.weatherer.ui.screens.detail.hourly_diagram
 
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -41,13 +42,16 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.LocalAirQuality
+import com.takaapoo.weatherer.data.local.LocalHistoricHourlyWeather
 import com.takaapoo.weatherer.data.local.LocalHourlyWeather
+import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.model.AppSettings
+import com.takaapoo.weatherer.domain.model.HistoricHourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartState
 import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
 import com.takaapoo.weatherer.domain.unit.Temperature
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.theme.customColorScheme
 import com.takaapoo.weatherer.ui.theme.timeFontFamily
 import com.takaapoo.weatherer.ui.viewModels.DetailViewModel
@@ -61,6 +65,7 @@ import com.takaapoo.weatherer.utility.toPx
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.Duration
@@ -96,6 +101,7 @@ fun HourlyChart(
     diagramHorPadding: Float = 16f,
     diagramVertPadding: Float = 24f,
     hourlyChartData: ImmutableList<HourlyChartDto> = persistentListOf(),
+    historicalHourlyData: ImmutableList<HistoricHourlyChartDto> = persistentListOf(),
     hourlyChartState: HourlyChartState = HourlyChartState(),
     appSettings: AppSettings,
     onAddYAxis: (start: Float, end: Float, diagramHeight: Float, textMeasurer: TextMeasurer,
@@ -115,7 +121,8 @@ fun HourlyChart(
     val textMeasurer: TextMeasurer = rememberTextMeasurer()
     var verticalDashLinePhase by remember{ mutableFloatStateOf(0f) }
     var horizontalDashLinePhase by remember{ mutableFloatStateOf(0f) }
-    val hourlyData = hourlyChartData.map { it.hourlyWeather }
+    val timeData = hourlyChartData.map { it.hourlyWeather?.time }
+        .takeIf { it.isNotEmpty() } ?: historicalHourlyData.map { it.hourlyWeather?.time }
     var firstTimeAddingCurve by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(key1 = hourlyChartState.curveAnimator.size) {
@@ -137,15 +144,27 @@ fun HourlyChart(
 
     val frameHeight = dimensionResource(R.dimen.diagram_height).toPx(density) - 2*diagramVertPadding
     LaunchedEffect(
-        key1 = hourlyChartState.chartQuantities.size,
-        key2 = hourlyChartState.settingsUpdated
+        hourlyChartState.chartQuantities.size,
+        hourlyChartState.settingsUpdated,
+        hourlyChartState.xAxisAnimationTrigger,
+        historicalHourlyData.getOrNull(0)?.weatherQuantities,
     ) {
-        if (hourlyChartState.settingsUpdated) {
-            prepareAddCurve(
-                hourlyChartState, hourlyChartData, appSettings, textMeasurer, frameHeight,
-                curveAnimatorInitialValue = if (firstTimeAddingCurve) 1f else 0f, onAddYAxis
-            )
-            firstTimeAddingCurve = false
+        if (!hourlyChartState.xAxisAnimationTrigger)
+            firstTimeAddingCurve = true
+        else {
+            if (hourlyChartState.settingsUpdated) {
+                prepareAddCurve(
+                    hourlyChartState = hourlyChartState,
+                    hourlyChartData = hourlyChartData,
+                    historicHourlyChartData = historicalHourlyData,
+                    appSettings = appSettings,
+                    textMeasurer = textMeasurer,
+                    frameHeight = frameHeight,
+                    curveAnimatorInitialValue = if (firstTimeAddingCurve) 1f else 0f,
+                    onAddYAxis = onAddYAxis
+                )
+                firstTimeAddingCurve = false
+            }
         }
     }
 
@@ -212,15 +231,32 @@ fun HourlyChart(
                 }
             }
     ) {
-        val utcOffset = hourlyChartData.getOrNull(0)?.utcOffset
-        val sunRiseSetX = hourlyChartData.map { it.sunRise to it.sunSet }.distinct()
-            .map { timeToX(it.first?.localToUtcTime(utcOffset), utcOffset, appSettings.hourlyDiagramTime) to
-                    timeToX(it.second?.localToUtcTime(utcOffset), utcOffset, appSettings.hourlyDiagramTime) }
-            .toImmutableList()
+        val utcOffset = hourlyChartData.getOrNull(0)?.utcOffset ?: historicalHourlyData.getOrNull(0)?.utcOffset
+        val sunEvents = hourlyChartData.map { it.sunRise to it.sunSet }.distinct()
+
+        val sunRiseSetX = sunEvents
+            .mapIndexed { index, (sunRise, sunSet) ->
+                val sunRiseX = timeToX(sunRise?.localToUtcTime(utcOffset), utcOffset, appSettings.hourlyDiagramTime)
+                val sunSetX = timeToX(sunSet?.localToUtcTime(utcOffset), utcOffset, appSettings.hourlyDiagramTime)
+                if (sunRise?.substringAfter('T') == "00:00" &&
+                    sunSet?.substringAfter('T') == "00:00")
+                    null to null
+                else if (sunEvents.getOrNull(index-1)?.second?.substringAfter('T') == "00:00" &&
+                    sunEvents.getOrNull(index-1)?.first?.substringAfter('T') == "00:00" &&
+                    sunEvents[index-1].first != sunEvents[index-1].second )
+                    null to sunSetX
+                else
+                    sunRiseX to sunSetX
+            }.toImmutableList()
+
+        val isDayList = hourlyChartData.map { it.hourlyWeather }.filter {
+            it?.time?.substringAfter('T') == "12:00"
+        }.map { it?.isDay == 1 }
 
         DiagramFrameCanvas(
             modifier = Modifier.fillMaxSize(),
-            sunRiseSetX = sunRiseSetX,
+            sunRiseSetX = sunRiseSetX.toImmutableList(),
+            isDayList = isDayList.toImmutableList(),
             xAxisStart = hourlyChartState.xAxisStart.value,
             xAxisEnd = hourlyChartState.xAxisEnd.value,
             yAxesStarts = hourlyChartState.yAxesStarts.map { it.value }.toImmutableList(),
@@ -234,13 +270,13 @@ fun HourlyChart(
             textMeasurer = textMeasurer,
             verticalDashLinePhase = verticalDashLinePhase,
             horizontalDashLinePhase = horizontalDashLinePhase,
+            isLoading = hourlyChartState.dataLoadingStatus is MyResult.Loading,
             onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
             onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation
         )
 
-        if (hourlyData.isNotEmpty()) {
-            val time = hourlyData
-                .map { it?.time }
+        if (timeData.isNotEmpty()) {
+            val time = timeData
                 .map { LocalDateTime.parse(it) }
                 .map { it.dayOfMonth * 24 + it.hour }
 
@@ -248,6 +284,7 @@ fun HourlyChart(
                 hourlyChartState.yAxesStarts.getOrNull(curveNumber)?.let {
                     DiagramCurve(
                         hourlyData = hourlyChartData,
+                        historicalHourlyData = historicalHourlyData,
                         curveAnimatorProgress = hourlyChartState.curveAnimator.getOrNull(curveNumber)?.value
                             ?: 0f,
                         timeData = time,
@@ -285,6 +322,7 @@ fun HourlyChart(
             diagramHorPadding = diagramHorPadding,
             diagramVertPadding = diagramVertPadding,
             hourlyChartData = hourlyChartData,
+            historicalHourlyData = historicalHourlyData,
             sliderThumbPosition = hourlyChartState.sliderThumbPosition,
             hourlyChartTheme = hourlyChartState.chartTheme,
             textMeasurer = textMeasurer,
@@ -310,6 +348,7 @@ fun DiagramIconsAndLegends(
     diagramHorPadding: Float,
     diagramVertPadding: Float,
     hourlyChartData: ImmutableList<HourlyChartDto>,
+    historicalHourlyData: ImmutableList<HistoricHourlyChartDto>,
     hourlyChartTheme: ChartTheme,
     sliderThumbPosition: Float,
     textMeasurer: TextMeasurer,
@@ -325,10 +364,11 @@ fun DiagramIconsAndLegends(
     val legendTextColor = MaterialTheme.customColorScheme.onDetailScreenSurface
 
     Canvas(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
             .clip(RectangleShape)   // This is to prevent DrawScope call unnecessarily
     ) {
-        if (sunRiseSetIconsVisible) {
+        if (sunRiseSetIconsVisible && sunRiseSetX.isNotEmpty()) {
             diagramSunRiseSetIcon(
                 context = context,
                 sunRiseSetX = sunRiseSetX,
@@ -342,15 +382,18 @@ fun DiagramIconsAndLegends(
             diagramWeatherIcon(
                 context = context,
                 hourlyChartData = hourlyChartData,
+                historicalHourlyData = historicalHourlyData,
                 xAxisRange = xAxisStart .. xAxisEnd,
                 cornerRadius = cornerRadius.toPx(),
                 horizontalPadding = diagramHorPadding,
                 verticalPadding = diagramVertPadding,
                 firstPointX = timeToX(
-                    time = hourlyChartData[0].hourlyWeather!!.time,
-                    utcOffset = hourlyChartData[0].utcOffset ?: 0L,
+                    time = hourlyChartData.getOrNull(0)?.hourlyWeather?.time ?:
+                        historicalHourlyData.getOrNull(0)?.hourlyWeather?.time,
+                    utcOffset = hourlyChartData.getOrNull(0)?.utcOffset ?:
+                        historicalHourlyData.getOrNull(0)?.utcOffset ?: 0L,
                     timeClock = timeClock
-                )!!
+                )
             )
         }
         diagramLegends(
@@ -380,37 +423,71 @@ fun quantityData(
     hourlyChartData: List<HourlyChartDto?>? = null,
     weatherData: List<LocalHourlyWeather?>? = null,
     airData: List<LocalAirQuality?>? = null,
-    weatherQuantity: WeatherQuantity
+    weatherQuantity: HourlyWeatherQuantity,
+    historicWeatherData: List<LocalHistoricHourlyWeather?> = emptyList(),
 ): List<Float?>{
     val hourlyWeatherData = hourlyChartData?.map { it?.hourlyWeather } ?: weatherData ?: emptyList()
     val hourlyAirData = hourlyChartData?.map { it?.airQuality } ?: airData ?: emptyList()
 
     return when (weatherQuantity){
-        WeatherQuantity.TEMPERATURE -> hourlyWeatherData.map { it?.temperature }
-        WeatherQuantity.HUMIDITY -> hourlyWeatherData.map { it?.humidity }
-        WeatherQuantity.DEWPOINT -> hourlyWeatherData.map { it?.dewPoint }
-        WeatherQuantity.APPARENTTEMP -> hourlyWeatherData.map { it?.apparentTemperature }
-        WeatherQuantity.PRECIPITATIONPROBABILITY -> hourlyWeatherData.map { it?.precipitationProbability }
-        WeatherQuantity.PRECIPITATION -> hourlyWeatherData.map { it?.precipitation }
-        WeatherQuantity.RAIN -> hourlyWeatherData.map { it?.rain }
-        WeatherQuantity.SHOWERS -> hourlyWeatherData.map { it?.showers }
-        WeatherQuantity.SNOWFALL -> hourlyWeatherData.map { it?.snowfall }
-        WeatherQuantity.CLOUDCOVER -> hourlyWeatherData.map { it?.cloudCover }
-        WeatherQuantity.SURFACEPRESSURE -> hourlyWeatherData.map { it?.surfacePressure }
-        WeatherQuantity.VISIBILITY -> hourlyWeatherData.map { it?.visibility }
-        WeatherQuantity.WINDSPEED -> hourlyWeatherData.map { it?.windSpeed }
-        WeatherQuantity.WINDDIRECTION -> hourlyWeatherData.map { it?.windDirection }
-        WeatherQuantity.UVINDEX -> hourlyWeatherData.map { it?.uvIndex }
-        WeatherQuantity.FREEZINGLEVELHEIGHT -> hourlyWeatherData.map { it?.freezingLevelHeight }
-        WeatherQuantity.DIRECTRADIATION -> hourlyWeatherData.map { it?.directRadiation }
-        WeatherQuantity.DIRECTNORMALIRRADIANCE -> hourlyWeatherData.map { it?.directNormalIrradiance }
-        WeatherQuantity.AQI -> hourlyAirData.map { it?.airQuality?.toFloat() }
-        WeatherQuantity.PM10 -> hourlyAirData.map { it?.pm10 }
-        WeatherQuantity.PM2_5 -> hourlyAirData.map { it?.pm25 }
-        WeatherQuantity.CO -> hourlyAirData.map { it?.carbonMonoxide }
-        WeatherQuantity.NO2 -> hourlyAirData.map { it?.nitrogenDioxide }
-        WeatherQuantity.SO2 -> hourlyAirData.map { it?.sulphurDioxide }
-        WeatherQuantity.Ozone -> hourlyAirData.map { it?.ozone }
+        HourlyWeatherQuantity.TEMPERATURE -> {
+            hourlyWeatherData.map { it?.temperature }.takeIf { it.isNotEmpty() }
+                ?: historicWeatherData.map { it?.temperature }
+        }
+        HourlyWeatherQuantity.HUMIDITY -> {
+            hourlyWeatherData.map { it?.humidity }.takeIf { it.isNotEmpty() }
+                ?: historicWeatherData.map { it?.humidity }
+        }
+        HourlyWeatherQuantity.DEWPOINT -> {
+            hourlyWeatherData.map { it?.dewPoint }.takeIf { it.isNotEmpty() }
+                ?: historicWeatherData.map { it?.dewPoint }
+        }
+        HourlyWeatherQuantity.APPARENTTEMP -> {
+            hourlyWeatherData.map { it?.apparentTemperature }.takeIf { it.isNotEmpty() }
+                ?: historicWeatherData.map { it?.apparentTemperature }
+        }
+        HourlyWeatherQuantity.PRECIPITATIONPROBABILITY -> hourlyWeatherData.map { it?.precipitationProbability }
+        HourlyWeatherQuantity.PRECIPITATION -> {
+            hourlyWeatherData.map { it?.precipitation }.takeIf { it.isNotEmpty() }
+                ?: historicWeatherData.map { it?.precipitation }
+        }
+        HourlyWeatherQuantity.RAIN -> {
+            hourlyWeatherData.map { it?.rain }.takeIf { it.isNotEmpty() }
+                ?: historicWeatherData.map { it?.rain }
+        }
+        HourlyWeatherQuantity.SHOWERS -> hourlyWeatherData.map { it?.showers }
+        HourlyWeatherQuantity.SNOWFALL -> {
+            hourlyWeatherData.map { it?.snowfall }.takeIf { it.isNotEmpty() }
+                ?: historicWeatherData.map { it?.snowfall }
+        }
+        HourlyWeatherQuantity.CLOUDCOVER -> {
+            hourlyWeatherData.map { it?.cloudCover }.takeIf { it.isNotEmpty() }
+                ?: historicWeatherData.map { it?.cloudCover }
+        }
+        HourlyWeatherQuantity.SURFACEPRESSURE -> {
+            hourlyWeatherData.map { it?.surfacePressure }.takeIf { it.isNotEmpty() }
+                ?: historicWeatherData.map { it?.surfacePressure }
+        }
+        HourlyWeatherQuantity.VISIBILITY -> hourlyWeatherData.map { it?.visibility }
+        HourlyWeatherQuantity.WINDSPEED -> {
+            hourlyWeatherData.map { it?.windSpeed }.takeIf { it.isNotEmpty() }
+                ?: historicWeatherData.map { it?.windSpeed }
+        }
+        HourlyWeatherQuantity.WINDDIRECTION -> {
+            hourlyWeatherData.map { it?.windDirection }.takeIf { it.isNotEmpty() }
+                ?: historicWeatherData.map { it?.windDirection }
+        }
+        HourlyWeatherQuantity.UVINDEX -> hourlyWeatherData.map { it?.uvIndex }
+        HourlyWeatherQuantity.FREEZINGLEVELHEIGHT -> hourlyWeatherData.map { it?.freezingLevelHeight }
+        HourlyWeatherQuantity.DIRECTRADIATION -> hourlyWeatherData.map { it?.directRadiation }
+        HourlyWeatherQuantity.DIRECTNORMALIRRADIANCE -> hourlyWeatherData.map { it?.directNormalIrradiance }
+        HourlyWeatherQuantity.AQI -> hourlyAirData.map { it?.airQuality?.toFloat() }
+        HourlyWeatherQuantity.PM10 -> hourlyAirData.map { it?.pm10 }
+        HourlyWeatherQuantity.PM2_5 -> hourlyAirData.map { it?.pm25 }
+        HourlyWeatherQuantity.CO -> hourlyAirData.map { it?.carbonMonoxide }
+        HourlyWeatherQuantity.NO2 -> hourlyAirData.map { it?.nitrogenDioxide }
+        HourlyWeatherQuantity.SO2 -> hourlyAirData.map { it?.sulphurDioxide }
+        HourlyWeatherQuantity.Ozone -> hourlyAirData.map { it?.ozone }
     }
 }
 
@@ -418,15 +495,15 @@ fun quantityControlPoints(
     hourlyChartData: List<HourlyChartDto?>? = null,
     weatherData: List<LocalHourlyWeather?>? = null,
     airData: List<LocalAirQuality?>? = null,
-    weatherQuantity: WeatherQuantity,
+    hourlyWeatherQuantity: HourlyWeatherQuantity,
     smoothnessFactor: Float
 ): Pair<List<Offset?>, List<Offset?>>{
     val hourlyWeatherData = hourlyChartData?.map { it?.hourlyWeather } ?: weatherData ?: emptyList()
     val airQualityData = hourlyChartData?.map { it?.airQuality } ?: airData ?: emptyList()
-    val data = quantityData(hourlyChartData, weatherData, airData, weatherQuantity)
+    val data = quantityData(hourlyChartData, weatherData, airData, hourlyWeatherQuantity)
 
-    return when (weatherQuantity){
-        WeatherQuantity.TEMPERATURE -> hourlyWeatherData.mapIndexed { i, it ->
+    return when (hourlyWeatherQuantity){
+        HourlyWeatherQuantity.TEMPERATURE -> hourlyWeatherData.mapIndexed { i, it ->
             if (it?.temperatureControl1X != null && it.temperatureControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.temperatureControl1X + (1 - smoothnessFactor)/3f,
@@ -441,7 +518,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.HUMIDITY -> hourlyWeatherData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.HUMIDITY -> hourlyWeatherData.mapIndexed { i, it ->
             if (it?.humidityControl1X != null && it.humidityControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.humidityControl1X + (1 - smoothnessFactor)/3f,
@@ -456,7 +533,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.DEWPOINT -> hourlyWeatherData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.DEWPOINT -> hourlyWeatherData.mapIndexed { i, it ->
             if (it?.dewPointControl1X != null && it.dewPointControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.dewPointControl1X + (1 - smoothnessFactor)/3f,
@@ -471,7 +548,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.APPARENTTEMP -> hourlyWeatherData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.APPARENTTEMP -> hourlyWeatherData.mapIndexed { i, it ->
             if (it?.apparentTemperatureControl1X != null && it.apparentTemperatureControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.apparentTemperatureControl1X + (1 - smoothnessFactor)/3f,
@@ -486,7 +563,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.PRECIPITATIONPROBABILITY -> hourlyWeatherData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.PRECIPITATIONPROBABILITY -> hourlyWeatherData.mapIndexed { i, it ->
             if (it?.precipitationProbabilityControl1X != null && it.precipitationProbabilityControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.precipitationProbabilityControl1X + (1 - smoothnessFactor)/3f,
@@ -501,7 +578,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.CLOUDCOVER -> hourlyWeatherData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.CLOUDCOVER -> hourlyWeatherData.mapIndexed { i, it ->
             if (it?.cloudCoverControl1X != null && it.cloudCoverControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.cloudCoverControl1X + (1 - smoothnessFactor)/3f,
@@ -516,7 +593,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.SURFACEPRESSURE -> hourlyWeatherData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.SURFACEPRESSURE -> hourlyWeatherData.mapIndexed { i, it ->
             if (it?.surfacePressureControl1X != null && it.surfacePressureControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.surfacePressureControl1X + (1 - smoothnessFactor)/3f,
@@ -531,7 +608,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.VISIBILITY -> hourlyWeatherData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.VISIBILITY -> hourlyWeatherData.mapIndexed { i, it ->
             if (it?.visibilityControl1X != null && it.visibilityControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.visibilityControl1X + (1 - smoothnessFactor)/3f,
@@ -546,7 +623,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.WINDSPEED -> hourlyWeatherData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.WINDSPEED -> hourlyWeatherData.mapIndexed { i, it ->
             if (it?.windSpeedControl1X != null && it.windSpeedControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.windSpeedControl1X + (1 - smoothnessFactor)/3f,
@@ -561,7 +638,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.WINDDIRECTION -> hourlyWeatherData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.WINDDIRECTION -> hourlyWeatherData.mapIndexed { i, it ->
             if (it?.windDirectionControl1X != null && it.windDirectionControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.windDirectionControl1X + (1 - smoothnessFactor)/3f,
@@ -576,7 +653,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.UVINDEX -> hourlyWeatherData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.UVINDEX -> hourlyWeatherData.mapIndexed { i, it ->
             if (it?.uvIndexControl1X != null && it.uvIndexControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.uvIndexControl1X + (1 - smoothnessFactor)/3f,
@@ -591,7 +668,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.FREEZINGLEVELHEIGHT -> hourlyWeatherData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.FREEZINGLEVELHEIGHT -> hourlyWeatherData.mapIndexed { i, it ->
             if (it?.freezingLevelHeightControl1X != null && it.freezingLevelHeightControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.freezingLevelHeightControl1X + (1 - smoothnessFactor)/3f,
@@ -606,7 +683,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.DIRECTRADIATION -> hourlyWeatherData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.DIRECTRADIATION -> hourlyWeatherData.mapIndexed { i, it ->
             if (it?.directRadiationControl1X != null && it.directRadiationControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.directRadiationControl1X + (1 - smoothnessFactor)/3f,
@@ -621,7 +698,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.DIRECTNORMALIRRADIANCE -> hourlyWeatherData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.DIRECTNORMALIRRADIANCE -> hourlyWeatherData.mapIndexed { i, it ->
             if (it?.directNormalIrradianceControl1X != null && it.directNormalIrradianceControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.directNormalIrradianceControl1X + (1 - smoothnessFactor)/3f,
@@ -636,7 +713,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.AQI -> airQualityData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.AQI -> airQualityData.mapIndexed { i, it ->
             if (it?.aqiControl1X != null && it.aqiControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.aqiControl1X + (1 - smoothnessFactor)/3f,
@@ -651,7 +728,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.PM10 -> airQualityData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.PM10 -> airQualityData.mapIndexed { i, it ->
             if (it?.pm10Control1X != null && it.pm10Control1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.pm10Control1X + (1 - smoothnessFactor)/3f,
@@ -666,7 +743,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.PM2_5 -> airQualityData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.PM2_5 -> airQualityData.mapIndexed { i, it ->
             if (it?.pm25Control1X != null && it.pm25Control1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.pm25Control1X + (1 - smoothnessFactor)/3f,
@@ -681,7 +758,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.CO -> airQualityData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.CO -> airQualityData.mapIndexed { i, it ->
             if (it?.coControl1X != null && it.coControl1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.coControl1X + (1 - smoothnessFactor)/3f,
@@ -696,7 +773,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.NO2 -> airQualityData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.NO2 -> airQualityData.mapIndexed { i, it ->
             if (it?.no2Control1X != null && it.no2Control1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.no2Control1X + (1 - smoothnessFactor)/3f,
@@ -711,7 +788,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.SO2 -> airQualityData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.SO2 -> airQualityData.mapIndexed { i, it ->
             if (it?.so2Control1X != null && it.so2Control1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.so2Control1X + (1 - smoothnessFactor)/3f,
@@ -726,7 +803,7 @@ fun quantityControlPoints(
                             (data[i+1]!! - (data[i+1]!! - data[i]!!)/3f)
                 )
             else null }
-        WeatherQuantity.Ozone -> airQualityData.mapIndexed { i, it ->
+        HourlyWeatherQuantity.Ozone -> airQualityData.mapIndexed { i, it ->
             if (it?.o3Control1X != null && it.o3Control1Y != null && data.getOrNull(i+1) != null)
                 Offset(
                     smoothnessFactor * it.o3Control1X + (1 - smoothnessFactor)/3f,
@@ -746,80 +823,81 @@ fun quantityControlPoints(
 }
 
 fun quantityMinMaxModifier(
-    weatherQuantity: WeatherQuantity,
+    weatherQuantity: HourlyWeatherQuantity,
     quantityMin: Float,
     quantityMax: Float,
     appSettings: AppSettings
 ): Pair<Float, Float> {
     val rangeFivePercentage = (quantityMax - quantityMin) / 20
     return when (weatherQuantity) {
-        WeatherQuantity.TEMPERATURE, WeatherQuantity.DEWPOINT, WeatherQuantity.APPARENTTEMP -> {
+        HourlyWeatherQuantity.TEMPERATURE, HourlyWeatherQuantity.DEWPOINT, HourlyWeatherQuantity.APPARENTTEMP -> {
             val coefficient = if (appSettings.temperatureUnit == Temperature.FAHRENHEIT) (9/5) else 1
             if (quantityMax - quantityMin < 3 * coefficient)
                 quantityMin - 5 * coefficient to quantityMax + 5 * coefficient
             else
                 quantityMin - rangeFivePercentage to quantityMax + rangeFivePercentage
         }
-        WeatherQuantity.HUMIDITY, WeatherQuantity.PRECIPITATIONPROBABILITY, WeatherQuantity.CLOUDCOVER -> {
+        HourlyWeatherQuantity.HUMIDITY, HourlyWeatherQuantity.PRECIPITATIONPROBABILITY,
+        HourlyWeatherQuantity.CLOUDCOVER -> {
             if (quantityMax - quantityMin < 10)
                 (quantityMin - 2) to (quantityMax + 5).coerceAtMost(100f)
             else
                 (quantityMin - rangeFivePercentage) to
                         (quantityMax + rangeFivePercentage).coerceAtMost(100f)
         }
-        WeatherQuantity.PRECIPITATION, WeatherQuantity.RAIN, WeatherQuantity.SHOWERS -> {
+        HourlyWeatherQuantity.PRECIPITATION, HourlyWeatherQuantity.RAIN, HourlyWeatherQuantity.SHOWERS -> {
             if (quantityMax - quantityMin < 3f.mmToUnit(appSettings.lengthUnit))
                 (-0.5f).mmToUnit(appSettings.lengthUnit) to quantityMax + 0.5f.mmToUnit(appSettings.lengthUnit)
             else
                 (quantityMin - rangeFivePercentage) to (quantityMax + rangeFivePercentage)
         }
-        WeatherQuantity.SNOWFALL -> {
+        HourlyWeatherQuantity.SNOWFALL -> {
             if (quantityMax - quantityMin < 3f.cmToUnit(appSettings.lengthUnit))
                 (-0.5f).cmToUnit(appSettings.lengthUnit) to (quantityMax + 0.5f.cmToUnit(appSettings.lengthUnit))
             else
                 (quantityMin - rangeFivePercentage) to (quantityMax + rangeFivePercentage)
         }
-        WeatherQuantity.SURFACEPRESSURE -> {
+        HourlyWeatherQuantity.SURFACEPRESSURE -> {
             if (quantityMax - quantityMin < 20f.paToUnit(appSettings.pressureUnit))
                 (quantityMin - 10f.paToUnit(appSettings.pressureUnit)).coerceAtLeast(0f) to
                         (quantityMax + 10f.paToUnit(appSettings.pressureUnit))
             else
                 (quantityMin - rangeFivePercentage) to (quantityMax + rangeFivePercentage)
         }
-        WeatherQuantity.VISIBILITY -> {
+        HourlyWeatherQuantity.VISIBILITY -> {
             if (quantityMax - quantityMin < 5)
                 (quantityMin - 5).coerceAtLeast(0f) to (quantityMax + 5)
             else
                 (quantityMin - rangeFivePercentage).coerceAtLeast(0f) to (quantityMax + rangeFivePercentage)
         }
-        WeatherQuantity.WINDSPEED -> {
+        HourlyWeatherQuantity.WINDSPEED -> {
             if (quantityMax - quantityMin < 5f.kmphToUnit(appSettings.speedUnit))
                 (quantityMin - 5f.kmphToUnit(appSettings.speedUnit)).coerceAtLeast(0f) to
                         (quantityMax + 5f.kmphToUnit(appSettings.speedUnit))
             else
                 (quantityMin - rangeFivePercentage).coerceAtLeast(0f) to (quantityMax + rangeFivePercentage)
         }
-        WeatherQuantity.WINDDIRECTION -> {
+        HourlyWeatherQuantity.WINDDIRECTION -> {
             if (quantityMax - quantityMin < 5)
                 (quantityMin - 5).coerceAtLeast(0f) to (quantityMax + 5).coerceAtMost(360f)
             else
                 quantityMin to quantityMax
         }
-        WeatherQuantity.UVINDEX -> {
+        HourlyWeatherQuantity.UVINDEX -> {
             if (quantityMax - quantityMin < 3)
                 (quantityMin - 2).coerceAtLeast(0f) to (quantityMax + 2).coerceAtMost(12f)
             else
                 (quantityMin - rangeFivePercentage).coerceAtLeast(0f) to
                         (quantityMax + rangeFivePercentage).coerceAtMost(12f)
         }
-        WeatherQuantity.FREEZINGLEVELHEIGHT -> {
+        HourlyWeatherQuantity.FREEZINGLEVELHEIGHT -> {
             if (quantityMax - quantityMin < 300f.mToUnit(appSettings.lengthUnit))
                 (quantityMin - 500f.mToUnit(appSettings.lengthUnit)).coerceAtLeast(0f) to
                         (quantityMax + 500f.mToUnit(appSettings.lengthUnit))
             else
                 (quantityMin - rangeFivePercentage).coerceAtLeast(0f) to (quantityMax + rangeFivePercentage)
         }
-        WeatherQuantity.DIRECTRADIATION, WeatherQuantity.DIRECTNORMALIRRADIANCE -> {
+        HourlyWeatherQuantity.DIRECTRADIATION, HourlyWeatherQuantity.DIRECTNORMALIRRADIANCE -> {
             if (quantityMax - quantityMin < 100)
                 (quantityMin - 250).coerceAtLeast(0f) to (quantityMax + 250)
             else
@@ -837,34 +915,41 @@ fun quantityMinMaxModifier(
 private fun prepareAddCurve(
     hourlyChartState: HourlyChartState,
     hourlyChartData: List<HourlyChartDto?>,
+    historicHourlyChartData: List<HistoricHourlyChartDto>,
     appSettings: AppSettings,
     textMeasurer: TextMeasurer,
     frameHeight: Float,
     curveAnimatorInitialValue: Float,
     onAddYAxis: (Float, Float, Float, TextMeasurer, Int?, Float) -> Unit
 ){
+    if (historicHourlyChartData.isNotEmpty() &&
+        hourlyChartState.chartQuantities != historicHourlyChartData[0].weatherQuantities
+    ) return
+
     hourlyChartState.chartQuantities.forEachIndexed { curveNumber, weatherQuantity ->
         if (hourlyChartState.yAxesStarts.getOrNull(curveNumber) == null) {
             val apparentTempIndex =
-                hourlyChartState.chartQuantities.indexOf(WeatherQuantity.APPARENTTEMP)
+                hourlyChartState.chartQuantities.indexOf(HourlyWeatherQuantity.APPARENTTEMP)
             val tempIndex =
-                hourlyChartState.chartQuantities.indexOf(WeatherQuantity.TEMPERATURE)
+                hourlyChartState.chartQuantities.indexOf(HourlyWeatherQuantity.TEMPERATURE)
             when {
-                weatherQuantity == WeatherQuantity.TEMPERATURE && -1 < apparentTempIndex &&
+                weatherQuantity == HourlyWeatherQuantity.TEMPERATURE && -1 < apparentTempIndex &&
                         apparentTempIndex < curveNumber ->
                     onAddYAxis(0f, 0f, 0f, textMeasurer, apparentTempIndex, curveAnimatorInitialValue)
 
-                weatherQuantity == WeatherQuantity.APPARENTTEMP && -1 < tempIndex &&
+                weatherQuantity == HourlyWeatherQuantity.APPARENTTEMP && -1 < tempIndex &&
                         tempIndex < curveNumber ->
                     onAddYAxis(0f, 0f, 0f, textMeasurer, tempIndex, curveAnimatorInitialValue)
 
                 else -> {
                     val data = quantityData(
                         hourlyChartData = hourlyChartData,
-                        weatherQuantity = weatherQuantity
+                        weatherQuantity = weatherQuantity,
+                        historicWeatherData = historicHourlyChartData.map { it.hourlyWeather }
                     )
                     val quantityMax = data.maxOfOrNull { it ?: Float.MIN_VALUE }
                     val quantityMin = data.minOfOrNull { it ?: Float.MAX_VALUE }
+//                    Log.i("min1", "quantityMax = $quantityMax , quantityMin = $quantityMin")
                     if (quantityMin != null && quantityMax != null) {
                         val (modifiedQuantityMin, modifiedQuantityMax) =
                             quantityMinMaxModifier(
@@ -873,6 +958,7 @@ private fun prepareAddCurve(
                                 quantityMax,
                                 appSettings
                             )
+//                        Log.i("min1", "modifiedQuantityMax = $modifiedQuantityMax , modifiedQuantityMin = $modifiedQuantityMin")
                         onAddYAxis(
                             modifiedQuantityMin,
                             modifiedQuantityMax,

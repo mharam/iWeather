@@ -9,6 +9,7 @@ import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.repository.AirQualityRepository
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 class AirQualityRepositoryImpl @Inject constructor(
@@ -38,7 +39,12 @@ class AirQualityRepositoryImpl @Inject constructor(
     ): List<LocalAirQuality> {
         val rawList = weatherDao.getLocationAirQuality(locationId, startDate, endDate)
 
-        val size = LocalDate.parse(startDate).until(LocalDate.parse(endDate).plusDays(1)).days * 24
+        val size = ChronoUnit.DAYS.between(
+            LocalDate.parse(startDate),
+            LocalDate.parse(endDate).plusDays(1)
+        ).toInt() * 24
+        if (size < 1) return emptyList()
+
         val times = List(size){
             LocalDate.parse(startDate).atStartOfDay().plusHours(it.toLong()).toString()
         }
@@ -62,7 +68,7 @@ class AirQualityRepositoryImpl @Inject constructor(
         latitude: Float,
         longitude: Float,
         pastDays: Int
-    ): MyResult<WholeAirQuality> {
+    ): MyResult<out WholeAirQuality> {
         val response = try {
             airQualityApiService.getAirQuality(latitude, longitude, pastDays)
         } catch (e: Exception){
@@ -72,5 +78,33 @@ class AirQualityRepositoryImpl @Inject constructor(
             MyResult.Success(response.body()!!)
         } else
             MyResult.Error(message = "Retrieving data from server was not successful")
+    }
+
+    override suspend fun getAirQualityBatchFromServer(
+        latitude: List<Float>,
+        longitude: List<Float>,
+        pastDays: Int,
+    ): MyResult<out List<WholeAirQuality>> {
+        if (latitude.size == 1) {
+            val response = try {
+                airQualityApiService.getAirQuality(latitude.first(), longitude.first(), pastDays)
+            } catch (e: Exception) {
+                return MyResult.Error(exception = e)
+            }
+            return if (response.isSuccessful && response.body() != null) {
+                MyResult.Success(listOf(response.body()!!))
+            } else
+                MyResult.Error(message = "Retrieving data from server was not successful")
+        } else {
+            val response = try {
+                airQualityApiService.getAirQualityBatch(latitude, longitude, pastDays)
+            } catch (e: Exception) {
+                return MyResult.Error(exception = e)
+            }
+            return if (response.isSuccessful && response.body() != null) {
+                MyResult.Success(response.body()!!)
+            } else
+                MyResult.Error(message = "Retrieving data from server was not successful")
+        }
     }
 }

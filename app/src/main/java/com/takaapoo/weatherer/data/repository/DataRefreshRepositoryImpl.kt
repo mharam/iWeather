@@ -1,6 +1,7 @@
 package com.takaapoo.weatherer.data.repository
 
 import android.content.Context
+import android.util.Log
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -29,7 +30,7 @@ class DataRefreshRepositoryImpl @Inject constructor(
 
         workManager.enqueueUniquePeriodicWork(
             /* uniqueWorkName = */ "DataRefresh",
-            /* existingPeriodicWorkPolicy = */ ExistingPeriodicWorkPolicy.UPDATE,
+            /* existingPeriodicWorkPolicy = */ ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,
             /* periodicWork = */ refreshWork
         )
     }

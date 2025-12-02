@@ -10,7 +10,7 @@ import com.takaapoo.weatherer.domain.unit.Pressure
 import com.takaapoo.weatherer.domain.unit.Speed
 import com.takaapoo.weatherer.domain.unit.Temperature
 import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartGrids
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
 import com.takaapoo.weatherer.ui.theme.NotifCurveGreen
@@ -26,7 +26,7 @@ import java.io.InputStream
 import java.io.OutputStream
 
 enum class AppTheme(
-    @StringRes val description: Int
+    @param:StringRes val description: Int
 ) {
     LIGHT(description = R.string.light_theme),
     DARK(description = R.string.dark_theme),
@@ -37,12 +37,17 @@ enum class SettingsPaneContent {
     MAIN, GENERAL, UNIT, NOTIFICATION, WIDGET, CARD_WEATHER_QUANTITY, HOURLY_DIAGRAM
 }
 
-enum class HourlyDiagramTime(@StringRes val title: Int, @StringRes val description: Int) {
+enum class HourlyDiagramTime(
+    @param:StringRes val title: Int,
+    @param:StringRes val description: Int,
+) {
     UTC(title = R.string.hourly_diagram_utc_title , description = R.string.hourly_diagram_utc),
     DEVICE(title = R.string.hourly_diagram_device_title, description = R.string.hourly_diagram_device),
     LOCATION(title = R.string.hourly_diagram_location_title, description = R.string.hourly_diagram_location)
 }
 
+const val MaxFreeLocationsCount = 5
+const val MaxLocationsCount = 20
 
 @Stable
 @Serializable
@@ -59,7 +64,7 @@ data class AppSettings(
     val dynamicColor: Boolean = false,
     val clockGaugeVisibility: Boolean = true,
     val notificationVisibility: Boolean = false,
-    val notificationLocationId: Int = 5,
+    val notificationLocationId: Int? = null,
     val lastNotificationHeaderSelected: Int = 1,
     val displayNotificationTrigger: Boolean = false,
     val homeCardQuantityUnitsVisibility: Boolean = true,
@@ -78,46 +83,46 @@ data class AppSettings(
 //        setOf(WeatherQuantity.CLOUDCOVER, WeatherQuantity.VISIBILITY, /*WeatherQuantity.WINDDIRECTION,*/
 //            WeatherQuantity.AQI),
     val clockGaugeLock: Boolean = false,
-    val cardWeatherQuantities: List<WeatherQuantity> =
-        listOf(WeatherQuantity.HUMIDITY, WeatherQuantity.PRECIPITATIONPROBABILITY,
-            WeatherQuantity.WINDSPEED, WeatherQuantity.AQI),
+    val cardWeatherQuantities: List<HourlyWeatherQuantity> =
+        listOf(HourlyWeatherQuantity.HUMIDITY, HourlyWeatherQuantity.PRECIPITATIONPROBABILITY,
+            HourlyWeatherQuantity.WINDSPEED, HourlyWeatherQuantity.AQI),
     val curvesColor: List<Int> = listOf(curveBlue, curvePink, curveGreen, curveOrange).map { it.toArgb() },
-    val curvesSmoothness: Map<WeatherQuantity, Float> = mapOf(
-        WeatherQuantity.TEMPERATURE to 1f,
-        WeatherQuantity.HUMIDITY to 0f,
-        WeatherQuantity.DEWPOINT to 1f,
-        WeatherQuantity.APPARENTTEMP to 1f,
-        WeatherQuantity.PRECIPITATIONPROBABILITY to 0.5f,
-        WeatherQuantity.CLOUDCOVER to 0f,
-        WeatherQuantity.SURFACEPRESSURE to 1f,
-        WeatherQuantity.VISIBILITY to 0f,
-        WeatherQuantity.WINDSPEED to 1f,
-        WeatherQuantity.WINDDIRECTION to 0f,
-        WeatherQuantity.UVINDEX to 1f,
-        WeatherQuantity.FREEZINGLEVELHEIGHT to 1f,
-        WeatherQuantity.DIRECTRADIATION to 1f,
-        WeatherQuantity.DIRECTNORMALIRRADIANCE to 1f,
-        WeatherQuantity.AQI to 0f,
-        WeatherQuantity.PM10 to 1f,
-        WeatherQuantity.PM2_5 to 1f,
-        WeatherQuantity.CO to 1f,
-        WeatherQuantity.NO2 to 1f,
-        WeatherQuantity.SO2 to 1f,
-        WeatherQuantity.Ozone to 1f,
+    val curvesSmoothness: Map<HourlyWeatherQuantity, Float> = mapOf(
+        HourlyWeatherQuantity.TEMPERATURE to 1f,
+        HourlyWeatherQuantity.HUMIDITY to 0f,
+        HourlyWeatherQuantity.DEWPOINT to 1f,
+        HourlyWeatherQuantity.APPARENTTEMP to 1f,
+        HourlyWeatherQuantity.PRECIPITATIONPROBABILITY to 0.5f,
+        HourlyWeatherQuantity.CLOUDCOVER to 0f,
+        HourlyWeatherQuantity.SURFACEPRESSURE to 1f,
+        HourlyWeatherQuantity.VISIBILITY to 0f,
+        HourlyWeatherQuantity.WINDSPEED to 1f,
+        HourlyWeatherQuantity.WINDDIRECTION to 0f,
+        HourlyWeatherQuantity.UVINDEX to 1f,
+        HourlyWeatherQuantity.FREEZINGLEVELHEIGHT to 1f,
+        HourlyWeatherQuantity.DIRECTRADIATION to 1f,
+        HourlyWeatherQuantity.DIRECTNORMALIRRADIANCE to 1f,
+        HourlyWeatherQuantity.AQI to 0f,
+        HourlyWeatherQuantity.PM10 to 1f,
+        HourlyWeatherQuantity.PM2_5 to 1f,
+        HourlyWeatherQuantity.CO to 1f,
+        HourlyWeatherQuantity.NO2 to 1f,
+        HourlyWeatherQuantity.SO2 to 1f,
+        HourlyWeatherQuantity.Ozone to 1f,
     ),
-    val notificationCurrentQuantities: List<WeatherQuantity> = listOf(
-        WeatherQuantity.APPARENTTEMP,
-        WeatherQuantity.DIRECTNORMALIRRADIANCE,
-        WeatherQuantity.VISIBILITY,
-        WeatherQuantity.AQI,
-        WeatherQuantity.SURFACEPRESSURE,
-        WeatherQuantity.PRECIPITATION,
-        WeatherQuantity.UVINDEX,
+    val notificationCurrentQuantities: List<HourlyWeatherQuantity> = listOf(
+        HourlyWeatherQuantity.APPARENTTEMP,
+        HourlyWeatherQuantity.DIRECTNORMALIRRADIANCE,
+        HourlyWeatherQuantity.VISIBILITY,
+        HourlyWeatherQuantity.AQI,
+        HourlyWeatherQuantity.SURFACEPRESSURE,
+        HourlyWeatherQuantity.PRECIPITATION,
+        HourlyWeatherQuantity.UVINDEX,
     ),
     val notificationHourlyDiagramIconsVisibility: Boolean = true,
-    val notificationHourlyQuantities: List<WeatherQuantity> = listOf(
-        WeatherQuantity.TEMPERATURE,
-        WeatherQuantity.PRECIPITATIONPROBABILITY
+    val notificationHourlyQuantities: List<HourlyWeatherQuantity> = listOf(
+        HourlyWeatherQuantity.TEMPERATURE,
+        HourlyWeatherQuantity.PRECIPITATIONPROBABILITY
     ),
     val notificationHourlyCurveShadowVisible: Boolean = true,
     val notificationHourlyDiagramTime: HourlyDiagramTime = HourlyDiagramTime.LOCATION,
@@ -130,12 +135,14 @@ data class AppSettings(
     val notificationWeatherIconVisible: Boolean = true,
     val notificationDateTime: HourlyDiagramTime = HourlyDiagramTime.LOCATION,
 
-    val widgetLocationId: Int = 5,
+    val widgetLocationId: Int? = null,
     val widgetDateTime: HourlyDiagramTime = HourlyDiagramTime.LOCATION,
-    val widgetHourlyDiagramQuantities: List<WeatherQuantity> = listOf(
-        WeatherQuantity.TEMPERATURE,
-        WeatherQuantity.PRECIPITATIONPROBABILITY
+    val widgetHourlyDiagramQuantities: List<HourlyWeatherQuantity> = listOf(
+        HourlyWeatherQuantity.TEMPERATURE,
+        HourlyWeatherQuantity.PRECIPITATIONPROBABILITY
     ),
+
+    val addLocationHelpVisible: Boolean = true,
 )
 
 data class SettingsState(
@@ -175,7 +182,7 @@ object AppSettingsSerializer : Serializer<AppSettings> {
                 deserializer = AppSettings.serializer(),
                 string = input.readBytes().decodeToString()
             )
-        } catch (serialization: SerializationException) {
+        } catch (_: SerializationException) {
             defaultValue
         }
     }

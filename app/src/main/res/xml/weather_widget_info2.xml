@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:minWidth="280dp"
-    android:minHeight="240dp"
-    android:minResizeWidth="280dp"
-    android:minResizeHeight="240dp"
+    android:minWidth="320dp"
+    android:minHeight="280dp"
+    android:minResizeWidth="100dp"
+    android:minResizeHeight="120dp"
     android:updatePeriodMillis="60000"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable|configuration_optional"
     android:configure="com.takaapoo.weatherer.main.Widget2ConfigurationActivity"
-    android:widgetFeatures="reconfigurable|configuration_optional">
+    android:previewImage="@drawable/widget2">
 </appwidget-provider>

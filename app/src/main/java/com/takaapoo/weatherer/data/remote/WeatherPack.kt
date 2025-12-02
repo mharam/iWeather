@@ -25,3 +25,25 @@ data class DailyWeatherPack(
     val elevation: Float,
     @SerialName(value = "daily") val dailyWeather: DailyWeather
 )
+
+@Serializable
+data class HistoricHourlyWeatherPack(
+    val latitude: Float,
+    val longitude: Float,
+    @SerialName(value = "utc_offset_seconds") val utcOffsetSeconds: Int,
+    @SerialName(value = "timezone") val timeZone: String,
+    @SerialName(value = "timezone_abbreviation") val timeZoneAbbreviation: String,
+    val elevation: Float,
+    @SerialName(value = "hourly") val hourlyWeather: HistoricHourlyWeather,
+)
+
+@Serializable
+data class HistoricDailyWeatherPack(
+    val latitude: Float,
+    val longitude: Float,
+    @SerialName(value = "utc_offset_seconds") val utcOffsetSeconds: Int,
+    @SerialName(value = "timezone") val timeZone: String,
+    @SerialName(value = "timezone_abbreviation") val timeZoneAbbreviation: String,
+    val elevation: Float,
+    @SerialName(value = "daily") val dailyWeather: HistoricDailyWeather
+)

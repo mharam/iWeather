@@ -15,7 +15,7 @@ import com.takaapoo.weatherer.domain.unit.Pressure
 import com.takaapoo.weatherer.domain.unit.Speed
 import com.takaapoo.weatherer.domain.unit.Temperature
 import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartGrids
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +31,7 @@ class PreferenceViewModel @Inject constructor(
     private val preferenceRepository: PreferenceRepository
 ): ViewModel() {
 
-    private val _settingsState = MutableStateFlow<SettingsState>(SettingsState())
+    private val _settingsState = MutableStateFlow(SettingsState())
     val settingsState = _settingsState.asStateFlow()
 
     val appSettings = preferenceRepository.getSettingsFlow()
@@ -91,7 +91,7 @@ class PreferenceViewModel @Inject constructor(
         preferenceRepository.setNotificationVisibility(visible)
     }
 
-    fun updateNotificationLocationId(id: Int) = viewModelScope.launch {
+    fun updateNotificationLocationId(id: Int?) = viewModelScope.launch {
         preferenceRepository.setNotificationLocationId(id)
     }
 
@@ -99,10 +99,10 @@ class PreferenceViewModel @Inject constructor(
         preferenceRepository.setDisplayNotificationTrigger(!appSettings.value.displayNotificationTrigger)
     }
 
-    fun updateCardWeatherQuantities(quantity: WeatherQuantity, add: Boolean) = viewModelScope.launch {
+    fun updateCardWeatherQuantities(quantity: HourlyWeatherQuantity, add: Boolean) = viewModelScope.launch {
         val selectedQuantities = appSettings.value.cardWeatherQuantities
         if (add){
-            val allCardQuantities = WeatherQuantity.entries.filter { it.homeCardNameId != null }
+            val allCardQuantities = HourlyWeatherQuantity.entries.filter { it.homeCardNameId != null }
             if (selectedQuantities.size < 4 && !selectedQuantities.contains(quantity)) {
                 val updatedQuantities =
                     selectedQuantities.toMutableList().apply {
@@ -125,10 +125,10 @@ class PreferenceViewModel @Inject constructor(
         preferenceRepository.setHomeCardQuantityUnitsVisibility(visible)
     }
 
-    fun updateNotificationCurrentWeatherQuantities(quantity: WeatherQuantity, add: Boolean) = viewModelScope.launch {
+    fun updateNotificationCurrentWeatherQuantities(quantity: HourlyWeatherQuantity, add: Boolean) = viewModelScope.launch {
         val selectedQuantities = appSettings.value.notificationCurrentQuantities
         if (add){
-            val allQuantities = WeatherQuantity.entries.filter { it.homeCardNameId != null }
+            val allQuantities = HourlyWeatherQuantity.entries.filter { it.homeCardNameId != null }
             if (selectedQuantities.size < 7 && !selectedQuantities.contains(quantity)) {
                 val updatedQuantities =
                     selectedQuantities.toMutableList().apply {
@@ -151,10 +151,10 @@ class PreferenceViewModel @Inject constructor(
         preferenceRepository.setNotificationHourlyDiagramIconsVisibility(visible)
     }
 
-    fun updateNotificationHourlyQuantities(quantity: WeatherQuantity, add: Boolean) = viewModelScope.launch {
+    fun updateNotificationHourlyQuantities(quantity: HourlyWeatherQuantity, add: Boolean) = viewModelScope.launch {
         val selectedQuantities = appSettings.value.notificationHourlyQuantities
         if (add){
-            val allQuantities = WeatherQuantity.entries
+            val allQuantities = HourlyWeatherQuantity.entries
             if (selectedQuantities.size < 2 && !selectedQuantities.contains(quantity)) {
                 val updatedQuantities =
                     selectedQuantities.toMutableList().apply {
@@ -209,7 +209,7 @@ class PreferenceViewModel @Inject constructor(
         preferenceRepository.setNotificationDateTime(time)
     }
 
-    fun updateWidgetLocationId(id: Int) = viewModelScope.launch {
+    fun updateWidgetLocationId(id: Int?) = viewModelScope.launch {
         preferenceRepository.setWidgetLocationId(id)
     }
 
@@ -217,10 +217,10 @@ class PreferenceViewModel @Inject constructor(
         preferenceRepository.setWidgetDateTime(time)
     }
 
-    fun updateWidgetHourlyDiagramQuantities(quantity: WeatherQuantity, add: Boolean) = viewModelScope.launch {
+    fun updateWidgetHourlyDiagramQuantities(quantity: HourlyWeatherQuantity, add: Boolean) = viewModelScope.launch {
         val selectedQuantities = appSettings.value.widgetHourlyDiagramQuantities
         if (add){
-            val allQuantities = WeatherQuantity.entries
+            val allQuantities = HourlyWeatherQuantity.entries
             if (selectedQuantities.size < 2 && !selectedQuantities.contains(quantity)) {
                 val updatedQuantities =
                     selectedQuantities.toMutableList().apply {
@@ -239,7 +239,9 @@ class PreferenceViewModel @Inject constructor(
         }
     }
 
-
+    fun updateAddLocationHelpVisibility(visible: Boolean) = viewModelScope.launch {
+        preferenceRepository.setAddLocationHelpVisible(visible)
+    }
 
 
 

@@ -1,9 +1,15 @@
 package com.takaapoo.weatherer.ui.screens.detail.daily_diagram
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
@@ -15,8 +21,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.unit.Dp
 import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
@@ -29,6 +37,7 @@ import com.takaapoo.weatherer.ui.theme.DiagramLightTheme
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.TransparentGray5
 import com.takaapoo.weatherer.ui.theme.customColorScheme
+import com.takaapoo.weatherer.utility.toDp
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -49,39 +58,59 @@ fun DailyDiagramFrameCanvas(
     textMeasurer: TextMeasurer,
     verticalDashLinePhase: Float,
     horizontalDashLinePhase: Float,
+    isLoading: Boolean,
     onCalculateHorizontalBarSeparation:
         (start: Float, end: Float, diagramHeight: Float, textMeasurer: TextMeasurer) -> Pair<Float, Float>,
     onCalculateVerticalBarSeparation:
         (start: Float, end: Float, diagramWidth: Float, textMeasurer: TextMeasurer) -> Pair<Int, Float>
 ) {
     val appThemeDiagramSurfaceColor = MaterialTheme.customColorScheme.appThemeDiagramSurfaceColor
+    val density = LocalDensity.current
 
-    Canvas(
+    Box(
         modifier = modifier.fillMaxSize()
-            .clip(RectangleShape)   // This is to prevent DrawScope call unnecessarily
     ) {
-//        Log.i("chart1", "dailyDiagramFrame")
-
-        dailyDiagramFrame(
-            xAxisRange = xAxisStart .. xAxisEnd,
-            yAxesRanges = yAxesStarts .. yAxesEnds,
-            cornerRadius = cornerRadius.toPx(),
-            horizontalPadding = diagramHorPadding,
-            verticalPadding = diagramVertPadding,
-            mainBarColor = DiagramGrid,
-            minorBarColor = DiagramGrid,
-            minorBarVisible = minorBarVisible,
-            majorBarVisible = majorBarVisible,
-            theme = chartTheme,
-            chartQuantity = chartQuantity,
-            appSurfaceColor = appThemeDiagramSurfaceColor,
+        Canvas(
+            modifier = Modifier.fillMaxSize()
+                .clip(RectangleShape)   // This is to prevent DrawScope call unnecessarily
+        ) {
+            dailyDiagramFrame(
+                xAxisRange = xAxisStart..xAxisEnd,
+                yAxesRanges = yAxesStarts..yAxesEnds,
+                cornerRadius = cornerRadius.toPx(),
+                horizontalPadding = diagramHorPadding,
+                verticalPadding = diagramVertPadding,
+                mainBarColor = DiagramGrid,
+                minorBarColor = DiagramGrid,
+                minorBarVisible = minorBarVisible,
+                majorBarVisible = majorBarVisible,
+                theme = chartTheme,
+                chartQuantity = chartQuantity,
+                appSurfaceColor = appThemeDiagramSurfaceColor,
 //            appSurfaceColorSecondary = appThemeDiagramSurfaceColorSecondary,
-            textMeasurer = textMeasurer,
-            horizontalDashLinePhase = horizontalDashLinePhase,
-            verticalDashLinePhase = verticalDashLinePhase,
-            onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
-            onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation
-        )
+                textMeasurer = textMeasurer,
+                horizontalDashLinePhase = horizontalDashLinePhase,
+                verticalDashLinePhase = verticalDashLinePhase,
+                onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
+                onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation
+            )
+        }
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize()
+                    .padding(
+                        horizontal = diagramHorPadding.toDp(density),
+                        vertical = diagramVertPadding.toDp(density)
+                    )
+                    .clip(RoundedCornerShape(size = cornerRadius))
+            ) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth()
+                        .align(Alignment.BottomCenter),
+                    strokeCap = StrokeCap.Round
+                )
+            }
+        }
     }
 }
 
@@ -125,7 +154,7 @@ fun DrawScope.dailyDiagramFrame(
         calculateDailyVerticalBarSeparation(xAxisRange.start, xAxisRange.endInclusive, diagramWidth, textMeasurer)
 
     when (theme) {
-        ChartTheme.LIGHT, ChartTheme.DAYNIGHT -> {
+        ChartTheme.LIGHT -> {
             drawRoundRect(
                 color = DiagramLightTheme,
                 topLeft = Offset(diagramRectangle.left, diagramRectangle.top),
@@ -141,7 +170,7 @@ fun DrawScope.dailyDiagramFrame(
                 cornerRadius = CornerRadius(cornerRadius, cornerRadius)
             )
         }
-        ChartTheme.APPTHEME -> {
+        ChartTheme.APPTHEME, ChartTheme.DAYNIGHT -> {
             drawRoundRect(
                 color = appSurfaceColor,
                 topLeft = Offset(diagramRectangle.left, diagramRectangle.top),
@@ -228,34 +257,36 @@ fun DrawScope.dailyDiagramFrame(
         else
             onCalculateHorizontalBarSeparation(start, end, diagramHeight, textMeasurer)
 
-    var y = (start / minorHorizontalBarSeparation).toInt() * minorHorizontalBarSeparation
-    while (y <= start) y += minorHorizontalBarSeparation
-    clipPath(path = diagramBounds) {
-        while (y < end) {
-            val lineY = (1 - (y - start) / yAxisLength) * diagramHeight + verticalPadding
-            val coefficient = y / horizontalBarSeparation.toFloat()
-            if (abs(coefficient - coefficient.roundToInt()) < 0.01) {
-                if (majorBarVisible) {
+    if (minorHorizontalBarSeparation > 0) {
+        var y = (start / minorHorizontalBarSeparation).toInt() * minorHorizontalBarSeparation
+        while (y <= start) y += minorHorizontalBarSeparation
+        clipPath(path = diagramBounds) {
+            while (y < end) {
+                val lineY = (1 - (y - start) / yAxisLength) * diagramHeight + verticalPadding
+                val coefficient = y / horizontalBarSeparation.toFloat()
+                if (abs(coefficient - coefficient.roundToInt()) < 0.01) {
+                    if (majorBarVisible) {
+                        drawLine(
+                            color = mainBarColor,
+                            start = Offset(x = horizontalPadding, y = lineY),
+                            end = Offset(x = size.width - horizontalPadding, y = lineY),
+                            strokeWidth = mainBarWidthPx,
+                        )
+                    }
+                } else if (minorBarVisible) {
                     drawLine(
-                        color = mainBarColor,
+                        color = minorBarColor,
                         start = Offset(x = horizontalPadding, y = lineY),
                         end = Offset(x = size.width - horizontalPadding, y = lineY),
                         strokeWidth = mainBarWidthPx,
+                        pathEffect = PathEffect.dashPathEffect(
+                            intervals = floatArrayOf(2 * mainBarWidthPx, 4 * mainBarWidthPx),
+                            phase = horizontalDashLinePhase
+                        )
                     )
                 }
-            } else if (minorBarVisible) {
-                drawLine(
-                    color = minorBarColor,
-                    start = Offset(x = horizontalPadding, y = lineY),
-                    end = Offset(x = size.width - horizontalPadding, y = lineY),
-                    strokeWidth = mainBarWidthPx,
-                    pathEffect = PathEffect.dashPathEffect(
-                        intervals = floatArrayOf(2 * mainBarWidthPx, 4 * mainBarWidthPx),
-                        phase = horizontalDashLinePhase
-                    )
-                )
+                y += minorHorizontalBarSeparation
             }
-            y += minorHorizontalBarSeparation
         }
     }
 }

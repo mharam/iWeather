@@ -1,4 +1,4 @@
-package com.takaapoo.weatherer.ui.screens.settings
+package com.takaapoo.weatherer.ui.screens.settings.dialogs
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -15,10 +15,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -32,7 +29,7 @@ import com.takaapoo.weatherer.ui.theme.Gray30
 fun ChooseLocationDialog(
     modifier: Modifier = Modifier,
     locationList: List<Location>,
-    locationId: Int,
+    locationId: Int?,
     onDismiss: () -> Unit,
     onConfirmation: (id: Int) -> Unit,
 ) {

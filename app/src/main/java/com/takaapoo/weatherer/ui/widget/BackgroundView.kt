@@ -24,19 +24,18 @@ import com.takaapoo.weatherer.domain.WeatherType.Companion.calculateMoonType
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
-import com.takaapoo.weatherer.moonPhaseMap
+import com.takaapoo.weatherer.moonPhase
 import com.takaapoo.weatherer.ui.notification.custom_views.HourlyChart
 import com.takaapoo.weatherer.ui.notification.custom_views.HourlyChartLabel
 import com.takaapoo.weatherer.ui.notification.custom_views.timeToX
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.weatherCurveXtoY
 import com.takaapoo.weatherer.utility.getColorScheme
-import com.takaapoo.weatherer.utility.readJSONFromAssets
+import com.takaapoo.weatherer.utility.readMoonPhaseBinFromAssets
+import com.takaapoo.weatherer.utility.readMoonPhaseFromAssets
 import com.takaapoo.weatherer.utility.spToFloat
 import com.takaapoo.weatherer.utility.toPx
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -60,8 +59,9 @@ class BackgroundView(
 ) : View(context) {
 
     init {
-        moonPhaseMap = Json.parseToJsonElement(readJSONFromAssets(context, "moon_phase.json"))
-            .jsonObject.toMap()
+//        moonPhaseMap = Json.parseToJsonElement(readJSONFromAssets(context, "moon_phase.json"))
+//            .jsonObject.toMap()
+        moonPhase = readMoonPhaseBinFromAssets(context, "moon_phase.bin")
     }
 
     val myDensity = Density(context)
@@ -117,7 +117,7 @@ class BackgroundView(
 
     val indicatorX = Duration.between(now.truncatedTo(ChronoUnit.HOURS), now).toMinutes() / 60f
     val curveValueAtIndicator = weatherCurveXtoY(
-        quantity = WeatherQuantity.TEMPERATURE,
+        quantity = HourlyWeatherQuantity.TEMPERATURE,
         appSettings = appSettings,
         hourlyWeather = hourlyChartData.map { it.hourlyWeather },
         hourlyAirQuality = hourlyChartData.map { it.airQuality },
@@ -164,7 +164,7 @@ class BackgroundView(
     val maxTempBound = Rect()
     val minTempBound = Rect()
 
-    val arrowSize = 20.dp.toPx(myDensity).toInt()
+//    val arrowSize = 20.dp.toPx(myDensity).toInt()
 //    val arrowBitmap = AppCompatResources.getDrawable(context, R.drawable.south_24)!!.toBitmap(
 //        arrowSize, arrowSize, null
 //    )
@@ -188,7 +188,7 @@ class BackgroundView(
     }
     val circleFillPaint = Paint().apply {
 //        color = colorScheme.surface.copy(alpha = 0.5f).toArgb()
-        color = colorScheme.secondary.toArgb()
+        color = colorScheme.surfaceTint.toArgb()
         style = Paint.Style.FILL
     }
     val circleStrokePaint = Paint().apply {
@@ -397,7 +397,7 @@ class BackgroundView(
                 }
                 3 -> {
                     val chartTop = y + 48.dp.toPx(myDensity) + padding
-                    val chartHeight = height - chartTop - 3 * padding
+//                    val chartHeight = height - chartTop - 3 * padding
 
 //                    val dailyChart = DailyChart(
 //                        context = context,
@@ -419,11 +419,11 @@ class BackgroundView(
                         numberFont = ResourcesCompat.getFont(context, R.font.cmu_serif)!!
                     ).apply {
                         val widthSpec = MeasureSpec.makeMeasureSpec(
-                            (this.width).toInt(),
+                            (this.width),
                             MeasureSpec.EXACTLY
                         )
                         val heightSpec = MeasureSpec.makeMeasureSpec(
-                            this.height.toInt(),
+                            this.height,
                             MeasureSpec.EXACTLY
                         )
                         measure(widthSpec, heightSpec)

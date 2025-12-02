@@ -45,7 +45,7 @@ import com.takaapoo.weatherer.domain.repository.LocalWeatherRepository
 import com.takaapoo.weatherer.domain.repository.PreferenceRepository
 import com.takaapoo.weatherer.domain.use_case.GetHourlyChartDataUseCase
 import com.takaapoo.weatherer.ui.notification.custom_views.timeToX
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.weatherCurveXtoY
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.utility.getColorScheme
@@ -64,8 +64,9 @@ import java.time.temporal.ChronoUnit
 class WeatherWidget1(): GlanceAppWidget() {
 
     override val sizeMode: SizeMode = SizeMode.Exact
-    val tabKey = intPreferencesKey("tab")
-
+    companion object {
+        val tabKey = intPreferencesKey("tab")
+    }
     override suspend fun provideGlance(
         context: Context,
         id: GlanceId,
@@ -74,18 +75,22 @@ class WeatherWidget1(): GlanceAppWidget() {
         val localWeatherRepository = getHiltDependency<LocalWeatherRepository>(context)
         val hourlyChartDataUseCase = getHiltDependency<GetHourlyChartDataUseCase>(context)
         val appSettings = preferenceRepository.getSettings()
-        val hourlyChartData = hourlyChartDataUseCase(
-            locationId = appSettings.widgetLocationId,
-            startDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1).toString(),
-            endDate = LocalDate.now(ZoneId.of("UTC")).plusDays(3).toString(),
-            appSettings = appSettings
-        )
-        val dailyChartData = localWeatherRepository.getLocationDailyWeather(
-            locationId = appSettings.widgetLocationId,
-            startDate = LocalDate.now().toString(),
-            endDate = LocalDate.now().plusDays(4).toString(),
-            appSettings = appSettings
-        )
+        val hourlyChartData = appSettings.widgetLocationId?.let {
+            hourlyChartDataUseCase(
+                locationId = it,
+                startDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1).toString(),
+                endDate = LocalDate.now(ZoneId.of("UTC")).plusDays(3).toString(),
+                appSettings = appSettings
+            )
+        } ?: emptyList()
+        val dailyChartData = appSettings.widgetLocationId?.let {
+            localWeatherRepository.getLocationDailyWeather(
+                locationId = it,
+                startDate = LocalDate.now().toString(),
+                endDate = LocalDate.now().plusDays(4).toString(),
+                appSettings = appSettings
+            )
+        } ?: emptyList()
 
 
         provideContent {
@@ -192,7 +197,7 @@ class WeatherWidget1(): GlanceAppWidget() {
                                 ),
                             textAlign = TextAlign.Center,
                             fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Medium
                         )
                     )
                     Text(
@@ -221,7 +226,7 @@ class WeatherWidget1(): GlanceAppWidget() {
                                 ),
                             textAlign = TextAlign.Center,
                             fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Medium
                         )
                     )
                     Text(
@@ -250,7 +255,7 @@ class WeatherWidget1(): GlanceAppWidget() {
                                 ),
                             textAlign = TextAlign.Center,
                             fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Medium
                         )
                     )
                 }
@@ -320,7 +325,7 @@ class WeatherWidget1(): GlanceAppWidget() {
                             Spacer(GlanceModifier.height(8.dp))
                         }
                         items(
-                            items = WeatherQuantity.entries.filter { it.homeCardNameId != null },
+                            items = HourlyWeatherQuantity.entries.filter { it.homeCardNameId != null },
                             itemId = {
                                 it.nameId!!.toLong()
                             }

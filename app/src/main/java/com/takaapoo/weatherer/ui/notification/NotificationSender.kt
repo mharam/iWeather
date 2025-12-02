@@ -26,7 +26,7 @@ import com.takaapoo.weatherer.ui.notification.remote_layouts.Header1Layout
 import com.takaapoo.weatherer.ui.notification.remote_layouts.Header2Layout
 import com.takaapoo.weatherer.ui.notification.remote_layouts.Header3Layout
 import com.takaapoo.weatherer.ui.notification.remote_layouts.SmallLayout
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.utility.getNotificationWidth
 import com.takaapoo.weatherer.utility.getWindowSize
 import com.takaapoo.weatherer.utility.removeTransparentBorder
@@ -40,8 +40,8 @@ class NotificationSender(
     val notificationHourlyChartData: List<HourlyChartDto>,
     val notificationDailyChartData: List<LocalDailyWeather>,
     val appSettings: AppSettings,
-    val hourlyChartQuantities: List<WeatherQuantity>,
-    val currentQuantities: List<WeatherQuantity>,
+    val hourlyChartQuantities: List<HourlyWeatherQuantity>,
+    val currentQuantities: List<HourlyWeatherQuantity>,
 ) {
     val notificationManager = NotificationManagerCompat.from(context)
     val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -65,6 +65,7 @@ class NotificationSender(
             smallRemoteView,
             context,
             notificationHourlyChartData,
+            notificationDailyChartData,
             appSettings
         )
     }
@@ -105,7 +106,7 @@ class NotificationSender(
     val statusBarIcon = StatusBarIcon(
         context = context,
         hourlyChartData = notificationHourlyChartData,
-        quantity = WeatherQuantity.TEMPERATURE,
+        quantity = HourlyWeatherQuantity.TEMPERATURE,
         appSettings = appSettings
     ).apply {
         val widthSpec = View.MeasureSpec.makeMeasureSpec(

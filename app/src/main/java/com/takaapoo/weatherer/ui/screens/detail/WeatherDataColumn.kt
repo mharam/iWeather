@@ -106,7 +106,7 @@ fun WeatherDataColumn(
     timeAlpha: Float,
     onAddYAxis: (start: Float, end: Float, diagramHeight: Float,
                  textMeasurer: TextMeasurer, axisIndex: Int?, curveAnimatorInitialValue: Float) -> Unit,
-    onUpdateDailyYAxis: (quantity: DailyWeatherQuantity) -> Unit,
+    onUpdateDailyYAxis: (quantity: DailyWeatherQuantity, curveAnimatorInitialValue: Float) -> Unit,
     onMoveHourlyDiagramAxis: (Offset) -> Unit,
     onScaleHourlyDiagramAxis: (Offset, Float, Float) -> Unit,
     onScaleBack: (Offset) -> Unit,
@@ -119,8 +119,8 @@ fun WeatherDataColumn(
         (start: Float, end: Float, diagramHeight: Float, textMeasurer: TextMeasurer) -> Pair<Float, Float>,
     onCalculateVerticalBarSeparation:
         (start: Float, end: Float, diagramWidth: Float, textMeasurer: TextMeasurer) -> Pair<Int, Float>,
-    onAddChartQuantity: (quantity: WeatherQuantity) -> Unit,
-    onRemoveChartQuantity: (quantity: WeatherQuantity) -> Unit,
+    onAddChartQuantity: (quantity: HourlyWeatherQuantity) -> Unit,
+    onRemoveChartQuantity: (quantity: HourlyWeatherQuantity) -> Unit,
     onUpdateDailyChartQuantity: (quantity: DailyWeatherQuantity) -> Unit,
     onUpdateHourlyDiagramSettingOpen: (open: Boolean) -> Unit,
     onUpdateDailyDiagramSettingOpen: (open: Boolean) -> Unit,
@@ -187,7 +187,7 @@ fun WeatherDataColumn(
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
                 .verticalScroll(state = scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -232,31 +232,6 @@ fun WeatherDataColumn(
                             style = Stroke(width = 1.dp.toPx()),
                         )
                     }
-//                    .background(
-//                        color = barColor(
-//                            scroll = scrollState.value,
-//                            start = titleShrinkStartPoint,
-//                            end = spaceAboveTitle,
-//                            color1 = Transparent10.toArgb(),
-//                            color2 = MaterialTheme.customColorScheme.detailScreenSurface.toArgb()
-//                        ),
-//                        shape = columnShape
-//                    )
-//                    .border(
-//                        border = BorderStroke(
-//                            width = 1.dp,
-//                            brush = Brush.verticalGradient(
-//                                colors = listOf(
-//                                    MaterialTheme.colorScheme.primaryContainer,
-//                                    Color.Transparent
-//                                ),
-//                                startY = 0f,
-//                                endY = 300f
-//                            )
-//                        ),
-//                        shape = columnShape
-//                    )
-//                    .clip(columnShape)
                     .padding(bottom = bottomPadding),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -300,25 +275,6 @@ fun WeatherDataColumn(
                                 )
                             )
                         }
-                        /*.background(
-                            brush = Brush.verticalGradient(
-                                0f to MaterialTheme.colorScheme.primaryContainer,
-                                1f to barColor(
-                                    scroll = scrollState.value,
-                                    start = titleShrinkStartPoint,
-                                    end = spaceAboveTitle,
-                                    color1 = 0x00FFFFFF,
-                                    color2 = MaterialTheme.colorScheme.primaryContainer.toArgb()
-                                ),
-//                            1f to Color.Transparent,
-//                            startY = 0.1f * headerHeight,
-                                endY = movementFraction(
-                                    scroll = scrollState.value,
-                                    start = titleShrinkStartPoint,
-                                    end = spaceAboveTitle
-                                ) * headerHeight
-                            )
-                        )*/
                         .padding(horizontal = dimensionResource(R.dimen.detail_screen_padding))
                 ) {
                     Title(
@@ -361,7 +317,7 @@ fun WeatherDataColumn(
                     )
                     CurrentCondition(
                         modifier = Modifier.padding(start = 8.dp, end = 8.dp),
-                        weatherQuantity = listOf(WeatherQuantity.HUMIDITY).toImmutableList(),
+                        hourlyWeatherQuantity = listOf(HourlyWeatherQuantity.HUMIDITY).toImmutableList(),
                         currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
 //                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
                         targetX = detailState.targetX,
@@ -370,9 +326,9 @@ fun WeatherDataColumn(
                     )
                     CurrentCondition(
                         modifier = Modifier.padding(horizontal = 8.dp),
-                        weatherQuantity = listOf(
-                            WeatherQuantity.PRECIPITATION,
-                            WeatherQuantity.PRECIPITATIONPROBABILITY
+                        hourlyWeatherQuantity = listOf(
+                            HourlyWeatherQuantity.PRECIPITATION,
+                            HourlyWeatherQuantity.PRECIPITATIONPROBABILITY
                         ).toImmutableList(),
                         currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
 //                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
@@ -383,7 +339,7 @@ fun WeatherDataColumn(
                     )
                 CurrentCondition(
                     modifier = Modifier.padding(horizontal = 8.dp),
-                    weatherQuantity = listOf(WeatherQuantity.CLOUDCOVER).toImmutableList(),
+                    hourlyWeatherQuantity = listOf(HourlyWeatherQuantity.CLOUDCOVER).toImmutableList(),
                     currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
 //                    currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
                     targetX = detailState.targetX,
@@ -392,7 +348,7 @@ fun WeatherDataColumn(
                 )
                     CurrentCondition(
                         modifier = Modifier.padding(horizontal = 8.dp),
-                        weatherQuantity = listOf(WeatherQuantity.DEWPOINT).toImmutableList(),
+                        hourlyWeatherQuantity = listOf(HourlyWeatherQuantity.DEWPOINT).toImmutableList(),
                         currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
 //                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
                         targetX = detailState.targetX,
@@ -401,7 +357,7 @@ fun WeatherDataColumn(
                     )
                     CurrentCondition(
                         modifier = Modifier.padding(horizontal = 8.dp),
-                        weatherQuantity = listOf(WeatherQuantity.FREEZINGLEVELHEIGHT).toImmutableList(),
+                        hourlyWeatherQuantity = listOf(HourlyWeatherQuantity.FREEZINGLEVELHEIGHT).toImmutableList(),
                         currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
 //                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
                         targetX = detailState.targetX,
@@ -410,7 +366,7 @@ fun WeatherDataColumn(
                     )
                     CurrentCondition(
                         modifier = Modifier.padding(horizontal = 8.dp),
-                        weatherQuantity = listOf(WeatherQuantity.SURFACEPRESSURE).toImmutableList(),
+                        hourlyWeatherQuantity = listOf(HourlyWeatherQuantity.SURFACEPRESSURE).toImmutableList(),
                         currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
 //                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
                         targetX = detailState.targetX,
@@ -419,7 +375,7 @@ fun WeatherDataColumn(
                     )
                     CurrentCondition(
                         modifier = Modifier.padding(horizontal = 8.dp),
-                        weatherQuantity = listOf(WeatherQuantity.VISIBILITY).toImmutableList(),
+                        hourlyWeatherQuantity = listOf(HourlyWeatherQuantity.VISIBILITY).toImmutableList(),
                         currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
 //                        currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
                         targetX = detailState.targetX,
@@ -434,9 +390,9 @@ fun WeatherDataColumn(
                     )
                     CurrentCondition(
                         modifier = Modifier.padding(horizontal = 8.dp),
-                        weatherQuantity = listOf(
-                            WeatherQuantity.DIRECTRADIATION,
-                            WeatherQuantity.DIRECTNORMALIRRADIANCE
+                        hourlyWeatherQuantity = listOf(
+                            HourlyWeatherQuantity.DIRECTRADIATION,
+                            HourlyWeatherQuantity.DIRECTNORMALIRRADIANCE
                         ).toImmutableList(),
                         currentDayHourlyWeather = detailState.currentDayHourlyWeather.toImmutableList(),
                         currentDayHourlyAirQuality = detailState.currentDayHourlyAirQuality.toImmutableList(),
@@ -460,7 +416,7 @@ fun WeatherDataColumn(
                             targetX = detailState.targetX,
                             topBannerHeight = headerHeight,
                             appSettings = appSettings,
-                            quantity = WeatherQuantity.AQI,
+                            quantity = HourlyWeatherQuantity.AQI,
 //                            scroll = currentConditionScroll
                         )
                         TextButton(
@@ -497,7 +453,7 @@ fun WeatherDataColumn(
                     QuantityChooserRail(
                         modifier = Modifier.padding(end = endPadding),
                         appSettings = appSettings,
-                        quantities = hourlyChartState.chartQuantities.toImmutableList(),
+                        selectedQuantities = hourlyChartState.chartQuantities.toImmutableList(),
                         isAirQualityQuantities = false,
                         onRemoveChartQuantity = onRemoveChartQuantity,
                         onAddChartQuantity = onAddChartQuantity
@@ -506,7 +462,7 @@ fun WeatherDataColumn(
                     QuantityChooserRail(
                         modifier = Modifier.padding(end = endPadding),
                         appSettings = appSettings,
-                        quantities = hourlyChartState.chartQuantities.toImmutableList(),
+                        selectedQuantities = hourlyChartState.chartQuantities.toImmutableList(),
                         isAirQualityQuantities = true,
                         onRemoveChartQuantity = onRemoveChartQuantity,
                         onAddChartQuantity = onAddChartQuantity
@@ -589,7 +545,9 @@ fun WeatherDataColumn(
                     Spacer(modifier = Modifier.height(16.dp))
                     DailyQuantityChooserRail(
                         modifier = Modifier.padding(end = endPadding),
-                        quantity = dailyChartState.chartQuantity,
+                        allQuantities = DailyWeatherQuantity.entries
+                            .filter { it.historicalState != HistoricalState.HISTORIC_ONLY },
+                        selectedQuantity = dailyChartState.chartQuantity,
                         onUpdateChartQuantity = onUpdateDailyChartQuantity
                     )
                     Spacer(modifier = Modifier.height(8.dp))

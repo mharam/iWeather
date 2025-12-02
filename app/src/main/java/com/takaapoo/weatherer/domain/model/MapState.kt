@@ -31,10 +31,12 @@ data class MapState(
     val deviceLocationEnabled: Boolean = false,
     val indicatingCircleVisible: Boolean = false,
     val selectedLocationName: String = "",
-    val addResult: MyResult<String> = MyResult.Loading(),
-    val addLocationDialogVisibility: Boolean = false,
+    val addResult: MyResult<*> = MyResult.Loading(),
+    val addLocationDialogVisible: Boolean = false,
+    val donateDialogVisible: Boolean = false,
+    val locationCountDialogVisible: Boolean = false,
     val nameAlreadyExists: Boolean = false,
     val selectedLocationLatLng: LatLng = LatLng(0.0, 0.0),
     val triggerMapRelocation: Int = 0,
-    val weatherDataLoadStatus: Map<Int, MyResult<Unit>> = emptyMap<Int, MyResult<Unit>>()
+    val weatherDataLoadStatus: Map<Int, MyResult<*>> = emptyMap()
 )

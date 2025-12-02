@@ -15,7 +15,7 @@ import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.weatherCurveXtoY
 import com.takaapoo.weatherer.utility.toPx
 import com.takaapoo.weatherer.utility.toSpannableWithStyles
@@ -29,7 +29,7 @@ import kotlin.math.abs
 class HourlyChartLabel(
     context: Context,
     hourlyChartData: List<HourlyChartDto> = emptyList(),
-    chartQuantities: List<WeatherQuantity>,
+    val chartQuantities: List<HourlyWeatherQuantity>,
     val appSettings: AppSettings,
     curvesColor: List<Int>? = null,
     fontSize: Float,
@@ -77,12 +77,12 @@ class HourlyChartLabel(
             chartQuantities[i].let {
                 quantitiesValue.add(
                     when (it) {
-                        WeatherQuantity.HUMIDITY, WeatherQuantity.PRECIPITATIONPROBABILITY,
-                        WeatherQuantity.CLOUDCOVER -> curveValueAtIndicator?.coerceIn(0f, 100f)
+                        HourlyWeatherQuantity.HUMIDITY, HourlyWeatherQuantity.PRECIPITATIONPROBABILITY,
+                        HourlyWeatherQuantity.CLOUDCOVER -> curveValueAtIndicator?.coerceIn(0f, 100f)
 
-                        WeatherQuantity.WINDSPEED, WeatherQuantity.UVINDEX, WeatherQuantity.DIRECTRADIATION,
-                        WeatherQuantity.DIRECTNORMALIRRADIANCE, WeatherQuantity.Ozone, WeatherQuantity.SO2,
-                        WeatherQuantity.CO, WeatherQuantity.NO2, WeatherQuantity.PM10, WeatherQuantity.PM2_5 ->
+                        HourlyWeatherQuantity.WINDSPEED, HourlyWeatherQuantity.UVINDEX, HourlyWeatherQuantity.DIRECTRADIATION,
+                        HourlyWeatherQuantity.DIRECTNORMALIRRADIANCE, HourlyWeatherQuantity.Ozone, HourlyWeatherQuantity.SO2,
+                        HourlyWeatherQuantity.CO, HourlyWeatherQuantity.NO2, HourlyWeatherQuantity.PM10, HourlyWeatherQuantity.PM2_5 ->
                             curveValueAtIndicator?.coerceAtLeast(0f)
 
                         else -> curveValueAtIndicator
@@ -106,7 +106,7 @@ class HourlyChartLabel(
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-        quantitiesNameLayout = appSettings.widgetHourlyDiagramQuantities.mapIndexed { index, quantity ->
+        quantitiesNameLayout = chartQuantities.mapIndexed { index, quantity ->
             val spannable = buildAnnotatedString {
                 append(quantity.nameId?.let { AnnotatedString(context.getString(it)) } ?: quantity.title!!)
                 when {

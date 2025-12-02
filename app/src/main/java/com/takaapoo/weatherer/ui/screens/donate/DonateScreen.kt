@@ -78,6 +78,7 @@ fun DonateScreen(
     singlePane: Boolean,
     donateState: DonateState,
     billingConnectionState: Int,
+    drawerOpen: Boolean,
 
     onNavigateUp: () -> Unit,
     onNavigateToPay: () -> Unit,
@@ -144,6 +145,7 @@ fun DonateScreen(
                             billingResultResponseCodes = donateState.billingResultResponseCodes,
                             productDetailsList = donateState.productDetailsList,
                             purchasedProductIds = donateState.purchasedProductsIds,
+                            drawerOpen = drawerOpen,
                             onNavigateUp = onNavigateUp,
                             onConnectRetry = onConnectRetry,
                             onPurchaseProduct = onPurchaseProduct
@@ -196,6 +198,7 @@ fun DonateScreen(
                                 billingResultResponseCodes = donateState.billingResultResponseCodes,
                                 productDetailsList = donateState.productDetailsList,
                                 purchasedProductIds = donateState.purchasedProductsIds,
+                                drawerOpen = drawerOpen,
                                 onNavigateUp = onNavigateUp,
                                 onConnectRetry = onConnectRetry,
                                 onPurchaseProduct = onPurchaseProduct
@@ -288,6 +291,7 @@ fun PayScreen(
     billingResultResponseCodes: List<Int>,
     productDetailsList: List<ProductDetails>?,
     purchasedProductIds: List<String>,
+    drawerOpen: Boolean,
     onNavigateUp: () -> Unit,
     onConnectRetry: () -> Unit,
     onPurchaseProduct: (ProductDetails) -> Unit
@@ -332,7 +336,7 @@ fun PayScreen(
             )
         }
     }
-    BackHandler {
+    BackHandler(enabled = !drawerOpen) {
         onNavigateUp()
     }
 }

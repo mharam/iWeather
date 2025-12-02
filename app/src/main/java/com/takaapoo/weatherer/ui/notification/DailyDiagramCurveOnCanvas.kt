@@ -343,8 +343,7 @@ fun curveShader(
     val yAxisLength = yAxisRange.endInclusive - yAxisRange.start
 
     return when (weatherQuantity) {
-        DailyWeatherQuantity.TEMPERATUREMINMAX,
-        DailyWeatherQuantity.SUNRISESET -> {
+        DailyWeatherQuantity.TEMPERATUREMINMAX, DailyWeatherQuantity.SUNRISESET -> {
             val startY = normalizedY(
                 dataMax,
                 yAxisRange.start,
@@ -388,7 +387,8 @@ fun curveShader(
                 TileMode.CLAMP
             )
         }
-        DailyWeatherQuantity.PRECIPITATIONSUM, DailyWeatherQuantity.WINDSPEEDMAX -> {
+        DailyWeatherQuantity.PRECIPITATIONSUM, DailyWeatherQuantity.WINDSPEEDMAX,
+        DailyWeatherQuantity.TEMPERATUREMEAN -> {
             LinearGradient(
                 0f, 0f, 0f, diagramHeight,
                 weatherQuantity.brushColors.map { it.toArgb() }.toIntArray(),
@@ -396,7 +396,8 @@ fun curveShader(
                 TileMode.CLAMP
             )
         }
-        DailyWeatherQuantity.PRECIPITATIONPROBABILITYMAX -> {
+        DailyWeatherQuantity.PRECIPITATIONPROBABILITYMAX, DailyWeatherQuantity.CLOUDCOVERMEAN,
+        DailyWeatherQuantity.HUMIDITYMEAN -> {
             val startY = normalizedY(
                 0f,
                 yAxisRange.start,

@@ -16,7 +16,7 @@ import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
 import com.takaapoo.weatherer.ui.notification.custom_views.timeToX
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.GraphTypes
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.generateCubicGraph
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.generateLinearGraph
@@ -29,7 +29,7 @@ import com.takaapoo.weatherer.ui.theme.Transparent
 fun diagramCurveOnCanvas(
     canvas: Canvas,
     hourlyData: List<HourlyChartDto?>,
-    weatherQuantity: WeatherQuantity,
+    hourlyWeatherQuantity: HourlyWeatherQuantity,
     cornerRadius: Float,
     horizontalPadding: Float,
     verticalPadding: Float,
@@ -42,17 +42,17 @@ fun diagramCurveOnCanvas(
     curveWidth: Float,
     timeClock: HourlyDiagramTime
 ) {
-    if (weatherQuantity.airQuality && hourlyData.getOrNull(0)?.airQuality?.time == null) return
-    if (!weatherQuantity.airQuality && hourlyData.getOrNull(0)?.hourlyWeather?.time == null) return
+    if (hourlyWeatherQuantity.airQuality && hourlyData.getOrNull(0)?.airQuality?.time == null) return
+    if (!hourlyWeatherQuantity.airQuality && hourlyData.getOrNull(0)?.hourlyWeather?.time == null) return
 
     val firstPointX = timeToX(
-        time = if (weatherQuantity.airQuality) hourlyData[0]!!.airQuality!!.time
+        time = if (hourlyWeatherQuantity.airQuality) hourlyData[0]!!.airQuality!!.time
         else hourlyData[0]!!.hourlyWeather!!.time,
         utcOffset = hourlyData[0]?.utcOffset ?: 0L,
         timeClock = timeClock
     )!!
 
-    val data = quantityData(hourlyChartData = hourlyData, weatherQuantity = weatherQuantity).also {
+    val data = quantityData(hourlyChartData = hourlyData, weatherQuantity = hourlyWeatherQuantity).also {
         if (it.isEmpty()) return
     }
 
@@ -72,7 +72,7 @@ fun diagramCurveOnCanvas(
     canvas.save()
     canvas.clipPath(diagramPath)
 
-    val graphType = weatherQuantity.graphType(appSettings.curvesSmoothness.getOrElse(weatherQuantity) { 0f })
+    val graphType = hourlyWeatherQuantity.graphType(appSettings.curvesSmoothness.getOrElse(hourlyWeatherQuantity) { 0f })
     val curvePath =  when (graphType) {
         GraphTypes.STEP -> generateStepGraph(
             data = data,
@@ -97,8 +97,8 @@ fun diagramCurveOnCanvas(
         GraphTypes.CUBIC -> {
             val (controlPoints1, controlPoints2) = quantityControlPoints(
                 hourlyChartData = hourlyData,
-                weatherQuantity = weatherQuantity,
-                smoothnessFactor = appSettings.curvesSmoothness.getOrElse(weatherQuantity){ 0f }
+                hourlyWeatherQuantity = hourlyWeatherQuantity,
+                smoothnessFactor = appSettings.curvesSmoothness.getOrElse(hourlyWeatherQuantity){ 0f }
             )
             generateCubicGraph(
                 data = data,

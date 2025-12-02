@@ -18,7 +18,7 @@ import com.takaapoo.weatherer.ui.notification.diagramCurveOnCanvas
 import com.takaapoo.weatherer.ui.notification.diagramFrameOnCanvas
 import com.takaapoo.weatherer.ui.notification.diagramLegendsOnCanvas
 import com.takaapoo.weatherer.ui.notification.diagramWeatherIconOnCanvas
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.mainGridWidthDp
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.quantityData
 import com.takaapoo.weatherer.ui.theme.DiagramGrid
@@ -42,7 +42,7 @@ class HourlyChart(
     val hourlyChartData: List<HourlyChartDto> = emptyList(),
     val diagramHorPadding: Float = 16f,
     val diagramVertPadding: Float = 24f,
-    val chartQuantities: List<WeatherQuantity>,
+    val chartQuantities: List<HourlyWeatherQuantity>,
     val appSettings: AppSettings,
     val curvesColor: List<Int>? = null,
     val frameHeight: Float = Float.MAX_VALUE,
@@ -80,10 +80,10 @@ class HourlyChart(
     }
 
     init {
-        if ((chartQuantities.getOrNull(0) == WeatherQuantity.TEMPERATURE &&
-                    chartQuantities.getOrNull(1) == WeatherQuantity.APPARENTTEMP) ||
-            (chartQuantities.getOrNull(0) == WeatherQuantity.APPARENTTEMP &&
-                    chartQuantities.getOrNull(1) == WeatherQuantity.TEMPERATURE)){
+        if ((chartQuantities.getOrNull(0) == HourlyWeatherQuantity.TEMPERATURE &&
+                    chartQuantities.getOrNull(1) == HourlyWeatherQuantity.APPARENTTEMP) ||
+            (chartQuantities.getOrNull(0) == HourlyWeatherQuantity.APPARENTTEMP &&
+                    chartQuantities.getOrNull(1) == HourlyWeatherQuantity.TEMPERATURE)){
             val data = quantityData(
                 hourlyChartData = filteredHourlyChartData,
                 weatherQuantity = chartQuantities[0]
@@ -99,8 +99,8 @@ class HourlyChart(
         } else {
             chartQuantities.forEach { quantity ->
                 when (quantity) {
-                    WeatherQuantity.HUMIDITY, WeatherQuantity.PRECIPITATIONPROBABILITY,
-                    WeatherQuantity.CLOUDCOVER -> {
+                    HourlyWeatherQuantity.HUMIDITY, HourlyWeatherQuantity.PRECIPITATIONPROBABILITY,
+                    HourlyWeatherQuantity.CLOUDCOVER -> {
                         yAxesStarts.add(0f)
                         yAxesEnds.add(120f)
                     }
@@ -140,7 +140,7 @@ class HourlyChart(
                     diagramCurveOnCanvas(
                         canvas = canvas,
                         hourlyData = hourlyChartData,
-                        weatherQuantity = weatherQuantity,
+                        hourlyWeatherQuantity = weatherQuantity,
                         cornerRadius = cornerRadius,
                         horizontalPadding = diagramHorPadding,
                         verticalPadding = diagramVertPadding,

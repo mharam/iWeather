@@ -132,7 +132,7 @@ fun BoxScope.HourlyDiagramTopBar(
                         id = if (dotsOnCurveVisible) R.drawable.curve_with_dot
                         else R.drawable.curve_without_dot
                     ),
-                    contentDescription = stringResource(id = R.string.show_curve_dots)
+                    contentDescription = stringResource(id = R.string.show_data_points)
                 )
             }
             IconToggleButton(
@@ -160,7 +160,7 @@ fun BoxScope.HourlyDiagramTopBar(
                         id = if (weatherConditionIconsVisible) R.drawable.partly_cloudy_day_fill_24px
                         else R.drawable.partly_cloudy_day_24px
                     ),
-                    contentDescription = stringResource(id = R.string.show_weather_condition_icon)
+                    contentDescription = stringResource(id = R.string.show_weather_condition)
                 )
             }
             IconToggleButton(
@@ -174,7 +174,7 @@ fun BoxScope.HourlyDiagramTopBar(
                         id = if (sunRiseSetIconsVisible) R.drawable.sun_rise_set_fill
                         else R.drawable.sun_rise_set
                     ),
-                    contentDescription = stringResource(id = R.string.show_sun_rise_set_icon)
+                    contentDescription = stringResource(id = R.string.show_sun_rise_set)
                 )
             }
             IconButton(
@@ -199,7 +199,7 @@ fun BoxScope.HourlyDiagramTopBar(
                         ChartGrids.MAIN -> LocalContentColor.current
                         ChartGrids.NON -> MaterialTheme.customColorScheme.noGridIcon
                     },
-                    contentDescription = stringResource(id = R.string.show_hide_grids)
+                    contentDescription = stringResource(id = R.string.grids)
                 )
             }
             IconButton(

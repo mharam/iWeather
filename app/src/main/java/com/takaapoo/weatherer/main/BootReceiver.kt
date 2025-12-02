@@ -33,7 +33,7 @@ class BootReceiver(): BroadcastReceiver() {
             CoroutineScope(Dispatchers.IO).launch {
                 context?.let {
                     if (NetworkUtils.isConnectedToInternet(context = it))
-                        updateWeatherUseCase.updateAllLocationsWeather()
+                        updateWeatherUseCase.updateAllLocationsWeatherBatch()
 
                     setDataRefreshAlarm(context = it)
                     notify(

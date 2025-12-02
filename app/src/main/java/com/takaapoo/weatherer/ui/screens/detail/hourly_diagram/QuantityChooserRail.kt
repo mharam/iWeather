@@ -50,7 +50,7 @@ import androidx.compose.ui.unit.dp
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.ui.screens.detail.DiagramRailShape
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.diagramRailPath
 import com.takaapoo.weatherer.ui.theme.DiagramShadow
 import com.takaapoo.weatherer.ui.theme.Gray10
@@ -65,14 +65,17 @@ import kotlinx.collections.immutable.ImmutableList
 fun QuantityChooserRail(
     modifier: Modifier = Modifier,
     appSettings: AppSettings,
-    quantities: ImmutableList<WeatherQuantity>,
+    isHistorical: Boolean = false,
+    selectedQuantities: ImmutableList<HourlyWeatherQuantity>,
     isAirQualityQuantities: Boolean,
-    onRemoveChartQuantity: (WeatherQuantity) -> Unit,
-    onAddChartQuantity: (WeatherQuantity) -> Unit
+    onRemoveChartQuantity: (HourlyWeatherQuantity) -> Unit,
+    onAddChartQuantity: (HourlyWeatherQuantity) -> Unit
 ) {
     val density = LocalDensity.current
     val scrollState = rememberLazyListState()
-    val itemList = WeatherQuantity.entries.filter { it.airQuality == isAirQualityQuantities }
+    val itemList = if (isHistorical) HourlyWeatherQuantity.entries.filter { it.isHistorical == true }
+        else HourlyWeatherQuantity.entries.filter { it.airQuality == isAirQualityQuantities }
+
     val railBackgroundColor = MaterialTheme.customColorScheme.railBackground
     @DrawableRes val displayingIconId = itemList[
         remember {
@@ -142,9 +145,9 @@ fun QuantityChooserRail(
                     items = itemList,
                     key = {item -> item.name}
                 ){weatherQuantity ->
-                    val isSelected = quantities.contains(weatherQuantity)
+                    val isSelected = selectedQuantities.contains(weatherQuantity)
                     val chipColor = appSettings.curvesColor
-                        .getOrNull(quantities.indexOf(weatherQuantity))?.let { Color(it) }
+                        .getOrNull(selectedQuantities.indexOf(weatherQuantity))?.let { Color(it) }
                         ?: Color.Unspecified
                     val onSelectedChipColor = chipColor.mostContrastColor()
                     FilterChip(
@@ -177,7 +180,7 @@ fun QuantityChooserRail(
                                     )
                                 }
                             else
-                                Text(text = stringResource(id = weatherQuantity.nameId))
+                                Text(text = stringResource(id = weatherQuantity.nameId!!))
                         }
                     )
                 }

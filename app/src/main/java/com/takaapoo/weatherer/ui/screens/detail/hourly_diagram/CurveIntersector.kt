@@ -3,9 +3,10 @@ package com.takaapoo.weatherer.ui.screens.detail.hourly_diagram
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.util.lerp
 import com.takaapoo.weatherer.data.local.LocalAirQuality
+import com.takaapoo.weatherer.data.local.LocalHistoricHourlyWeather
 import com.takaapoo.weatherer.data.local.LocalHourlyWeather
 import com.takaapoo.weatherer.domain.model.AppSettings
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.acos
@@ -37,19 +38,10 @@ fun cubicCurveXtoY(
     val distance = targetX - firstPointX
     if (distance.isInteger() && data[distance.roundToInt()] != null) return data[distance.roundToInt()]
 
-    val lowerTargetIndex = floor(targetX - firstPointX).roundToInt()
-    val upperTargetIndex = ceil(targetX - firstPointX).roundToInt()
-    var firstDataIndex = lowerTargetIndex
-    var secondDataIndex = upperTargetIndex
-    if (data[firstDataIndex] == null || data[secondDataIndex] == null)
-        return null
-//    while (data[firstDataIndex] == null){
-//        firstDataIndex--
-//    }
-//    while (data[secondDataIndex] == null){
-//        secondDataIndex++
-//    }
-//    Log.i("value1", "firstDataIndex = $firstDataIndex , secondDataIndex = $secondDataIndex , targetX = $targetX")
+    val firstDataIndex = floor(distance).roundToInt()
+    val secondDataIndex = ceil(distance).roundToInt()
+    if (data[firstDataIndex] == null || data[secondDataIndex] == null) return null
+
     try {
         val k0 = MyOffset(x = firstPointX.toDouble() + firstDataIndex, y = data[firstDataIndex]!!.toDouble())
         val k1 = MyOffset(
@@ -90,7 +82,6 @@ fun cubicCurveXtoY(
         }
         targetT -= b.x / (3 * a.x)
         val result = a.y * targetT.pow(3) + b.y * targetT.pow(2) + c.y * targetT + d.y
-//        Log.i("value1", "a = ${"%.6f".format(a.x)} , ${a.y} , b = ${"%.6f".format(b.x)} , ${b.y} , c = $c , d = $d")
         return result.toFloat()
     } catch (_: Throwable){
         return null
@@ -105,35 +96,38 @@ fun linearCurveXtoY(
 ): Float?{
     val firstNonNullIndex = data.indexOfFirst { it != null }
     val lastNonNullIndex = data.indexOfLast { it != null }
+//    Log.i("air1", "firstNonNullIndex = $firstNonNullIndex , targetX = $targetX , firstPointX = $firstPointX , lastPointX = $lastPointX , lastNonNullIndex = $lastNonNullIndex , ${data[lastNonNullIndex]} , data size = ${data.size}")
 
     if (data.isEmpty() || firstNonNullIndex == -1 || targetX < firstPointX + firstNonNullIndex
-        || targetX > lastPointX - (data.size - 1 - lastNonNullIndex)) return null
+        || targetX > lastPointX /*- (data.size - 1 - lastNonNullIndex)*/) return null
 
+//    Log.i("air1", "NOT NULL!")
     val distance = targetX - firstPointX
-    if (distance.isInteger() && data[distance.roundToInt()] != null) return data[distance.roundToInt()]
+    if (distance.isInteger() && data.getOrNull(distance.roundToInt()) != null) return data[distance.roundToInt()]
 
-    val lowerTargetIndex = floor(targetX - firstPointX).roundToInt()
-    val upperTargetIndex = ceil(targetX - firstPointX).roundToInt()
-    var firstDataIndex = lowerTargetIndex
-    var secondDataIndex = upperTargetIndex
-    if (data[firstDataIndex] == null || data[secondDataIndex] == null)
-        return null
-//    while (data[firstDataIndex] == null && firstDataIndex > firstNonNullIndex){
-//        firstDataIndex--
-//    }
-//    while (data[secondDataIndex] == null && secondDataIndex < lastNonNullIndex){
-//        secondDataIndex++
-//    }
-    val firstDataX = firstDataIndex + firstPointX
-    val secondDataX = secondDataIndex + firstPointX
-    if (firstDataIndex < firstNonNullIndex || secondDataIndex > lastNonNullIndex)
-        return null
+    return runCatching {
+        val upperDistanceIndex = ceil(distance).roundToInt()
+        val firstDataIndex = data.subList(0, upperDistanceIndex).indexOfLast { it != null }
+        val secondIndex = data.subList(upperDistanceIndex, data.size).indexOfFirst { it != null }
+        val secondDataIndex = secondIndex + upperDistanceIndex
 
-    return lerp(
-        start = data[firstDataIndex]!!,
-        stop = data[secondDataIndex]!!,
-        fraction = (targetX - firstDataX) / (secondDataX - firstDataX)
-    )
+//    val firstDataIndex = floor(distance).roundToInt()
+//    val secondDataIndex = ceil(distance).roundToInt()
+
+        if (firstDataIndex == -1 || secondIndex == -1 ||
+            firstDataIndex < firstNonNullIndex || secondDataIndex > lastNonNullIndex ||
+            data[firstDataIndex] == null || data[secondDataIndex] == null)
+            return null
+
+        val firstDataX = firstDataIndex + firstPointX
+        val secondDataX = secondDataIndex + firstPointX
+
+        lerp(
+            start = data[firstDataIndex]!!,
+            stop = data[secondDataIndex]!!,
+            fraction = (targetX - firstDataX) / (secondDataX - firstDataX)
+        )
+    }.getOrNull()
 }
 
 fun stepCurveXtoY(
@@ -150,7 +144,7 @@ fun stepCurveXtoY(
     val distance = targetX - firstPointX
     if (distance.isInteger() && data[distance.roundToInt()] != null) return data[distance.roundToInt()]
 
-    var secondDataIndex = ceil(targetX - firstPointX).roundToInt()
+    val secondDataIndex = ceil(targetX - firstPointX).roundToInt()
 //    while (data[secondDataIndex] == null){
 //        secondDataIndex++
 //    }
@@ -158,11 +152,12 @@ fun stepCurveXtoY(
 }
 
 fun weatherCurveXtoY(
-    quantity: WeatherQuantity,
+    quantity: HourlyWeatherQuantity,
     appSettings: AppSettings,
     smoothnessFactor: Float? = null,
     hourlyWeather: List<LocalHourlyWeather?>? = null,
     hourlyAirQuality: List<LocalAirQuality?>? = null,
+    historicWeatherData: List<LocalHistoricHourlyWeather?> = emptyList(),
     firstPointX: Float,
     lastPointX: Float,
     targetX: Float
@@ -170,12 +165,13 @@ fun weatherCurveXtoY(
     val data = quantityData(
         weatherData = hourlyWeather,
         airData = hourlyAirQuality,
-        weatherQuantity = quantity
+        weatherQuantity = quantity,
+        historicWeatherData = historicWeatherData
     )
     val (controlPoints1, controlPoints2) = quantityControlPoints(
         weatherData = hourlyWeather,
         airData = hourlyAirQuality,
-        weatherQuantity = quantity,
+        hourlyWeatherQuantity = quantity,
         smoothnessFactor = smoothnessFactor ?: appSettings.curvesSmoothness.getOrElse(quantity) { 0f }
     )
 

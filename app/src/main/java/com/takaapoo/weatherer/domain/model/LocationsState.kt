@@ -2,7 +2,7 @@ package com.takaapoo.weatherer.domain.model
 
 import android.os.Parcelable
 import androidx.compose.runtime.Immutable
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import kotlinx.parcelize.Parcelize
 
 @Immutable
@@ -12,6 +12,9 @@ data class LocationsState(
     val locationName: String = "",
     val latitude: Float = 0f,
     val longitude: Float = 0f,
+    val currentPictureUrl: String = "",
+    val lastPicId: Int? = null,
+    val picName: String = "1_1_1",
 
     val currentTemperature: Float? = null,
     val currentHumidity: Float? = null,
@@ -41,25 +44,25 @@ data class LocationsState(
     val year: Int = 2023,
     val month: String = "JAN",
     val day: Int = 1,
-    val dayOfWeek: String = "Sat"
+    val dayOfWeek: String = "Sat",
 ) : Parcelable {
-    fun quantityValue(quantity: WeatherQuantity) = when (quantity){
-        WeatherQuantity.TEMPERATURE -> currentTemperature
-        WeatherQuantity.HUMIDITY -> currentHumidity
-        WeatherQuantity.DEWPOINT -> currentDewPoint
-        WeatherQuantity.APPARENTTEMP -> currentApparentTemperature
-        WeatherQuantity.PRECIPITATIONPROBABILITY -> currentPrecipitationProbability
-        WeatherQuantity.PRECIPITATION -> currentPrecipitationAmount
-        WeatherQuantity.CLOUDCOVER -> currentCloudCover
-        WeatherQuantity.SURFACEPRESSURE -> currentSurfacePressure
-        WeatherQuantity.VISIBILITY -> currentVisibility
-        WeatherQuantity.WINDSPEED -> currentWindSpeed
-        WeatherQuantity.WINDDIRECTION -> currentWindDirection
-        WeatherQuantity.UVINDEX -> currentUVIndex
-        WeatherQuantity.FREEZINGLEVELHEIGHT -> currentFreezingLevelHeight
-        WeatherQuantity.DIRECTRADIATION -> currentDirectRadiation
-        WeatherQuantity.DIRECTNORMALIRRADIANCE -> currentDirectNormalIrradiance
-        WeatherQuantity.AQI -> currentAirQuality?.toFloat()
+    fun quantityValue(quantity: HourlyWeatherQuantity) = when (quantity){
+        HourlyWeatherQuantity.TEMPERATURE -> currentTemperature
+        HourlyWeatherQuantity.HUMIDITY -> currentHumidity
+        HourlyWeatherQuantity.DEWPOINT -> currentDewPoint
+        HourlyWeatherQuantity.APPARENTTEMP -> currentApparentTemperature
+        HourlyWeatherQuantity.PRECIPITATIONPROBABILITY -> currentPrecipitationProbability
+        HourlyWeatherQuantity.PRECIPITATION -> currentPrecipitationAmount
+        HourlyWeatherQuantity.CLOUDCOVER -> currentCloudCover
+        HourlyWeatherQuantity.SURFACEPRESSURE -> currentSurfacePressure
+        HourlyWeatherQuantity.VISIBILITY -> currentVisibility
+        HourlyWeatherQuantity.WINDSPEED -> currentWindSpeed
+        HourlyWeatherQuantity.WINDDIRECTION -> currentWindDirection
+        HourlyWeatherQuantity.UVINDEX -> currentUVIndex
+        HourlyWeatherQuantity.FREEZINGLEVELHEIGHT -> currentFreezingLevelHeight
+        HourlyWeatherQuantity.DIRECTRADIATION -> currentDirectRadiation
+        HourlyWeatherQuantity.DIRECTNORMALIRRADIANCE -> currentDirectNormalIrradiance
+        HourlyWeatherQuantity.AQI -> currentAirQuality?.toFloat()
         else -> null
     }
 }

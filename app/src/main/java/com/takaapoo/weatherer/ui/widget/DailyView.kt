@@ -21,12 +21,14 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.withSave
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
 import com.takaapoo.weatherer.domain.WeatherType
 import com.takaapoo.weatherer.domain.WeatherType.Companion.drawWeatherIconOnCanvas
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HistoricalState
 import com.takaapoo.weatherer.utility.getColorScheme
 import com.takaapoo.weatherer.utility.toPx
 import java.time.LocalDate
@@ -51,7 +53,6 @@ class DailyView(
     val dataRowPadding = 8.dp.toPx(myDensity)
     val minDataColumnWidth = 64.dp.toPx(myDensity)
     val weatherIconSizePx = 32.dp.toPx(myDensity).toInt()
-
 
     val colorScheme = getColorScheme(context, appSettings.dynamicColor)
     val iconColorFilter = PorterDuffColorFilter(
@@ -88,20 +89,22 @@ class DailyView(
 
         var dataRowTopY = dateBottom + dataRowHeight
 
-        DailyWeatherQuantity.entries.forEach { weatherQuantity ->
-            if (dataRowTopY + dataRowHeight + dataRowPadding < canvas.height) {
-                drawDataRow(
-                    canvas = canvas,
-                    now = now,
-                    dailyChartData = dailyChartData,
-                    weatherQuantity = weatherQuantity,
-                    columnWidth = dataColumnWidth,
-                    topY = dataRowTopY,
-                    numberFont = numberFont
-                )
-                dataRowTopY += (dataRowHeight + dataRowPadding)
+        DailyWeatherQuantity.entries
+            .filter { it.historicalState != HistoricalState.HISTORIC_ONLY }
+            .forEach { weatherQuantity ->
+                if (dataRowTopY + dataRowHeight + dataRowPadding < canvas.height) {
+                    drawDataRow(
+                        canvas = canvas,
+                        now = now,
+                        dailyChartData = dailyChartData,
+                        weatherQuantity = weatherQuantity,
+                        columnWidth = dataColumnWidth,
+                        topY = dataRowTopY,
+                        numberFont = numberFont
+                    )
+                    dataRowTopY += (dataRowHeight + dataRowPadding)
+                }
             }
-        }
 
         drawWeatherIcon(
             canvas = canvas,
@@ -124,7 +127,7 @@ class DailyView(
         fontSize: Float,
         timeFont: Typeface,
         textColor: Int,
-        gap: Float
+        gap: Float,
     ): Float {
         val startX = horPadding + dataRowHeight
         val textPaint = TextPaint(ANTI_ALIAS_FLAG).apply {
@@ -176,7 +179,7 @@ class DailyView(
         weatherQuantity: DailyWeatherQuantity,
         columnWidth: Float,
         topY: Float,
-        numberFont: Typeface
+        numberFont: Typeface,
     ) {
         val textPadding = 6.dp.toPx(myDensity)
         val startX = horPadding + dataRowHeight
@@ -202,6 +205,7 @@ class DailyView(
             color = Color.RED
             textSize = 14.sp.toPx(myDensity)
             textAlign = Align.RIGHT
+            strokeWidth = 1f
         }
         val iconDrawable = ContextCompat.getDrawable(context, weatherQuantity.iconId)
         val iconCenter = Offset(horPadding + dataRowHeight/2, topY + dataRowHeight/2)
@@ -239,7 +243,10 @@ class DailyView(
                                 maxTemperature,
                                 startX + (2 * i + 1) * columnWidth / 2 + textBound1.width() / 2,
                                 topY + textBound1.height() + textPadding,
-                                valuePaint.apply { color = Color.RED }
+                                valuePaint.apply {
+                                    color = Color.RED
+                                    style = Paint.Style.FILL_AND_STROKE
+                                }
                             )
                             drawText(
                                 minTemperature,
@@ -259,7 +266,10 @@ class DailyView(
                                 precipitation,
                                 startX + (2 * i + 1) * columnWidth / 2 + textBound1.width() / 2,
                                 topY + (dataRowHeight + textBound1.height()) / 2,
-                                valuePaint.apply { color = colorScheme.onSurface.toArgb() }
+                                valuePaint.apply {
+                                    color = colorScheme.onSurface.toArgb()
+                                    style = Paint.Style.FILL
+                                }
                             )
                         }
                     }
@@ -317,19 +327,20 @@ class DailyView(
                         ).toString()
                         valuePaint.getTextBounds(uv, 0, uv.length, textBound1)
                     }
+                    else -> {}
                 }
             }
 
 
-            save()
-            rotate(-90f)
-            drawText(
-                weatherQuantity.unit(appSettings).toString().trim(' ', '°'),
-                -(topY + dataRowHeight/2),
-                canvas.width - horPadding ,
-                unitPaint
-            )
-            restore()
+            withSave {
+                rotate(-90f)
+                drawText(
+                    weatherQuantity.unit(appSettings).toString().trim(' ', '°'),
+                    -(topY + dataRowHeight / 2),
+                    canvas.width - horPadding,
+                    unitPaint
+                )
+            }
         }
         iconDrawable?.apply {
             setBounds((iconCenter.x - iconSize/2).toInt(), (iconCenter.y - iconSize/2).toInt(),

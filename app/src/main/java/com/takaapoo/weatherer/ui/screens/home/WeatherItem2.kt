@@ -1,10 +1,10 @@
 package com.takaapoo.weatherer.ui.screens.home
 
+import android.graphics.BitmapFactory
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -18,6 +18,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
@@ -67,12 +68,14 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
@@ -83,7 +86,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.coerceAtLeast
@@ -91,12 +93,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import androidx.constraintlayout.compose.ConstraintLayout
+import coil3.compose.AsyncImage
+import coil3.compose.rememberAsyncImagePainter
+import coil3.request.ImageRequest
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.WeatherType
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.LocationsState
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.pathInnerShadow
 import com.takaapoo.weatherer.ui.screens.home.shapes.CardShape
 import com.takaapoo.weatherer.ui.screens.home.shapes.ThermometerShape
@@ -116,6 +121,7 @@ import com.takaapoo.weatherer.ui.theme.gerdFontFamily
 import com.takaapoo.weatherer.ui.theme.timeFontFamily
 import com.takaapoo.weatherer.utility.BorderedText
 import com.takaapoo.weatherer.utility.toPx
+import java.io.File
 import kotlin.math.PI
 import kotlin.math.acos
 import kotlin.math.asin
@@ -131,19 +137,23 @@ fun WeatherItem2(
 //    windowRotation: Float,
     modifier: Modifier = Modifier,
     itemState: LocationsState,
-    pageNumber: Int,
+//    picId: Int?,
+//    picName: String,
+//    picUrl: String,
+    landscapeReload: Int,
     onNavigateToItem: (cardX: Float, cardY: Float, cardWidth: Float) -> Unit,
     appSettings: AppSettings,
-    dataLoadingStatus: MyResult<Unit> = MyResult.Error(),
+    dataLoadingStatus: MyResult<*> = MyResult.Error(),
     onDeleteIconPressed: (id: Int, name: String) -> Unit,
     onEditItem: (id: Int, name: String) -> Unit,
     dialogDisplayed: Boolean,
     toBeDeletedLocationId: Int,
-    onDeleteItem: (id: Int) -> Unit,
-    onReloadWeatherData: () -> Unit
+    onDeleteItem: (id: Int, picId: Int?) -> Unit,
+    onReloadWeatherData: () -> Unit,
+    onDownloadAndSaveLandscapes: (picName: String?) -> Unit,
 ) {
-//    Log.i("comp1", "WeatherItem2: ${itemState.locationName}")
-    val density : Density = LocalDensity.current
+    val context = LocalContext.current
+    val density = LocalDensity.current
     var cardX by rememberSaveable { mutableFloatStateOf(0f) }
     var cardY by rememberSaveable { mutableFloatStateOf(0f) }
     var cardWidth by rememberSaveable { mutableFloatStateOf(0f) }
@@ -156,7 +166,7 @@ fun WeatherItem2(
         ),
         finishedListener = {
             if(itemState.locationId == toBeDeletedLocationId)
-                onDeleteItem(itemState.locationId)
+                onDeleteItem(itemState.locationId, itemState.lastPicId)
         }
     )
     val anchors = remember {
@@ -170,21 +180,29 @@ fun WeatherItem2(
     val velocityThreshold = { 100.dp.toPx(density) }
     val animationSpec = tween<Float>()
     val dragState = rememberSaveable(
-        saver = AnchoredDraggableState.Saver(
+        saver = AnchoredDraggableState.Saver()
+        /*
+        AnchoredDraggableState.Saver(
             snapAnimationSpec = animationSpec,
             decayAnimationSpec = exponentialDecay(),
             positionalThreshold = positionalThreshold,
             velocityThreshold = velocityThreshold
         )
+        */
+
     ) {
         AnchoredDraggableState(
+            initialValue = DragValue.Center,
+//            anchors = anchors,
+        )
+        /*AnchoredDraggableState(
 //            anchors = anchors,
             initialValue = DragValue.Center,
             positionalThreshold = positionalThreshold,
             velocityThreshold = velocityThreshold,
             snapAnimationSpec = animationSpec,
             decayAnimationSpec = exponentialDecay()
-        )
+        )*/
     }.apply { updateAnchors(anchors) }
 
     LaunchedEffect(key1 = dialogDisplayed){
@@ -220,7 +238,7 @@ fun WeatherItem2(
                     color = dragBackgroundColor(
                         try {
                             dragState.requireOffset() / DRAG_MAX_DISPLACE.toPx(density)
-                        } catch (e: IllegalStateException) {
+                        } catch (_: IllegalStateException) {
                             0f
                         }
                     ),
@@ -292,9 +310,13 @@ fun WeatherItem2(
                 .anchoredDraggable(
                     state = dragState,
                     orientation = Orientation.Horizontal,
-                    enabled = /*zoom == 1f*/ true
+                    enabled = /*zoom == 1f*/ true,
+                    flingBehavior = AnchoredDraggableDefaults.flingBehavior(
+                        state = dragState,
+                        positionalThreshold = positionalThreshold,
+                        animationSpec = animationSpec,
+                    )
                 )
-
         ) {
             if (dataLoadingStatus !is MyResult.Success) {
                 CardTitle(
@@ -373,25 +395,63 @@ fun WeatherItem2(
                                         dimensionResource(R.dimen.home_card_corner_radius)
                             )
                             .align(Alignment.TopCenter),
-                        color = LoadingData,
+//                        color = LoadingData,
                         strokeCap = StrokeCap.Round
                     )
                 }
                 is MyResult.Success -> {
-                    Image(
-                        painter = painterResource(
-                            when(pageNumber){
-                                0 -> R.drawable.ax2_c
-                                1 -> R.drawable.ax3_c
-                                else -> R.drawable.ax4_c
-                            }
-                        ),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .align(Alignment.Center),
-                        contentScale = ContentScale.FillHeight
+                    val picFile = File(
+                        context.filesDir,
+                        "pictures/pic${itemState.lastPicId}/${itemState.picName}.jpeg"
                     )
+                    if (picFile.exists()){
+//                        Log.i("download1", "${itemState.locationName}: ${itemState.lastPicId} , ${itemState.picName}")
+                        runCatching {
+                            Image(
+                                bitmap = BitmapFactory.decodeFile(picFile.absolutePath).asImageBitmap(),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .align(Alignment.Center),
+                                contentDescription = null,
+                                contentScale = ContentScale.FillHeight,
+                            )
+                        }.onFailure {
+//                            Log.i("download2", "failure ${itemState.locationName}: pictures/pic${itemState.lastPicId}/${itemState.picName}.jpeg")
+                            AsyncImage(
+                                model = "${itemState.currentPictureUrl}/${itemState.picName}.jpeg?retry=${landscapeReload}",
+                                modifier = Modifier.fillMaxSize()
+                                    .align(Alignment.Center),
+                                contentDescription = null,
+                                contentScale = ContentScale.FillHeight,
+                                onError = {
+
+                                },
+                                onSuccess = {
+                                    onDownloadAndSaveLandscapes(itemState.picName)
+                                }
+                            )
+                        }
+                    } else {
+                        val placeholderPainter = rememberAsyncImagePainter(
+                            model = ImageRequest.Builder(context).data(R.drawable.shimmer2).build(),
+                            contentScale = ContentScale.FillHeight
+                        )
+                        AsyncImage(
+                            model = "${itemState.currentPictureUrl}/${itemState.picName}.jpeg?retry=${landscapeReload}",
+                            placeholder = placeholderPainter,
+                            modifier = Modifier.fillMaxSize()
+                                .align(Alignment.Center),
+                            contentDescription = null,
+                            contentScale = ContentScale.FillHeight,
+                            onError = {
+
+                            },
+                            onSuccess = {
+                                onDownloadAndSaveLandscapes(null)
+                            }
+                        )
+                    }
+
                     val textColor = if (itemState.isDay) HomeCardNight else HomeCardDay
                     Box(
                         modifier = Modifier
@@ -441,14 +501,6 @@ fun WeatherItem2(
                         )
                         WeatherData(
                             modifier = Modifier.fillMaxSize(),
-                            currentTemperature = itemState.currentTemperature,
-                            maxTemperature = itemState.todayMaxTemperature,
-                            minTemperature = itemState.todayMinTemperature,
-//                            humidity = itemState.currentHumidity,
-//                            precipitationProbability = itemState.currentPrecipitationProbability,
-//                            windSpeed = itemState.currentWindSpeed,
-//                            windDirection = itemState.currentWindDirection,
-//                            airQuality = itemState.currentAirQuality,
                             itemState = itemState,
                             appSettings = appSettings,
                             isDay = itemState.isDay
@@ -650,9 +702,6 @@ fun CardTitle(
 @Composable
 fun WeatherData(
     modifier: Modifier = Modifier,
-    currentTemperature: Float?,
-    maxTemperature: Float?,
-    minTemperature: Float?,
     itemState: LocationsState,
     appSettings: AppSettings,
     isDay: Boolean
@@ -684,14 +733,6 @@ fun WeatherData(
                 color = color
             )
         }
-//        AirQualityData2(
-//            modifier = Modifier.constrainAs(column1){
-//                centerAround(columnGuidelines[0])
-//                bottom.linkTo(parent.bottom)
-//            },
-//            usAQI = airQuality,
-//            color = color
-//        )
         appSettings.cardWeatherQuantities.getOrNull(1)?.let {
             QuantityData(
                 modifier = Modifier.constrainAs(column2){
@@ -705,20 +746,14 @@ fun WeatherData(
                 color = color
             )
         }
-//        HumidityData2(
-//            modifier = Modifier.constrainAs(column2){
-//                centerAround(columnGuidelines[1])
-//                bottom.linkTo(parent.bottom)
-//            },
-//            humidity = humidity,
-//            color = color
-//        )
+        val maxTemperature = itemState.todayMaxTemperature
+        val minTemperature = itemState.todayMinTemperature
         TemperatureData2(
             modifier = Modifier.constrainAs(column3){
                 centerAround(columnGuidelines[2])
                 bottom.linkTo(parent.bottom)
             },
-            currentTemperature = currentTemperature?.coerceIn(minTemperature, maxTemperature),
+            currentTemperature = itemState.currentTemperature?.coerceIn(minTemperature, maxTemperature),
             maxTemperature = maxTemperature,
             minTemperature = minTemperature,
             appSettings = appSettings,
@@ -953,7 +988,7 @@ fun TemperatureData2(
                 .height(28.dp)
                 .wrapContentHeight(align = Alignment.CenterVertically),
             text = if (currentTemperature != null)
-                AnnotatedString("${currentTempString}${WeatherQuantity.TEMPERATURE.unit(appSettings)}")
+                AnnotatedString("${currentTempString}${HourlyWeatherQuantity.TEMPERATURE.unit(appSettings)}")
             else AnnotatedString("?"),
             fontSize = 14.sp,
             fillColor = color,
@@ -1012,112 +1047,11 @@ fun TemperatureMercury(
     }
 }
 
-/*@Composable
-fun AirQualityData2(
-    modifier: Modifier = Modifier,
-    usAQI: Int?,
-    color: Color
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        ComposeWithTextToolTip(
-            tooltipText = "Air Quality Index"
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.mask),
-                contentDescription = "temperature",
-                modifier = Modifier
-                    .width(2 * dimensionResource(R.dimen.home_card_icons_radius))
-                    .padding(horizontal = 8.dp),
-                tint = color
-            )
-        }
-        Text(
-            modifier = Modifier
-                .height(28.dp)
-                .wrapContentHeight(align = Alignment.CenterVertically),
-            text = usAQI?.toString() ?: "?",
-            fontSize = 14.sp,
-            textAlign = TextAlign.Center,
-            color = color
-        )
-    }
-}*/
-
-/*@Composable
-fun HumidityData2(
-    modifier: Modifier = Modifier,
-    humidity: Float?,
-    color: Color
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        ComposeWithTextToolTip(
-            tooltipText = "Humidity"
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.humidity),
-                contentDescription = "humidity",
-                modifier = Modifier
-                    .width(2 * dimensionResource(R.dimen.home_card_icons_radius))
-                    .padding(horizontal = 8.dp),
-                tint = color
-            )
-        }
-        Text(
-            modifier = Modifier
-                .height(28.dp)
-                .wrapContentHeight(align = Alignment.CenterVertically),
-            text = if (humidity != null) "${humidity.roundToInt()}%" else "?",
-            fontSize = 14.sp,
-            textAlign = TextAlign.Center,
-            color = color
-        )
-    }
-}*/
-
-/*@Composable
-fun PrecipitationData2(
-    modifier: Modifier = Modifier,
-    precipitationProbability: Float?,
-    color: Color
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        ComposeWithTextToolTip(
-            tooltipText = "Precipitation Probability"
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.precipitation),
-                contentDescription = "humidity",
-                modifier = Modifier
-                    .width(2 * dimensionResource(R.dimen.home_card_icons_radius))
-                    .padding(horizontal = 8.dp),
-                tint = color
-            )
-        }
-        Text(
-            modifier = Modifier
-                .height(28.dp)
-                .wrapContentHeight(align = Alignment.CenterVertically),
-            text = if (precipitationProbability != null) "${precipitationProbability.roundToInt()}%" else "?",
-            fontSize = 14.sp,
-            textAlign = TextAlign.Center,
-            color = color
-        )
-    }
-}*/
 
 @Composable
 fun QuantityData(
     modifier: Modifier = Modifier,
-    quantity: WeatherQuantity,
+    quantity: HourlyWeatherQuantity,
     quantityValue: Float? = null,
     quantity2Value: Float? = null,
     appSettings: AppSettings,
@@ -1130,7 +1064,7 @@ fun QuantityData(
         modifier = modifier.height(dimensionResource(R.dimen.home_card_icons_radius) +
                 dimensionResource(R.dimen.home_card_bottom_border))
     ) {
-        if (quantity2Value != null && quantity == WeatherQuantity.WINDSPEED) {
+        if (quantity2Value != null && quantity == HourlyWeatherQuantity.WINDSPEED) {
             Image(
                 painter = painterResource(R.drawable.wind_arrow3),
                 contentDescription = "wind",
@@ -1174,59 +1108,6 @@ fun QuantityData(
         }
     }
 }
-
-/*@Composable
-fun WindData2(
-    modifier: Modifier = Modifier,
-    windSpeed: Float?,
-    windDirection: Float?,
-    appSettings: AppSettings,
-    color: Color
-) {
-    Box(
-        modifier = modifier.height(dimensionResource(R.dimen.home_card_icons_radius) +
-                dimensionResource(R.dimen.home_card_bottom_border))
-    ) {
-        if (windDirection != null) {
-            Image(
-                painter = painterResource(R.drawable.wind_arrow3),
-                contentDescription = "wind",
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .size(2 * dimensionResource(R.dimen.home_card_icons_radius))
-                    .graphicsLayer {
-                        rotationZ = windDirection + 180
-                    }
-            )
-        }
-        Column(
-            modifier = Modifier.align(Alignment.BottomCenter),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            ComposeWithTextToolTip(
-                tooltipText = "Wind"
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.wind),
-                    contentDescription = "wind",
-                    modifier = Modifier.size(24.dp),
-                    tint = color
-                )
-            }
-            Text(
-                modifier = Modifier
-                    .height(28.dp)
-                    .wrapContentHeight(align = Alignment.CenterVertically),
-                text = if (windSpeed != null) "${windSpeed.roundToInt()}${WeatherQuantity.WINDSPEED.unit(appSettings)}"
-                else "?",
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center,
-                color = color
-            )
-        }
-    }
-}*/
-
 
 @Composable
 fun WeatherTypeData2(
@@ -1338,16 +1219,20 @@ fun WeatherItemPreview() {
                 month = "DEC",
                 year = 2023
             ),
-            pageNumber = 0,
+            landscapeReload = 0,
 //            lazyParentState = rememberLazyListState(),
-            onNavigateToItem = {_, _, _ -> },
+            onNavigateToItem = { _, _, _ -> },
             appSettings = AppSettings(),
             onDeleteIconPressed = { _, _ -> },
-            onEditItem = {_, _ ->},
+            onEditItem = { _, _ -> },
             dialogDisplayed = false,
             toBeDeletedLocationId = -10,
-            onDeleteItem = {},
-            onReloadWeatherData = {}
+            onDeleteItem = {_, _ -> },
+            onReloadWeatherData = {},
+//            picId = 1,
+//            picName = "1_1_1",
+//            picUrl = "https://files.takaapoo.com/iWeather/pictures/pic1",
+            onDownloadAndSaveLandscapes = {}
         )
     }
 }

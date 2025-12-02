@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.takaapoo.weatherer.ui.theme.Transparent
@@ -22,6 +23,8 @@ import com.takaapoo.weatherer.ui.theme.WeathererTheme
 import com.takaapoo.weatherer.ui.viewModels.HomeViewModel
 import com.takaapoo.weatherer.ui.viewModels.PreferenceViewModel
 import com.takaapoo.weatherer.ui.widget.WeatherWidget2
+import com.takaapoo.weatherer.ui.widget.WeatherWidget2.Companion.BIG_SQUARE
+import com.takaapoo.weatherer.ui.widget.WeatherWidget2.Companion.layoutWidth
 import com.takaapoo.weatherer.ui.widget.Widget2ConfigurationScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -82,6 +85,9 @@ class Widget2ConfigurationActivity: ComponentActivity() {
                             lifecycleScope.launch {
                                 val glanceIds = manager.getGlanceIds(widget.javaClass)
                                 glanceIds.forEach { glanceId ->
+                                    updateAppWidgetState(this@Widget2ConfigurationActivity, glanceId) { prefs ->
+                                        prefs[layoutWidth] = prefs[layoutWidth] ?: BIG_SQUARE.width.value.toInt()
+                                    }
                                     widget.update(this@Widget2ConfigurationActivity, glanceId)
                                 }
 //                                widget.updateAll(this@Widget2ConfigurationActivity)

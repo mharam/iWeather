@@ -81,6 +81,12 @@ class Widget1ConfigurationActivity: ComponentActivity() {
                             val manager = GlanceAppWidgetManager(this)
                             val widget = WeatherWidget1()
                             lifecycleScope.launch {
+//                                updateAppWidgetState(
+//                                    this@Widget1ConfigurationActivity,
+//                                    manager.getGlanceIdBy(appWidgetId)
+//                                ) { pref ->
+//                                    pref[tabKey] = pref[tabKey] ?: 1
+//                                }
                                 widget.updateAll(this@Widget1ConfigurationActivity)
 //                                val glanceIds = manager.getGlanceIds(widget.javaClass)
 //                                glanceIds.forEach { glanceId ->

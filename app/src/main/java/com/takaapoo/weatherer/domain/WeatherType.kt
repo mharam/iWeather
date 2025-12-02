@@ -26,124 +26,151 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.takaapoo.weatherer.R
-import com.takaapoo.weatherer.moonPhaseMap
+import com.takaapoo.weatherer.moonPhase
 import com.takaapoo.weatherer.utility.toDp
-import kotlinx.serialization.json.double
-import kotlinx.serialization.json.jsonPrimitive
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 sealed class WeatherType(
     val weatherDesc: String,
-    @DrawableRes val icons: List<Int>
+    @param:DrawableRes val icons: List<Int>,
+    val picIndex: Int
 ) {
     class ClearSky(val isDay: Boolean, moonType: Int?) : WeatherType(
         weatherDesc = "Clear sky",
-        icons = listOf(if (isDay) R.drawable.sunny else moonDrawable(moonType))
+        icons = listOf(if (isDay) R.drawable.sunny else moonDrawable(moonType)),
+        picIndex = 1
     )
     class MainlyClear(val isDay: Boolean, val moonType: Int?) : WeatherType(
         weatherDesc = "Mainly clear",
-        icons = listOf(if (isDay) R.drawable.sunny else moonDrawable(moonType), R.drawable.cloud1)
+        icons = listOf(if (isDay) R.drawable.sunny else moonDrawable(moonType), R.drawable.cloud1),
+        picIndex = 2
     )
     class PartlyCloudy(val isDay: Boolean,val moonType: Int?) : WeatherType(
         weatherDesc = "Partly cloudy",
         icons = listOf(R.drawable.cloud1, if (isDay) R.drawable.sunny else moonDrawable(moonType),
-            R.drawable.cloud2)
+            R.drawable.cloud2),
+        picIndex = 2
     )
     data object Overcast : WeatherType(
         weatherDesc = "Overcast",
-        icons = listOf(R.drawable.overcast)
+        icons = listOf(R.drawable.overcast),
+        picIndex = 3
     )
     data object Foggy : WeatherType(
         weatherDesc = "Fog",
-        icons = listOf(R.drawable.overcast)
+        icons = listOf(R.drawable.overcast),
+        picIndex = 6
     )
     data object DepositingRimeFog : WeatherType(
         weatherDesc = "Depositing rime fog",
-        icons = listOf(R.drawable.overcast)
+        icons = listOf(R.drawable.overcast),
+        picIndex = 6
     )
     data object LightDrizzle : WeatherType(
         weatherDesc = "Light drizzle",
-        icons = listOf(R.drawable.light_drizzle)
+        icons = listOf(R.drawable.light_drizzle),
+        picIndex = 5
     )
     data object ModerateDrizzle : WeatherType(
         weatherDesc = "Moderate drizzle",
-        icons = listOf(R.drawable.moderate_drizzle)
+        icons = listOf(R.drawable.moderate_drizzle),
+        picIndex = 5
     )
     data object DenseDrizzle : WeatherType(
         weatherDesc = "Dense drizzle",
-        icons = listOf(R.drawable.dense_drizzle)
+        icons = listOf(R.drawable.dense_drizzle),
+        picIndex = 5
     )
     data object LightFreezingDrizzle : WeatherType(
         weatherDesc = "Light freezing drizzle",
-        icons = listOf(R.drawable.slight_freezing_drizzle)
+        icons = listOf(R.drawable.slight_freezing_drizzle),
+        picIndex = 5
     )
     data object DenseFreezingDrizzle : WeatherType(
         weatherDesc = "Dense freezing drizzle",
-        icons = listOf(R.drawable.dense_freezing_drizzle)
+        icons = listOf(R.drawable.dense_freezing_drizzle),
+        picIndex = 5
     )
     data object SlightRain : WeatherType(
         weatherDesc = "Slight rain",
-        icons = listOf(R.drawable.slight_rain)
+        icons = listOf(R.drawable.slight_rain),
+        picIndex = 5
     )
     data object ModerateRain : WeatherType(
         weatherDesc = "Rainy",
-        icons = listOf(R.drawable.rainy)
+        icons = listOf(R.drawable.rainy),
+        picIndex = 5
     )
     data object HeavyRain : WeatherType(
         weatherDesc = "Heavy rain",
-        icons = listOf(R.drawable.heavy_rain)
+        icons = listOf(R.drawable.heavy_rain),
+        picIndex = 5
     )
     data object HeavyFreezingRain: WeatherType(
         weatherDesc = "Heavy freezing rain",
-        icons = listOf(R.drawable.heavy_freezing_rain)
+        icons = listOf(R.drawable.heavy_freezing_rain),
+        picIndex = 5
     )
     data object SlightSnowFall: WeatherType(
         weatherDesc = "Slight snow fall",
-        icons = listOf(R.drawable.slight_snow_fall)
+        icons = listOf(R.drawable.slight_snow_fall),
+        picIndex = 4
     )
     data object ModerateSnowFall: WeatherType(
         weatherDesc = "Moderate snow fall",
-        icons = listOf(R.drawable.moderate_snow_fall)
+        icons = listOf(R.drawable.moderate_snow_fall),
+        picIndex = 4
     )
     data object HeavySnowFall: WeatherType(
         weatherDesc = "Heavy snow fall",
-        icons = listOf(R.drawable.heavy_snow_fall)
+        icons = listOf(R.drawable.heavy_snow_fall),
+        picIndex = 4
     )
     data object SnowGrains: WeatherType(
         weatherDesc = "Snow grains",
-        icons = listOf(R.drawable.snow_grains)
+        icons = listOf(R.drawable.snow_grains),
+        picIndex = 4
     )
     data object SlightRainShowers: WeatherType(
         weatherDesc = "Slight rain showers",
-        icons = listOf(R.drawable.slight_rain_showers)
+        icons = listOf(R.drawable.slight_rain_showers),
+        picIndex = 5
     )
     data object ModerateRainShowers: WeatherType(
         weatherDesc = "Moderate rain showers",
-        icons = listOf(R.drawable.moderate_rain_showers)
+        icons = listOf(R.drawable.moderate_rain_showers),
+        picIndex = 5
     )
     data object ViolentRainShowers: WeatherType(
         weatherDesc = "Violent rain showers",
-        icons = listOf(R.drawable.violent_rain_showers)
+        icons = listOf(R.drawable.violent_rain_showers),
+        picIndex = 5
     )
     data object SlightSnowShowers: WeatherType(
         weatherDesc = "Light snow showers",
-        icons = listOf(R.drawable.slight_snow_fall)
+        icons = listOf(R.drawable.slight_snow_fall),
+        picIndex = 4
     )
     data object HeavySnowShowers: WeatherType(
         weatherDesc = "Heavy snow showers",
-        icons = listOf(R.drawable.heavy_snow_fall)
+        icons = listOf(R.drawable.heavy_snow_fall),
+        picIndex = 4
     )
     data object ModerateThunderstorm: WeatherType(
         weatherDesc = "Moderate thunderstorm",
-        icons = listOf(R.drawable.moderate_thunderstorm)
+        icons = listOf(R.drawable.moderate_thunderstorm),
+        picIndex = 7
     )
     data object SlightHailThunderstorm: WeatherType(
         weatherDesc = "Thunderstorm with slight hail",
-        icons = listOf(R.drawable.thunderstorm_with_slight_hail)
+        icons = listOf(R.drawable.thunderstorm_with_slight_hail),
+        picIndex = 7
     )
     data object HeavyHailThunderstorm: WeatherType(
         weatherDesc = "Thunderstorm with heavy hail",
-        icons = listOf(R.drawable.thunderstorm_with_heavy_hail)
+        icons = listOf(R.drawable.thunderstorm_with_heavy_hail),
+        picIndex = 7
     )
 
     companion object {
@@ -436,9 +463,11 @@ sealed class WeatherType(
         }
 
         fun calculateMoonType(date: LocalDate): Int?{
-            val todayPhase = moonPhaseMap[date.toString()]?.jsonPrimitive?.double ?: return null
-            val yesterdayPhase =
-                moonPhaseMap[date.minusDays(1).toString()]?.jsonPrimitive?.double ?: return null
+            val index = ChronoUnit.DAYS.between(LocalDate.of(1940,1,1), date).toInt()
+            val todayPhase = moonPhase.getOrNull(index) ?: return null
+//                moonPhaseMap[date.toString()]?.jsonPrimitive?.double ?: return null
+            val yesterdayPhase = moonPhase.getOrNull(index - 1) ?: return null
+//                moonPhaseMap[date.minusDays(1).toString()]?.jsonPrimitive?.double ?: return null
 
             return if (todayPhase > yesterdayPhase) (6 * todayPhase).toInt() + 1
             else 11 - (6 * todayPhase).toInt()

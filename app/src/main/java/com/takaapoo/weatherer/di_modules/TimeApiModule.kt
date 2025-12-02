@@ -8,7 +8,9 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 const val timeBaseURL = "https://timeapi.io/api/"
@@ -22,13 +24,23 @@ object TimeApiModule {
 
     @Provides
     @Singleton
-    fun provideTimeApiService(): TimeApiService {
+    fun provideOkHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideTimeApiService(okHttpClient: OkHttpClient): TimeApiService {
         val retrofit = Retrofit.Builder()
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
 //            .addConverterFactory(ScalarsConverterFactory.create())
 //            .addConverterFactory(MoshiConverterFactory.create(moshi))
 //            .addCallAdapterFactory(CoroutineCallAdapterFactory())
             .baseUrl(timeBaseURL)
+            .client(okHttpClient)
             .build()
         val timeApiService: TimeApiService by lazy {
             retrofit.create(TimeApiService::class.java)

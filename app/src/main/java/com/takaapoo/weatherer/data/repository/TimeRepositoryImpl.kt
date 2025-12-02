@@ -12,7 +12,7 @@ import javax.inject.Inject
 class TimeRepositoryImpl @Inject constructor(
     private val timeApiService: TimeApiService
 ) : TimeRepository{
-    override suspend fun getTime(latitude: Float, longitude: Float): MyResult<FullTime> {
+    override suspend fun getTime(latitude: Float, longitude: Float): MyResult<out FullTime> {
         val response = try {
             timeApiService.getTime(latitude, longitude)
         } catch (e: Exception){

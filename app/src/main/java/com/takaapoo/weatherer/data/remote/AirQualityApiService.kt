@@ -12,5 +12,12 @@ interface AirQualityApiService {
         @Query("longitude") longitude: Float,
         @Query("past_days") pastDays: Int = 2
     ): Response<WholeAirQuality>
+
+    @GET("""/v1/air-quality?hourly=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,us_aqi&forecast_days=7""")
+    suspend fun getAirQualityBatch(
+        @Query("latitude") latitude: List<Float>,
+        @Query("longitude") longitude: List<Float>,
+        @Query("past_days") pastDays: Int = 2
+    ): Response<List<WholeAirQuality>>
 }
 

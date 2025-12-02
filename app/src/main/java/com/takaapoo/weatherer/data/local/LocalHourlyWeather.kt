@@ -5,6 +5,14 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.ForeignKey.Companion.CASCADE
+import com.takaapoo.weatherer.domain.model.AppSettings
+import com.takaapoo.weatherer.utility.celsiusToUnit
+import com.takaapoo.weatherer.utility.cmToUnit
+import com.takaapoo.weatherer.utility.kmToUnit
+import com.takaapoo.weatherer.utility.kmphToUnit
+import com.takaapoo.weatherer.utility.mToUnit
+import com.takaapoo.weatherer.utility.mmToUnit
+import com.takaapoo.weatherer.utility.paToUnit
 import kotlinx.parcelize.Parcelize
 
 
@@ -109,6 +117,35 @@ data class LocalHourlyWeather(
     @ColumnInfo(name = "direct_normal_irradiance_control1_x") val directNormalIrradianceControl1X: Float? = null,
     @ColumnInfo(name = "direct_normal_irradiance_control1_y") val directNormalIrradianceControl1Y: Float? = null,
     @ColumnInfo(name = "direct_normal_irradiance_control2_x") val directNormalIrradianceControl2X: Float? = null,
-    @ColumnInfo(name = "direct_normal_irradiance_control2_y") val directNormalIrradianceControl2Y: Float? = null
+    @ColumnInfo(name = "direct_normal_irradiance_control2_y") val directNormalIrradianceControl2Y: Float? = null,
 
-    ): Parcelable
+    @ColumnInfo(name = "snow_depth") val snowDepth: Float? = null
+): Parcelable {
+    fun setUnits(appSettings: AppSettings) = this.copy(
+        temperature = temperature?.celsiusToUnit(appSettings.temperatureUnit),
+        temperatureControl1Y = temperatureControl1Y?.celsiusToUnit(appSettings.temperatureUnit),
+        temperatureControl2Y = temperatureControl2Y?.celsiusToUnit(appSettings.temperatureUnit),
+        dewPoint = dewPoint?.celsiusToUnit(appSettings.temperatureUnit),
+        dewPointControl1Y = dewPointControl1Y?.celsiusToUnit(appSettings.temperatureUnit),
+        dewPointControl2Y = dewPointControl2Y?.celsiusToUnit(appSettings.temperatureUnit),
+        apparentTemperature = apparentTemperature?.celsiusToUnit(appSettings.temperatureUnit),
+        apparentTemperatureControl1Y = apparentTemperatureControl1Y?.celsiusToUnit(appSettings.temperatureUnit),
+        apparentTemperatureControl2Y = apparentTemperatureControl2Y?.celsiusToUnit(appSettings.temperatureUnit),
+        precipitation = precipitation?.mmToUnit(appSettings.lengthUnit),
+        rain = rain?.mmToUnit(appSettings.lengthUnit),
+        showers = showers?.mmToUnit(appSettings.lengthUnit),
+        snowfall = snowfall?.cmToUnit(appSettings.lengthUnit),
+        surfacePressure = surfacePressure?.paToUnit(appSettings.pressureUnit),
+        surfacePressureControl1Y = surfacePressureControl1Y?.paToUnit(appSettings.pressureUnit),
+        surfacePressureControl2Y = surfacePressureControl2Y?.paToUnit(appSettings.pressureUnit),
+        visibility = visibility?.kmToUnit(appSettings.lengthUnit),
+        visibilityControl1Y = visibilityControl1Y?.kmToUnit(appSettings.lengthUnit),
+        visibilityControl2Y = visibilityControl2Y?.kmToUnit(appSettings.lengthUnit),
+        windSpeed = windSpeed?.kmphToUnit(appSettings.speedUnit),
+        windSpeedControl1Y = windSpeedControl1Y?.kmphToUnit(appSettings.speedUnit),
+        windSpeedControl2Y = windSpeedControl2Y?.kmphToUnit(appSettings.speedUnit),
+        freezingLevelHeight = freezingLevelHeight?.mToUnit(appSettings.lengthUnit),
+        freezingLevelHeightControl1Y = freezingLevelHeightControl1Y?.mToUnit(appSettings.lengthUnit),
+        freezingLevelHeightControl2Y = freezingLevelHeightControl2Y?.mToUnit(appSettings.lengthUnit),
+    )
+}

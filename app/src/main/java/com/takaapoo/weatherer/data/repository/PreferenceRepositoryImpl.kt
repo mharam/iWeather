@@ -12,7 +12,7 @@ import com.takaapoo.weatherer.domain.unit.Pressure
 import com.takaapoo.weatherer.domain.unit.Speed
 import com.takaapoo.weatherer.domain.unit.Temperature
 import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartGrids
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class PreferenceRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ): PreferenceRepository {
     override suspend fun updateDonateState(state: Boolean) {
         context.dataStore.updateData {
@@ -150,7 +150,7 @@ class PreferenceRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun setNotificationLocationId(id: Int) {
+    override suspend fun setNotificationLocationId(id: Int?) {
         context.dataStore.updateData {
             it.copy(notificationLocationId = id)
         }
@@ -168,7 +168,7 @@ class PreferenceRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun setCardWeatherQuantities(quantities: List<WeatherQuantity>) {
+    override suspend fun setCardWeatherQuantities(quantities: List<HourlyWeatherQuantity>) {
         context.dataStore.updateData {
             it.copy(cardWeatherQuantities = quantities)
         }
@@ -200,19 +200,19 @@ class PreferenceRepositoryImpl @Inject constructor(
     }
 
     override suspend fun setCurvesSmoothness(
-        weatherQuantity: WeatherQuantity,
+        hourlyWeatherQuantity: HourlyWeatherQuantity,
         newSmoothness: Float,
     ) {
         val appSettings = getSettings()
         val newCurvesSmoothness = appSettings.curvesSmoothness.toMutableMap().apply {
-            set(weatherQuantity, newSmoothness)
+            set(hourlyWeatherQuantity, newSmoothness)
         }
         context.dataStore.updateData {
             it.copy(curvesSmoothness = newCurvesSmoothness)
         }
     }
 
-    override suspend fun setNotificationCurrentWeatherQuantities(quantities: List<WeatherQuantity>) {
+    override suspend fun setNotificationCurrentWeatherQuantities(quantities: List<HourlyWeatherQuantity>) {
         context.dataStore.updateData {
             it.copy(notificationCurrentQuantities = quantities)
         }
@@ -224,7 +224,7 @@ class PreferenceRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun setNotificationHourlyQuantities(quantities: List<WeatherQuantity>) {
+    override suspend fun setNotificationHourlyQuantities(quantities: List<HourlyWeatherQuantity>) {
         context.dataStore.updateData {
             it.copy(notificationHourlyQuantities = quantities)
         }
@@ -288,7 +288,7 @@ class PreferenceRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun setWidgetLocationId(id: Int) {
+    override suspend fun setWidgetLocationId(id: Int?) {
         context.dataStore.updateData {
             it.copy(widgetLocationId = id)
         }
@@ -300,9 +300,15 @@ class PreferenceRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun setWidgetHourlyDiagramQuantities(quantities: List<WeatherQuantity>) {
+    override suspend fun setWidgetHourlyDiagramQuantities(quantities: List<HourlyWeatherQuantity>) {
         context.dataStore.updateData {
             it.copy(widgetHourlyDiagramQuantities = quantities)
+        }
+    }
+
+    override suspend fun setAddLocationHelpVisible(visible: Boolean) {
+        context.dataStore.updateData {
+            it.copy(addLocationHelpVisible = visible)
         }
     }
 

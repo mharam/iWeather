@@ -6,7 +6,7 @@ plugins {
     alias(libs.plugins.compose.compiler) apply false
 //    id("org.jetbrains.kotlin.android") version "2.0.10" apply false
 //    id("org.jetbrains.kotlin.android") version "1.9.10" apply false
-    id("com.google.dagger.hilt.android") version "2.52" apply false
-    id("com.google.devtools.ksp") version "2.0.10-1.0.24"
+    id("com.google.dagger.hilt.android") version "2.57.1" apply false
+    id("com.google.devtools.ksp") version "2.2.10-2.0.2"
 }
 true // Needed to make the Suppress annotation work for the plugins block

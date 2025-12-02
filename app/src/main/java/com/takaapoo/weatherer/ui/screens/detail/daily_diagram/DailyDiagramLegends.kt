@@ -29,8 +29,8 @@ import com.takaapoo.weatherer.ui.theme.Gray20
 import com.takaapoo.weatherer.ui.theme.OnDiagramDarkTheme
 import com.takaapoo.weatherer.ui.theme.OnDiagramLightTheme
 import com.takaapoo.weatherer.ui.theme.indicatorLineColor
-import com.takaapoo.weatherer.utility.drawThickText
 import com.takaapoo.weatherer.ui.theme.timeFontFamily
+import com.takaapoo.weatherer.utility.drawThickText
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -104,14 +104,16 @@ fun DrawScope.dailyDiagramLegends(
         drawIntoCanvas {
             it.saveLayer(Rect(0f, 0f, size.width, size.height), Paint())
         }
-        // Indicator line
-        drawLine(
-            color = indicatorLineColor,
-            start = Offset(x = indicatorLineX, y = verticalPadding),
-            end = Offset(x = indicatorLineX, y = size.height - verticalPadding),
-            strokeWidth = indicatorWidth,
-        )
+
         if (!barOrCurveGraph){
+            // Indicator line
+            drawLine(
+                color = indicatorLineColor,
+                start = Offset(x = indicatorLineX, y = verticalPadding),
+                end = Offset(x = indicatorLineX, y = size.height - verticalPadding),
+                strokeWidth = indicatorWidth,
+            )
+
             val maxValueY = verticalPadding + 24.dp.toPx()
             val minValueY = size.height - verticalPadding - 24.dp.toPx()
             drawCurveValues(
@@ -141,9 +143,9 @@ fun DrawScope.dailyDiagramLegends(
     while (x < xAxisRange.endInclusive) {
         val lineX = ((x - xAxisRange.start) / xAxisLength) * diagramWidth + horizontalPadding
         val tickColor = when (chartTheme){
-            ChartTheme.LIGHT, ChartTheme.DAYNIGHT -> OnDiagramLightTheme
+            ChartTheme.LIGHT -> OnDiagramLightTheme
             ChartTheme.DARK -> OnDiagramDarkTheme
-            ChartTheme.APPTHEME -> onAppSurfaceColor
+            ChartTheme.APPTHEME, ChartTheme.DAYNIGHT -> onAppSurfaceColor
         }
         clipPath(path = diagramBounds) {
             drawLine(
@@ -231,79 +233,82 @@ fun DrawScope.dailyDiagramLegends(
     else
         onCalculateHorizontalBarSeparation(start, end, diagramHeight, textMeasurer).first
 
-    var y = (start / horizontalBarSeparation).toInt() * horizontalBarSeparation
-    while (y <= start) y += horizontalBarSeparation
-    clipPath(path = diagramBounds) {
-        while (y < end) {
-            val lineY = (1 - (y - start) / yAxisLength) * diagramHeight + verticalPadding
-            val startTickColor = when (chartTheme){
-                ChartTheme.LIGHT, ChartTheme.DAYNIGHT -> OnDiagramLightTheme
-                ChartTheme.DARK -> OnDiagramDarkTheme
-                ChartTheme.APPTHEME -> onAppSurfaceColor
-            }
-            val endTickColor = when (chartTheme){
-                ChartTheme.LIGHT, ChartTheme.DAYNIGHT -> OnDiagramLightTheme
-                ChartTheme.DARK -> OnDiagramDarkTheme
-                ChartTheme.APPTHEME -> onAppSurfaceColor
-            }
-            drawLine(
-                color = startTickColor,
-                start = Offset(x = horizontalPadding, y = lineY),
-                end = Offset(x = horizontalPadding + tickLength, y = lineY),
-                strokeWidth = tickWidth,
-            )
-            drawLine(
-                color = endTickColor,
-                start = Offset(x = size.width - horizontalPadding, y = lineY),
-                end = Offset(x = size.width - horizontalPadding - tickLength, y = lineY),
-                strokeWidth = tickWidth,
-            )
-            y += horizontalBarSeparation
-        }
-    }
-
-    y = (start / horizontalBarSeparation).toInt() * horizontalBarSeparation
-    if (y <= start) y += horizontalBarSeparation
-    rotate(
-        degrees = 90f,
-        pivot = Offset.Zero
-    ) {
-        while (y < end) {
-            val lineY = diagramHeight - (y - start) * diagramHeight / yAxisLength + verticalPadding
-            val barValue = y
-            val text = if (chartQuantity == DailyWeatherQuantity.SUNRISESET)
-                barValue.toTimeString()
-            else
-                barValue.customToString(horizontalBarSeparation * yAxisLength / yAxisLength)
-
-            val textColor = chartQuantity.color(
-                if (chartQuantity == DailyWeatherQuantity.UVINDEXMAX) y/11
-                else {
-                    if (dataMax == dataMin) 0f else ((y - dataMin) / (dataMax - dataMin))
+    if (horizontalBarSeparation > 0) {
+        var y = (start / horizontalBarSeparation).toInt() * horizontalBarSeparation
+        while (y <= start) y += horizontalBarSeparation
+        clipPath(path = diagramBounds) {
+            while (y < end) {
+                val lineY = (1 - (y - start) / yAxisLength) * diagramHeight + verticalPadding
+                val startTickColor = when (chartTheme) {
+                    ChartTheme.LIGHT, ChartTheme.DAYNIGHT -> OnDiagramLightTheme
+                    ChartTheme.DARK -> OnDiagramDarkTheme
+                    ChartTheme.APPTHEME -> onAppSurfaceColor
                 }
-            )
-            drawThickText(
-                textMeasurer,
-                text,
-                annotatedString = null,
-                textColor = textColor,
-                textCenter = lineY,
-                textTop = -horizontalPadding
-            )
-            y += horizontalBarSeparation
+                val endTickColor = when (chartTheme) {
+                    ChartTheme.LIGHT, ChartTheme.DAYNIGHT -> OnDiagramLightTheme
+                    ChartTheme.DARK -> OnDiagramDarkTheme
+                    ChartTheme.APPTHEME -> onAppSurfaceColor
+                }
+                drawLine(
+                    color = startTickColor,
+                    start = Offset(x = horizontalPadding, y = lineY),
+                    end = Offset(x = horizontalPadding + tickLength, y = lineY),
+                    strokeWidth = tickWidth,
+                )
+                drawLine(
+                    color = endTickColor,
+                    start = Offset(x = size.width - horizontalPadding, y = lineY),
+                    end = Offset(x = size.width - horizontalPadding - tickLength, y = lineY),
+                    strokeWidth = tickWidth,
+                )
+                y += horizontalBarSeparation
+            }
         }
-    }
-    rotate(
-        degrees = -90f,
-        pivot = Offset.Zero
-    ) {
-        drawThickText(
-            textMeasurer = textMeasurer,
-            text = chartTitle,
-            textCenter = -(diagramHeight / 2 + verticalPadding),
-            textTop = size.width - horizontalPadding,
-            textColor = onAppSurfaceColor
-        )
+
+        y = (start / horizontalBarSeparation).toInt() * horizontalBarSeparation
+        if (y <= start) y += horizontalBarSeparation
+        rotate(
+            degrees = 90f,
+            pivot = Offset.Zero
+        ) {
+            while (y < end) {
+                val lineY =
+                    diagramHeight - (y - start) * diagramHeight / yAxisLength + verticalPadding
+                val barValue = y
+                val text = if (chartQuantity == DailyWeatherQuantity.SUNRISESET)
+                    barValue.toTimeString()
+                else
+                    barValue.customToString(horizontalBarSeparation * yAxisLength / yAxisLength)
+
+                val textColor = chartQuantity.color(
+                    if (chartQuantity == DailyWeatherQuantity.UVINDEXMAX) y / 11
+                    else {
+                        if (dataMax == dataMin) 0f else ((y - dataMin) / (dataMax - dataMin))
+                    }
+                )
+                drawThickText(
+                    textMeasurer,
+                    text,
+                    annotatedString = null,
+                    textColor = textColor,
+                    textCenter = lineY,
+                    textTop = -horizontalPadding
+                )
+                y += horizontalBarSeparation
+            }
+        }
+        rotate(
+            degrees = -90f,
+            pivot = Offset.Zero
+        ) {
+            drawThickText(
+                textMeasurer = textMeasurer,
+                text = chartTitle,
+                textCenter = -(diagramHeight / 2 + verticalPadding),
+                textTop = size.width - horizontalPadding,
+                textColor = onAppSurfaceColor
+            )
+        }
     }
 
     drawRoundRect(
@@ -345,7 +350,6 @@ private fun Float.customRoundToInt(): Int {
 }
 
 fun Float.toTimeString(): String {
-    if (this < 0f || this > 24f) return ""
     return LocalTime.ofSecondOfDay((this * 3600).toLong().mod(24L * 3600))
         .format(DateTimeFormatter.ofPattern("HH\u200C:\u200Cmm"))
 }

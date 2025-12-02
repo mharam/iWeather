@@ -269,7 +269,10 @@ fun normalizedX(
     xAxisLength: Float,
     horizontalPadding: Float,
     diagramWidth: Float
-) = ((rawX - xAxisStart) / xAxisLength) * diagramWidth + horizontalPadding
+): Float {
+    if (xAxisLength == 0f) return horizontalPadding
+    return ((rawX - xAxisStart) / xAxisLength) * diagramWidth + horizontalPadding
+}
 
 fun normalizedY(
     rawY: Float,
@@ -277,7 +280,10 @@ fun normalizedY(
     yAxisLength: Float,
     verticalPadding: Float,
     diagramHeight: Float
-) = (1 - (rawY - yAxisStart) / yAxisLength) * diagramHeight + verticalPadding
+): Float {
+    if (yAxisLength == 0f) return verticalPadding
+    return (1 - (rawY - yAxisStart) / yAxisLength) * diagramHeight + verticalPadding
+}
 
 
 fun generateDailyStepGraph(

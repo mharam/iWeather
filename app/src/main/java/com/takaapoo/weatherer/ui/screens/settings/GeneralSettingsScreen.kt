@@ -191,7 +191,7 @@ fun GeneralSettingsScreen(
 
             SettingsRow1(
                 modifier = Modifier.fillMaxWidth(),
-//                icon = R.drawable.partly_cloudy_day_24px,
+                icon = R.drawable.card,
                 title = "Cards",
 //                subTitle = cardQuantitiesSubTitle,
                 onClick = {

@@ -7,10 +7,9 @@ import androidx.appcompat.widget.AppCompatImageView
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.takaapoo.weatherer.domain.WeatherType
-import com.takaapoo.weatherer.moonPhaseMap
-import com.takaapoo.weatherer.utility.readJSONFromAssets
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
+import com.takaapoo.weatherer.moonPhase
+import com.takaapoo.weatherer.utility.readMoonPhaseBinFromAssets
+import com.takaapoo.weatherer.utility.readMoonPhaseFromAssets
 
 class WeatherView(
     context: Context,
@@ -18,10 +17,10 @@ class WeatherView(
 ): AppCompatImageView(context) {
 
     init {
-        moonPhaseMap = Json.parseToJsonElement(readJSONFromAssets(context, "moon_phase.json"))
-            .jsonObject.toMap()
+//        moonPhaseMap = Json.parseToJsonElement(readJSONFromAssets(context, "moon_phase.json"))
+//            .jsonObject.toMap()
+        moonPhase = readMoonPhaseBinFromAssets(context, "moon_phase.bin")
     }
-
     val weatherPaint = Paint()
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)

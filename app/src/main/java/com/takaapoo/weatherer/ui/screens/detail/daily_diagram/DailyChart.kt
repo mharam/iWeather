@@ -44,16 +44,21 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
+import com.takaapoo.weatherer.data.local.LocalHistoricDailyWeather
+import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.DailyChartState
+import com.takaapoo.weatherer.domain.model.HistoricDailyChartDto
 import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartGrids
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
 import com.takaapoo.weatherer.ui.theme.customColorScheme
-import com.takaapoo.weatherer.utility.toPx
 import com.takaapoo.weatherer.ui.theme.timeFontFamily
+import com.takaapoo.weatherer.utility.toPx
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import java.time.LocalDate
@@ -72,6 +77,7 @@ fun DailyChart(
     diagramHorPadding: Float = 16f,
     diagramVertPadding: Float = 24f,
     dailyChartData: ImmutableList<LocalDailyWeather> = persistentListOf(),
+    historicDailyChartData: ImmutableList<HistoricDailyChartDto> = persistentListOf(),
     appSettings: AppSettings,
 //    utcOffset: Long?,
 //    hourlyChartState: HourlyChartState,
@@ -79,7 +85,7 @@ fun DailyChart(
     chartGrid: ChartGrids,
     chartTheme: ChartTheme,
     curveShadowVisible: Boolean,
-    onUpdateDailyYAxis: (quantity: DailyWeatherQuantity) -> Unit = { _ -> },
+    onUpdateDailyYAxis: (quantity: DailyWeatherQuantity, curveAnimatorInitialValue: Float) -> Unit = { _, _ -> },
     onMoveAxis: (Offset) -> Unit = {},
     onScaleAxis: (center: Offset, scaleX:Float, scaleY:Float) -> Unit = { _, _, _ -> },
     onScaleBack: (center: Offset) -> Unit = {},
@@ -96,25 +102,52 @@ fun DailyChart(
     val textMeasurer: TextMeasurer = rememberTextMeasurer()
     var verticalDashLinePhase by remember{ mutableFloatStateOf(0f) }
     var horizontalDashLinePhase by remember{ mutableFloatStateOf(0f) }
+    var firstTimeAddingCurve by rememberSaveable { mutableStateOf(true) }
 
-//    LaunchedEffect(key1 = dailyChartState.chartQuantity) {
-//        animateCurve(dailyChartState)
-//    }
+
     // This is needed for the first time detail screen opens
     LaunchedEffect(
-        key1 = dailyChartData.isNotEmpty(),
-        key2 = dailyChartState.chartQuantity,
-        key3 = dailyChartState.settingsUpdated
+        dailyChartData.isNotEmpty(),
+        dailyChartState.chartQuantity,
+        dailyChartState.settingsUpdated,
     ) {
         if (dailyChartData.isNotEmpty() && dailyChartState.settingsUpdated) {
-            onUpdateDailyYAxis(dailyChartState.chartQuantity)
+            onUpdateDailyYAxis(
+                dailyChartState.chartQuantity,
+                if (firstTimeAddingCurve) 1f else 0f
+            )
+            dailyChartState.curveAnimator.snapTo(if (firstTimeAddingCurve) 1f else 0f)
             animateCurve(dailyChartState)
+
+            firstTimeAddingCurve = false
         }
     }
+    LaunchedEffect(
+        dailyChartState.settingsUpdated,
+        dailyChartState.xAxisAnimationTrigger,
+        historicDailyChartData.getOrNull(0)?.weatherQuantity
+    ) {
+        if (!dailyChartState.xAxisAnimationTrigger)
+            firstTimeAddingCurve = true
+        else if (historicDailyChartData.isNotEmpty() && dailyChartState.settingsUpdated) {
+            onUpdateDailyYAxis(
+                dailyChartState.chartQuantity,
+                if (firstTimeAddingCurve) 1f else 0f
+            )
+            dailyChartState.curveAnimator.snapTo(if (firstTimeAddingCurve) 1f else 0f)
+            animateCurve(dailyChartState)
+
+            firstTimeAddingCurve = false
+        }
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        firstTimeAddingCurve = true
+    }
+
     val data = dailyQuantityData(
-        dailyChartData,
-//        utcOffset ?: 0,
-        dailyChartState.chartQuantity
+        dailyData = dailyChartData,
+        historicDailyData = historicDailyChartData.map { it.dailyWeather },
+        weatherQuantity = dailyChartState.chartQuantity
     )
     val dataMax = data.maxByOrNull { it?.endInclusive ?: -Float.MAX_VALUE }?.endInclusive ?: 1f
     val dataMin = data.minByOrNull { it?.start ?: Float.MAX_VALUE }?.start ?: 0f
@@ -122,8 +155,11 @@ fun DailyChart(
         mutableStateOf(false)
     }
 
-    if (dailyChartData.getOrNull(0)?.time == null) return
-    val firstPointX = dailyTimeToX(date = dailyChartData[0].time)?.toFloat()
+    if (dailyChartData.getOrNull(0)?.time == null && historicDailyChartData.getOrNull(0)?.dailyWeather?.time == null)
+        return
+    val firstPointX = dailyTimeToX(
+        date = dailyChartData.getOrNull(0)?.time ?: historicDailyChartData.getOrNull(0)?.dailyWeather?.time
+    )?.toFloat()
     var curveValueMinAtIndicator: Float? = null
     var curveValueMaxAtIndicator: Float? = null
     if (/*!barOrCurveGraph && */firstPointX != null) {
@@ -214,11 +250,12 @@ fun DailyChart(
             textMeasurer = textMeasurer,
             verticalDashLinePhase = verticalDashLinePhase,
             horizontalDashLinePhase = horizontalDashLinePhase,
+            isLoading = dailyChartState.dataLoadingStatus is MyResult.Loading,
             onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
             onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation
         )
 
-        if (dailyChartData.isNotEmpty()) {
+        if (data.isNotEmpty()) {
             DailyDiagramCurve(
                 data = data,
                 dataMax = dataMax,
@@ -246,17 +283,22 @@ fun DailyChart(
         val chartTitle = stringResource(id = dailyChartState.chartQuantity.nameId) +
                 if (chartUnit.isNotEmpty()) " [${chartUnit}]" else ""
         Canvas(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
                 .clip(RectangleShape)   // This is to prevent DrawScope call unnecessarily
         ) {
             val diagramWidth = size.width - 2 * diagramHorPadding
             val xAxisLength = dailyChartState.xAxisEnd.value - dailyChartState.xAxisStart.value
             barOrCurveGraph = (diagramWidth / xAxisLength).toDp() > 30.dp
 
-            if (dailyChartState.weatherConditionIconsVisible) {
+            if (dailyChartState.weatherConditionIconsVisible && firstPointX != null) {
+                val weatherCodes = dailyChartData.map { it.weatherCode }.takeIf { it.isNotEmpty() }
+                    ?: historicDailyChartData.map { it.dailyWeather?.weatherCode }
                 dailyDiagramWeatherIcon(
                     context = context,
-                    dailyChartData = dailyChartData,
+//                    dailyChartData = dailyChartData
+                    weatherCodes = weatherCodes,
+                    firstPointX = firstPointX,
                     xAxisRange = dailyChartState.xAxisStart.value..dailyChartState.xAxisEnd.value,
                     cornerRadius = cornerRadius.toPx(density),
                     horizontalPadding = diagramHorPadding,
@@ -298,36 +340,90 @@ fun dailyTimeToX(date: String?): Long?{
 
 const val daySeconds = (24 * 60 * 60 - 1).toFloat()
 fun dailyQuantityData(
-    dailyData: List<LocalDailyWeather?>,
+    dailyData: List<LocalDailyWeather?> = emptyList(),
+    historicDailyData: List<LocalHistoricDailyWeather?> = emptyList(),
     weatherQuantity: DailyWeatherQuantity
 ): List<ClosedFloatingPointRange<Float>?>{
     return when (weatherQuantity){
-        DailyWeatherQuantity.TEMPERATUREMINMAX -> dailyData.map {
-            if (it?.temperatureMin != null && it.temperatureMax != null)
-                it.temperatureMin .. it.temperatureMax
-            else null
+        DailyWeatherQuantity.TEMPERATUREMINMAX -> {
+            dailyData.map {
+                if (it?.temperatureMin != null && it.temperatureMax != null)
+                    it.temperatureMin..it.temperatureMax
+                else null
+            }.takeIf { it.isNotEmpty() } ?:
+            historicDailyData.map {
+                if (it?.temperatureMin != null && it.temperatureMax != null)
+                    it.temperatureMin..it.temperatureMax
+                else null
+            }
         }
         DailyWeatherQuantity.SUNRISESET -> dailyData.map {
-            if (it?.sunRise != null && it.sunSet != null)
-                (LocalDateTime.parse(it.sunRise).toLocalTime().toSecondOfDay() / daySeconds) * 24  ..
-                        (LocalDateTime.parse(it.sunSet).toLocalTime().toSecondOfDay() / daySeconds) * 24
+            if (it?.sunRise != null && it.sunSet != null) {
+                val sunRiseTime = it.sunRise.substringAfter('T')
+                val sunSetTime = it.sunSet.substringAfter('T')
+                if (sunRiseTime == "00:00" && sunSetTime == "00:00") return@map null
+
+                val sunRiseIsYesterday = LocalDateTime.parse(it.sunRise).toLocalDate()
+                    .isBefore(LocalDate.parse(it.time))
+                val sunSetIsTomorrow = LocalDateTime.parse(it.sunSet).toLocalDate()
+                    .isAfter(LocalDate.parse(it.time))
+
+                val sunRiseHour =(LocalDateTime.parse(it.sunRise).toLocalTime().toSecondOfDay()
+                        / daySeconds - if (sunRiseIsYesterday) 1 else 0) * 24
+                val sunSetHour =(LocalDateTime.parse(it.sunSet).toLocalTime().toSecondOfDay()
+                        / daySeconds + if (sunSetIsTomorrow) 1 else 0) * 24
+
+                sunRiseHour..sunSetHour
+            }
             else null
         }
         DailyWeatherQuantity.UVINDEXMAX -> dailyData.map {
             if (it?.uvIndexMax != null) 0f .. it.uvIndexMax
             else null
         }
-        DailyWeatherQuantity.PRECIPITATIONSUM -> dailyData.map {
-            if (it?.precipitationSum != null) 0f .. it.precipitationSum
-            else null
+        DailyWeatherQuantity.PRECIPITATIONSUM -> {
+            dailyData.map {
+                if (it?.precipitationSum != null) 0f..it.precipitationSum
+                else null
+            }.takeIf { it.isNotEmpty() } ?:
+            historicDailyData.map {
+                if (it?.precipitationSum != null) 0f..it.precipitationSum
+                else null
+            }
         }
         DailyWeatherQuantity.PRECIPITATIONPROBABILITYMAX -> dailyData.map {
             if (it?.precipitationProbabilityMax != null) 0f .. it.precipitationProbabilityMax
             else null
         }
-        DailyWeatherQuantity.WINDSPEEDMAX -> dailyData.map {
-            if (it?.windSpeedMax != null) 0f .. it.windSpeedMax
-            else null
+        DailyWeatherQuantity.WINDSPEEDMAX -> {
+            dailyData.map {
+                if (it?.windSpeedMax != null) 0f..it.windSpeedMax
+                else null
+            }.takeIf { it.isNotEmpty() } ?:
+            historicDailyData.map {
+                if (it?.windSpeedMax != null) 0f..it.windSpeedMax
+                else null
+            }
+        }
+        DailyWeatherQuantity.TEMPERATUREMEAN -> {
+            val minTemperature = historicDailyData.minByOrNull { it?.temperatureMean ?: 0f }
+                ?.temperatureMean ?: 0f
+            historicDailyData.map {
+                if (it?.temperatureMean != null) minTemperature..it.temperatureMean
+                else null
+            }
+        }
+        DailyWeatherQuantity.CLOUDCOVERMEAN -> {
+            historicDailyData.map {
+                if (it?.cloudCoverMean != null) 0f..it.cloudCoverMean
+                else null
+            }
+        }
+        DailyWeatherQuantity.HUMIDITYMEAN -> {
+            historicDailyData.map {
+                if (it?.relativeHumidityMean != null) 0f..it.relativeHumidityMean
+                else null
+            }
         }
     }
 }
@@ -369,7 +465,7 @@ suspend fun animateCurve(dailyChartState: DailyChartState){
             targetValue = 1f,
             animationSpec = tween(
                 durationMillis = 1200,
-                delayMillis = 300,
+                delayMillis = 100,
                 easing = LinearEasing
             )
         )

@@ -31,98 +31,218 @@ import com.takaapoo.weatherer.ui.theme.UVRed
 import com.takaapoo.weatherer.ui.theme.UVYellow
 import com.takaapoo.weatherer.ui.theme.curveBlue
 import com.takaapoo.weatherer.ui.theme.curveGreen
+import com.takaapoo.weatherer.ui.theme.curveMagenta
+import com.takaapoo.weatherer.ui.theme.curveOrange
 import com.takaapoo.weatherer.ui.theme.curvePink
 import kotlin.math.abs
 import kotlin.math.pow
 
-enum class WeatherQuantity(
-    @StringRes val nameId: Int? = null,
-    val title: AnnotatedString? = null,
-    @StringRes val homeCardNameId: Int? = null,
+interface WeatherQuantity {
+    @get:StringRes
+    val nameId: Int?
+
+    @get:DrawableRes
+    val iconId: Int
+
+    val title: AnnotatedString?
+
+    fun unit(appSettings: AppSettings): AnnotatedString
+    fun floatingPointDigits(appSettings: AppSettings): Int
+}
+
+enum class HourlyWeatherQuantity(
+    @param:StringRes override val nameId: Int? = null,
+    override val title: AnnotatedString? = null,
+    @param:StringRes val homeCardNameId: Int? = null,
     val airQuality: Boolean = false,
-    @DrawableRes val iconId: Int,
+    val serverName: String? = null,
+    val isHistorical: Boolean = false,
+    @param:DrawableRes override val iconId: Int,
     val stepCurve: Boolean = false,
-) {
-    TEMPERATURE(nameId = R.string.temperature, iconId = R.drawable.temperature),
-    HUMIDITY(nameId = R.string.humidity, homeCardNameId = R.string.humidity, iconId = R.drawable.humidity),
-    DEWPOINT(nameId = R.string.dew_point, homeCardNameId = R.string.dew_point, iconId = R.drawable.dew_point),
-    APPARENTTEMP(nameId = R.string.apparent_temp, homeCardNameId = R.string.apparent_temp, iconId = R.drawable.temperature),
-    PRECIPITATIONPROBABILITY(nameId = R.string.precipitation_probability, homeCardNameId = R.string.precipitation_probability,
-        iconId = R.drawable.precipitation),
-    PRECIPITATION(nameId = R.string.precipitation, homeCardNameId = R.string.precipitation_amount,
-        iconId = R.drawable.precipitation, stepCurve = true),
-    RAIN(nameId = R.string.rain, iconId = R.drawable.precipitation, stepCurve = true),
-    SHOWERS(nameId = R.string.showers, iconId = R.drawable.precipitation, stepCurve = true),
-    SNOWFALL(nameId = R.string.snowfall, iconId = R.drawable.snowy_24px, stepCurve = true),
-    CLOUDCOVER(nameId = R.string.cloud_cover, homeCardNameId = R.string.cloud_cover, iconId = R.drawable.cloud_cover),
-    SURFACEPRESSURE(nameId = R.string.surface_pressure, homeCardNameId = R.string.surface_pressure,
-        iconId = R.drawable.pressure),
-    VISIBILITY(nameId = R.string.visibility, homeCardNameId = R.string.visibility, iconId = R.drawable.visibility),
-    WINDSPEED(nameId = R.string.wind_speed, homeCardNameId = R.string.wind, iconId = R.drawable.wind),
-    WINDDIRECTION(nameId = R.string.wind_direction, iconId = R.drawable.wind),
+): WeatherQuantity {
+    TEMPERATURE(
+        nameId = R.string.temperature,
+        isHistorical = true,
+        iconId = R.drawable.temperature,
+        serverName = "temperature_2m"
+    ),
+    HUMIDITY(
+        nameId = R.string.humidity,
+        homeCardNameId = R.string.humidity,
+        isHistorical = true,
+        iconId = R.drawable.humidity,
+        serverName = "relativehumidity_2m"
+    ),
+    DEWPOINT(
+        nameId = R.string.dew_point,
+        homeCardNameId = R.string.dew_point,
+        isHistorical = true,
+        iconId = R.drawable.dew_point,
+        serverName = "dewpoint_2m"
+    ),
+    APPARENTTEMP(
+        nameId = R.string.apparent_temp,
+        homeCardNameId = R.string.apparent_temp,
+        isHistorical = true,
+        iconId = R.drawable.temperature,
+        serverName = "apparent_temperature"
+    ),
+    PRECIPITATIONPROBABILITY(
+        nameId = R.string.precipitation_probability,
+        homeCardNameId = R.string.precipitation_probability,
+        iconId = R.drawable.precipitation
+    ),
+    PRECIPITATION(
+        nameId = R.string.precipitation,
+        homeCardNameId = R.string.precipitation_amount,
+        isHistorical = true,
+        iconId = R.drawable.precipitation,
+        serverName = "precipitation",
+        stepCurve = true
+    ),
+    RAIN(
+        nameId = R.string.rain,
+        isHistorical = true,
+        iconId = R.drawable.precipitation,
+        serverName = "rain",
+        stepCurve = true
+    ),
+    SHOWERS(
+        nameId = R.string.showers,
+        iconId = R.drawable.precipitation,
+        stepCurve = true
+    ),
+    SNOWFALL(
+        nameId = R.string.snowfall,
+        isHistorical = true,
+        iconId = R.drawable.snowy_24px,
+        serverName = "snowfall",
+        stepCurve = true
+    ),
+    CLOUDCOVER(
+        nameId = R.string.cloud_cover,
+        homeCardNameId = R.string.cloud_cover,
+        isHistorical = true,
+        iconId = R.drawable.cloud_cover,
+        serverName = "cloud_cover"
+    ),
+    SURFACEPRESSURE(
+        nameId = R.string.surface_pressure,
+        homeCardNameId = R.string.surface_pressure,
+        isHistorical = true,
+        iconId = R.drawable.pressure,
+        serverName = "surface_pressure"
+    ),
+    VISIBILITY(
+        nameId = R.string.visibility,
+        homeCardNameId = R.string.visibility,
+        iconId = R.drawable.visibility
+    ),
+    WINDSPEED(
+        nameId = R.string.wind_speed,
+        homeCardNameId = R.string.wind,
+        isHistorical = true,
+        iconId = R.drawable.wind,
+        serverName = "windspeed_10m"
+    ),
+    WINDDIRECTION(
+        nameId = R.string.wind_direction,
+        isHistorical = true,
+        iconId = R.drawable.wind,
+        serverName = "winddirection_10m"
+    ),
     UVINDEX(nameId = R.string.uv_index, homeCardNameId = R.string.uv_index, iconId = R.drawable.uv),
-    FREEZINGLEVELHEIGHT(nameId = R.string.freezing_level_height, homeCardNameId = R.string.freezing_level_height,
-        iconId = R.drawable.freeze_height),
-    DIRECTRADIATION(nameId = R.string.direct_radiation, homeCardNameId = R.string.direct_radiation,
-        iconId = R.drawable.solar_radiation),
-    DIRECTNORMALIRRADIANCE(nameId = R.string.direct_normal_irradiance, homeCardNameId = R.string.direct_normal_irradiance,
-        iconId = R.drawable.solar_radiation),
+    FREEZINGLEVELHEIGHT(
+        nameId = R.string.freezing_level_height,
+        homeCardNameId = R.string.freezing_level_height,
+        iconId = R.drawable.freeze_height
+    ),
+    DIRECTRADIATION(
+        nameId = R.string.direct_radiation,
+        homeCardNameId = R.string.direct_radiation,
+        iconId = R.drawable.solar_radiation
+    ),
+    DIRECTNORMALIRRADIANCE(
+        nameId = R.string.direct_normal_irradiance,
+        homeCardNameId = R.string.direct_normal_irradiance,
+        iconId = R.drawable.solar_radiation
+    ),
 
     AQI(nameId = R.string.AQ, homeCardNameId = R.string.AQI, iconId = R.drawable.mask, airQuality = true),
-    PM10(title = buildAnnotatedString {
-        append("PM")
-        withStyle(
-            style = SpanStyle(
-                fontSize = 12.sp,
-                baselineShift = BaselineShift.Subscript
-            )
-        ){ append("10") }
-    }, iconId = R.drawable.mask, airQuality = true),
-    PM2_5(title = buildAnnotatedString {
-        append("PM")
-        withStyle(
-            style = SpanStyle(
-                fontSize = 12.sp,
-                baselineShift = BaselineShift.Subscript
-            )
-        ){ append("2.5") }
-    }, iconId = R.drawable.mask, airQuality = true),
+    PM10(
+        title = buildAnnotatedString {
+            append("PM")
+            withStyle(
+                style = SpanStyle(
+                    fontSize = 12.sp,
+                    baselineShift = BaselineShift.Subscript
+                )
+            ) { append("10") }
+        },
+        iconId = R.drawable.mask,
+        airQuality = true
+    ),
+    PM2_5(
+        title = buildAnnotatedString {
+            append("PM")
+            withStyle(
+                style = SpanStyle(
+                    fontSize = 12.sp,
+                    baselineShift = BaselineShift.Subscript
+                )
+            ) { append("2.5") }
+        },
+        iconId = R.drawable.mask,
+        airQuality = true
+    ),
     CO(nameId = R.string.CO, iconId = R.drawable.mask, airQuality = true),
-    NO2(title = buildAnnotatedString {
-        append("Nitrogen dioxide (NO")
-        withStyle(
-            style = SpanStyle(
-                fontSize = 12.sp,
-                baselineShift = BaselineShift.Subscript
-            )
-        ){ append("2") }
-        append(")")
-    }, iconId = R.drawable.mask, airQuality = true),
-    SO2(title = buildAnnotatedString {
-        append("Sulphur dioxide (SO")
-        withStyle(
-            style = SpanStyle(
-                fontSize = 12.sp,
-                baselineShift = BaselineShift.Subscript
-            )
-        ){ append("2") }
-        append(")")
-    }, iconId = R.drawable.mask, airQuality = true),
-    Ozone(title = buildAnnotatedString {
-        append("Ozone (O")
-        withStyle(
-            style = SpanStyle(
-                fontSize = 12.sp,
-                baselineShift = BaselineShift.Subscript
-            )
-        ){ append("3") }
-        append(")")
-    }, iconId = R.drawable.mask, airQuality = true);
+    NO2(
+        title = buildAnnotatedString {
+            append("Nitrogen dioxide (NO")
+            withStyle(
+                style = SpanStyle(
+                    fontSize = 12.sp,
+                    baselineShift = BaselineShift.Subscript
+                )
+            ) { append("2") }
+            append(")")
+        },
+        iconId = R.drawable.mask,
+        airQuality = true
+    ),
+    SO2(
+        title = buildAnnotatedString {
+            append("Sulphur dioxide (SO")
+            withStyle(
+                style = SpanStyle(
+                    fontSize = 12.sp,
+                    baselineShift = BaselineShift.Subscript
+                )
+            ) { append("2") }
+            append(")")
+        },
+        iconId = R.drawable.mask,
+        airQuality = true
+    ),
+    Ozone(
+        title = buildAnnotatedString {
+            append("Ozone (O")
+            withStyle(
+                style = SpanStyle(
+                    fontSize = 12.sp,
+                    baselineShift = BaselineShift.Subscript
+                )
+            ) { append("3") }
+            append(")")
+        },
+        iconId = R.drawable.mask,
+        airQuality = true
+    );
 
 
-    fun unit(appSettings: AppSettings): AnnotatedString{
+    override fun unit(appSettings: AppSettings): AnnotatedString{
         return buildAnnotatedString{
-            when (this@WeatherQuantity){
+            when (this@HourlyWeatherQuantity){
                 TEMPERATURE, DEWPOINT, APPARENTTEMP -> {
                     append(when (appSettings.temperatureUnit){
                         Temperature.CELSIUS -> "° C"
@@ -203,8 +323,8 @@ enum class WeatherQuantity(
         }
     }
 
-    fun floatingPointDigits(appSettings: AppSettings) =
-        when (this@WeatherQuantity){
+    override fun floatingPointDigits(appSettings: AppSettings) =
+        when (this@HourlyWeatherQuantity){
             TEMPERATURE, DEWPOINT, APPARENTTEMP, VISIBILITY, UVINDEX, PM10, PM2_5, NO2, SO2, Ozone -> 1
             PRECIPITATION, RAIN, SHOWERS -> when (appSettings.lengthUnit){
                 Length.SI -> 1
@@ -245,7 +365,7 @@ enum class WeatherQuantity(
                 } else "?"
             )
             if (unitVisible)
-                append(this@WeatherQuantity.unit(appSettings = appSettings))
+                append(this@HourlyWeatherQuantity.unit(appSettings = appSettings))
         }
     }
 
@@ -272,38 +392,53 @@ enum class WeatherQuantity(
     }
 }
 
+enum class HistoricalState { HISTORIC_ONLY, FORECAST_ONLY, BOTH }
 
 enum class DailyWeatherQuantity(
-    @StringRes val nameId: Int,
-    @DrawableRes val iconId: Int,
+    @param:StringRes val nameId: Int,
+    @param:DrawableRes val iconId: Int,
     val floatingPointDigits: Int = 1,
-    val brushColors: List<Color>
+    val brushColors: List<Color>,
+    val serverName: String? = null,
+    val historicalState: HistoricalState = HistoricalState.BOTH,
 ) {
     TEMPERATUREMINMAX(
         nameId = R.string.temperature_MIN_MAX,
         iconId = R.drawable.temperature,
-        brushColors = listOf(BarRed, BarBlue)
+        brushColors = listOf(BarRed, BarBlue),
+        serverName = "temperature_2m_max,temperature_2m_min",
+    ),
+    TEMPERATUREMEAN(
+        nameId = R.string.temperature_mean,
+        iconId = R.drawable.temperature,
+        brushColors = listOf(curveOrange, curveOrange),
+        serverName = "temperature_2m_mean",
+        historicalState = HistoricalState.HISTORIC_ONLY
     ),
     PRECIPITATIONSUM(
         nameId = R.string.precipitation_sum,
         iconId = R.drawable.precipitation,
-        brushColors = listOf(curveBlue, curveBlue)
+        brushColors = listOf(curveBlue, curveBlue),
+        serverName = "precipitation_sum",
     ),
     PRECIPITATIONPROBABILITYMAX(
         nameId = R.string.precipitation_probability_MAX,
         iconId = R.drawable.precipitation,
         floatingPointDigits = 0,
-        brushColors = listOf(curveGreen, curveGreen)
+        brushColors = listOf(curveGreen, curveGreen),
+        historicalState = HistoricalState.FORECAST_ONLY
     ),
     WINDSPEEDMAX(
         nameId = R.string.wind_speed_MAX,
         iconId = R.drawable.wind,
-        brushColors = listOf(curvePink, curvePink)
+        brushColors = listOf(curvePink, curvePink),
+        serverName = "wind_speed_10m_max",
     ),
     SUNRISESET(
         nameId = R.string.sun_rise_set,
         iconId = R.drawable.sun_rise_set,
-        brushColors = listOf(BarOrange, BarYellow, BarOrange)
+        brushColors = listOf(BarOrange, BarYellow, BarOrange),
+        historicalState = HistoricalState.FORECAST_ONLY
     ),
     UVINDEXMAX(
         nameId = R.string.uv_index_MAX,
@@ -311,13 +446,28 @@ enum class DailyWeatherQuantity(
         brushColors = listOf(
             UVGreen, UVGreen, UVGreen, UVYellow, UVYellow, UVYellow, UVOrange, UVOrange,
             UVRed, UVRed, UVRed, UVMagenta
-        )
+        ),
+        historicalState = HistoricalState.FORECAST_ONLY
+    ),
+    CLOUDCOVERMEAN(
+        nameId = R.string.cloud_cover_mean,
+        iconId = R.drawable.cloud_cover,
+        brushColors = listOf(curveMagenta, curveMagenta),
+        serverName = "cloud_cover_mean",
+        historicalState = HistoricalState.HISTORIC_ONLY
+    ),
+    HUMIDITYMEAN(
+        nameId = R.string.humidity_mean,
+        iconId = R.drawable.humidity,
+        brushColors = listOf(curveBlue, curveBlue),
+        serverName = "relative_humidity_2m_mean",
+        historicalState = HistoricalState.HISTORIC_ONLY
     );
 
     fun unit(appSettings: AppSettings): AnnotatedString {
         return buildAnnotatedString{
             when (this@DailyWeatherQuantity){
-                TEMPERATUREMINMAX -> {
+                TEMPERATUREMINMAX, TEMPERATUREMEAN -> {
                     append(when (appSettings.temperatureUnit){
                         Temperature.CELSIUS -> "° C"
                         Temperature.FAHRENHEIT -> "° F"
@@ -325,7 +475,7 @@ enum class DailyWeatherQuantity(
                     })
                 }
                 SUNRISESET, UVINDEXMAX -> append("")
-                PRECIPITATIONPROBABILITYMAX -> append(" %")
+                PRECIPITATIONPROBABILITYMAX, HUMIDITYMEAN, CLOUDCOVERMEAN -> append(" %")
                 PRECIPITATIONSUM -> append(
                     when (appSettings.lengthUnit){
                         Length.SI -> " mm"
@@ -347,9 +497,11 @@ enum class DailyWeatherQuantity(
         TEMPERATUREMINMAX -> lerpMultipleColors(brushColors.reversed(), fraction.coerceIn(0f, 1f))
         SUNRISESET -> lerpMultipleColors(brushColors, fraction.coerceIn(0f, 1f))
         UVINDEXMAX -> lerpMultipleColors(brushColors, fraction.coerceIn(0f, 1f))
-        PRECIPITATIONSUM -> curveBlue
+        PRECIPITATIONSUM, HUMIDITYMEAN -> curveBlue
         PRECIPITATIONPROBABILITYMAX -> lerpMultipleColors(brushColors, fraction.coerceIn(0f, 1f))
         WINDSPEEDMAX -> curvePink
+        CLOUDCOVERMEAN -> curveMagenta
+        TEMPERATUREMEAN -> curveOrange
     }
 
     fun quantityValueText(

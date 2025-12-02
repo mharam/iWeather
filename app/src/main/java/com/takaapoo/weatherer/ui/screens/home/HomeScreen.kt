@@ -1,8 +1,12 @@
 package com.takaapoo.weatherer.ui.screens.home
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.widget.Toast
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.tween
@@ -27,7 +31,7 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -35,6 +39,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -65,11 +70,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
@@ -86,6 +92,8 @@ import com.takaapoo.weatherer.domain.model.HomePaneContent
 import com.takaapoo.weatherer.domain.model.HomeState
 import com.takaapoo.weatherer.domain.model.LocationsState
 import com.takaapoo.weatherer.ui.screens.add_location.SearchBarAdam
+import com.takaapoo.weatherer.ui.screens.home.dialogs.DeleteAlertDialog
+import com.takaapoo.weatherer.ui.screens.home.dialogs.EditDialog
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.customColorScheme
 import com.takaapoo.weatherer.ui.viewModels.DialogType
@@ -95,9 +103,12 @@ import com.takaapoo.weatherer.utility.toPx
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import java.io.File
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -105,7 +116,11 @@ enum class DragValue { Left, Center, Right }
 val DRAG_MAX_DISPLACE = 130.dp
 val CardBackIconSize = 60.dp
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalSharedTransitionApi::class,
+    ExperimentalMaterial3ExpressiveApi::class
+)
 @Composable
 fun HomeScreen(
     // temporary parameter
@@ -114,7 +129,7 @@ fun HomeScreen(
     homeState: HomeState,
     locationListState: ImmutableList<LocationsState>,
     appSettings: AppSettings,
-    weatherDataLoadStatus: Map<Int, MyResult<Unit>>,
+    weatherDataLoadStatus: Map<Int, MyResult<*>>,
     isZooming: Boolean,
     homeScreenWidth: Float,
     homeScreenHeight: Float,
@@ -140,7 +155,6 @@ fun HomeScreen(
     onResetDayGauge: () -> Unit,
     onUpdateVisibleDayIndex: (newIndex: Int) -> Unit,
     onUpdateDayGaugeIndex: (newVisibleDay: Int) -> Unit,
-    onHandleClickSound: (currentRotation: Float, previousRotation: Float) -> Unit,
     onUpdateDialogVisibility: (dialogType: DialogType, visible: Boolean) -> Unit,
     onUpdateToBeDeletedLocationId: () -> Unit,
     onUpdateHomePaneContent: (content: HomePaneContent) -> Unit,
@@ -155,16 +169,20 @@ fun HomeScreen(
     onUpdateFilterText: (text: String) -> Unit,
 
     onSwapLocations: (id1: Int, id2: Int) -> Unit,
-//    onEvaluateTopPaddingHeight: (Float) -> Unit,
     onMenuButtonClick: () -> Unit,
     onNavigateToDetailScreen: (locationsCount: Int, initialPageNumber: Int) -> Unit,
     onNavigateToAddLocationScreen: () -> Unit,
     onPrepareDeleteLocation: (locationId: Int) -> Unit,
     onReloadALocationWeatherData: (location: Location) -> Unit,
-    onUpdateClockGaugeLock: (lock: Boolean) -> Unit
+    onUpdateClockGaugeLock: (lock: Boolean) -> Unit,
+
+    onDownloadAndSaveLandscapes: (context: Context, picId: Int, picUrl: String, picName: String?) -> Unit,
+    onUpdateInitialLandscape: (bitmap: Bitmap) -> Unit
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
+    val hapticFeedback = LocalHapticFeedback.current
+
     var sortedLocationListState by remember { mutableStateOf(locationListState) }
     val displayedLocationListState = sortedLocationListState.filter {
         it.locationName.contains(
@@ -194,7 +212,7 @@ fun HomeScreen(
 
     val clockManipulatorHeight = (dimensionResource(R.dimen.clock_manipulator_height))
     var topAppBarHeight by remember{ mutableStateOf(64.dp) }
-    var animateScrolling = remember { mutableStateOf(false) }
+    val animateScrolling = remember { mutableStateOf(false) }
     var clockGaugeShown = listState.clockGaugeVisibility(cardHeightPx, animateScrolling)
 
     val clockGaugeY by animateFloatAsState(
@@ -216,11 +234,12 @@ fun HomeScreen(
     val clockGaugeWidth by remember(key1 = homeScreenWidth) {
         mutableStateOf((900.dp).coerceAtMost(homeScreenWidth.toDp(density) / sin(PI/6).toFloat()))
     }
-    val clockGaugeRotationCoefficient = 360 / (3.14f * clockGaugeWidth.toPx(density))
+    val clockGaugeRotationCoefficient = 360 / (PI.toFloat() * clockGaugeWidth.toPx(density))
 //    val updatingZoom by rememberUpdatedState(newValue = zoom)
 
 
     var cardAlpha by rememberSaveable { mutableStateOf(zoom > 1f) }
+    var selectedItemIndex by remember { mutableIntStateOf(0) }
     var selectedItem by remember {
         mutableStateOf(sortedLocationListState.getOrElse(
             index = homeState.selectedItemIndex,
@@ -232,23 +251,17 @@ fun HomeScreen(
             selectedItem.locationId == locationState.locationId
         })
     }
-
-
-
+    val cardScale by animateFloatAsState(
+        targetValue = if (sortedLocationListUpdatePermission) 1f else 1.04f,
+        visibilityThreshold = 0.0005f,
+        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing)
+    )
 
     LaunchedEffect(key1 = locationListState, key2 = sortedLocationListUpdatePermission) {
         if (sortedLocationListUpdatePermission)
             sortedLocationListState = locationListState
     }
-    /*if (pullRefreshState.isRefreshing) {
-        LaunchedEffect(true) {
-            onRefreshWeatherData()
-        }
-    }
-    LaunchedEffect(key1 = homeState.isRefreshing, key2 = pullRefreshState.isRefreshing) {
-        if (!homeState.isRefreshing)
-            pullRefreshState.endRefresh()
-    }*/
+
     LaunchedEffect(key1 = isZooming) {
         if (zoom == zoomMax && !homeState.navigatedToDetailScreen) {
 //            val selectedLocationPageNumber = locationListState.indexOfFirst {
@@ -266,13 +279,13 @@ fun HomeScreen(
         when(homeState.editNameResult){
             is MyResult.Success -> {
                 snackbarHostState.showSnackbar(
-                    (homeState.editNameResult as MyResult.Success<*>).data as String
+                    homeState.editNameResult.data as String
                 )
                 onResetEditNameResult()
             }
             is MyResult.Error -> {
                 snackbarHostState.showSnackbar(
-                    (homeState.editNameResult as MyResult.Error<*>).message as String
+                    homeState.editNameResult.message as String
                 )
                 onResetEditNameResult()
             }
@@ -280,15 +293,15 @@ fun HomeScreen(
         }
     }
     LaunchedEffect(key1 = true) {
-        initialFirstItemIndex?.let {
-            locationListState.getOrNull(initialFirstItemIndex)?.locationId?.let {
-                onUpdateSelectedLocationId(it)
-            }
-            val offset = listState.layoutInfo.visibleItemsInfo.find {
-                it.key == locationListState[initialFirstItemIndex].locationId
-            }?.offset
-            offset?.let {
-                onUpdateVerticalOffsetDifference(homeState.selectedItemOffset - it.toFloat())
+        initialFirstItemIndex?.let { index ->
+            locationListState.getOrNull(index)?.locationId?.let { id ->
+                onUpdateSelectedLocationId(id)
+                val offset = listState.layoutInfo.visibleItemsInfo.find {
+                    it.key == locationListState[index].locationId
+                }?.offset
+                offset?.let {
+                    onUpdateVerticalOffsetDifference(homeState.selectedItemOffset - it.toFloat())
+                }
             }
         }
         onResetZoom()
@@ -301,15 +314,18 @@ fun HomeScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val searchbarInteractionSource = remember { MutableInteractionSource() }
     val searchbarIsFocused by searchbarInteractionSource.collectIsFocusedAsState()
-    val layoutDirection = LocalLayoutDirection.current
+    var landscapeReload by rememberSaveable { mutableIntStateOf(0) }
 
     PullToRefreshBox(
         modifier = modifier,
         state = pullRefreshState,
         isRefreshing = homeState.isRefreshing,
-        onRefresh = onRefreshWeatherData,
+        onRefresh = {
+            landscapeReload++
+            onRefreshWeatherData()
+        },
         indicator = {
-            PullToRefreshDefaults.Indicator(
+            PullToRefreshDefaults.LoadingIndicator(
                 state = pullRefreshState,
                 isRefreshing = homeState.isRefreshing,
                 modifier = Modifier.align(Alignment.TopCenter),
@@ -329,7 +345,8 @@ fun HomeScreen(
                         ,
                         title = {
                             SearchBarAdam(
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxWidth()
                                     .padding(top = 4.dp, end = 16.dp),
                                 query = homeState.filterText,
                                 onQueryChange = onUpdateFilterText,
@@ -394,7 +411,9 @@ fun HomeScreen(
                                     ) {
 //                                        with(sharedTransitionScope){
                                         SmallFloatingActionButton(
-                                            onClick = onNavigateToAddLocationScreen,
+                                            onClick = {
+                                                onNavigateToAddLocationScreen()
+                                            },
 //                                                modifier = Modifier.sharedBounds(
 //                                                    sharedContentState = rememberSharedContentState(
 //                                                        key = FAB_EXPLODE_KEY
@@ -457,9 +476,12 @@ fun HomeScreen(
                                 dayGaugeNaturalIndex = homeState.dayGaugeNaturalIndex,
                                 visibleDayIndex = homeState.visibleDayIndex,
                                 clockGaugeLock = homeState.clockGaugeLock,
+                                silent = appSettings.silent,
+                                vibration = appSettings.vibration,
+
                                 onUpdateVisibleDayIndex = remember { onUpdateVisibleDayIndex },
                                 onUpdateDayGaugeIndex = remember { onUpdateDayGaugeIndex },
-                                onHandleClickSound = remember { onHandleClickSound },
+//                                onHandleClickSound = remember { onHandleClickSound },
                                 onUpdateClockGaugeRotation = remember { onUpdateClockGaugeRotation },
                                 onStopRotation = remember {
                                     { coroutineScope.launch { homeState.clockGaugeRotation.stop() } }
@@ -551,7 +573,7 @@ fun HomeScreen(
                                 (topSpacerHeight + paddingValues.calculateBottomPadding() + cardSpacing)
                                     .toPx(density)
                         )
-
+                        var longPressedItemId by remember { mutableIntStateOf(0) }
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(
@@ -567,11 +589,10 @@ fun HomeScreen(
                                 item {
                                     Spacer(modifier = Modifier.height(topSpacerHeight))
                                 }
-                                items(
+                                itemsIndexed(
                                     items = displayedLocationListState,
-                                    key = { item -> item.locationId }
-                                ) { item ->
-//                            val itemZoom = if (homeState.selectedLocationId == item.locationId) zoom else 1f
+                                    key = { _, item -> item.locationId }
+                                ) { index, item ->
                                     ReorderableItem(
                                         reorderableLazyListState,
                                         item.locationId
@@ -584,16 +605,15 @@ fun HomeScreen(
                                             }
                                         } else {
                                             Modifier
-                                                .graphicsLayer {
-                                                    alpha =
-                                                        if (homeState.toBeDeletedLocationId == item.locationId)
-                                                            0f else 1f
-                                                }
                                                 .longPressDraggableHandle(
                                                     onDragStarted = {
+                                                        longPressedItemId = item.locationId
+                                                        hapticFeedback.performHapticFeedback(
+                                                            HapticFeedbackType.LongPress
+                                                        )
                                                         Toast.makeText(
                                                             context,
-                                                            locations.find { it.id == item.locationId }?.lastModifiedTime,
+                                                            locations[index].lastModifiedTime,
                                                             Toast.LENGTH_LONG
                                                         ).show()
                                                         sortedLocationListUpdatePermission = false
@@ -602,6 +622,15 @@ fun HomeScreen(
                                                         sortedLocationListUpdatePermission = true
                                                     }
                                                 )
+                                                .graphicsLayer {
+                                                    alpha =
+                                                        if (homeState.toBeDeletedLocationId == item.locationId)
+                                                            0f else 1f
+                                                    scaleX =
+                                                        if (longPressedItemId == item.locationId) cardScale else 1f
+                                                    scaleY =
+                                                        if (longPressedItemId == item.locationId) cardScale else 1f
+                                                }
                                         }
                                         WeatherItem2(
 //                                    zoom = 1f,
@@ -609,10 +638,11 @@ fun HomeScreen(
 //                                    windowRotation = 0f,
                                             modifier = itemModifier,
                                             itemState = item,
-                                            pageNumber = sortedLocationListState.indexOfFirst { locationState ->
-                                                item.locationId == locationState.locationId
-                                            },
-                                            onNavigateToItem = remember {
+                                            landscapeReload = landscapeReload,
+//                                            pageNumber = sortedLocationListState.indexOfFirst { locationState ->
+//                                                item.locationId == locationState.locationId
+//                                            },
+                                            onNavigateToItem = remember(displayedLocationListState) {
                                                 { cardX, cardY, cardWidth ->
                                                     val itemOffset =
                                                         listState.layoutInfo.visibleItemsInfo.find {
@@ -627,8 +657,7 @@ fun HomeScreen(
 
                                                         itemOffset + (cardMaxHeight - topSpacerHeight).toPx(
                                                             density
-                                                        )
-                                                                > lazyColumnHeight ->
+                                                        ) > lazyColumnHeight ->
                                                             itemOffset + (cardMaxHeight - topSpacerHeight).toPx(
                                                                 density
                                                             ) - lazyColumnHeight
@@ -638,33 +667,46 @@ fun HomeScreen(
 
                                                     if (singlePane) {
                                                         coroutineScope.launch {
-                                                            animateScrolling.value = true
-                                                            listState.animateScrollBy(
-                                                                value = scrollAmount,
-                                                                animationSpec = tween(
-                                                                    durationMillis = 300,
-                                                                    easing = CubicBezierEasing(
-                                                                        0.5f,
-                                                                        0f,
-                                                                        0.9f,
-                                                                        0.3f
+                                                            val scrollJob = launch {
+                                                                animateScrolling.value = true
+                                                                listState.animateScrollBy(
+                                                                    value = scrollAmount,
+                                                                    animationSpec = tween(
+                                                                        durationMillis = 300,
+                                                                        easing = CubicBezierEasing(
+                                                                            0.5f,
+                                                                            0f,
+                                                                            0.9f,
+                                                                            0.3f
+                                                                        )
                                                                     )
                                                                 )
-                                                            )
-                                                            val selectedItemIndex =
-                                                                sortedLocationListState.indexOfFirst {
-                                                                    it.locationId == item.locationId
-                                                                }
-                                                            val selectedItemOffset =
-                                                                listState.layoutInfo.visibleItemsInfo.find {
-                                                                    it.key == item.locationId
-                                                                }?.offset ?: 0
-                                                            onUpdateSelectedItemIndexOffset(
-                                                                selectedItemIndex,
-                                                                selectedItemOffset
-                                                            )
-                                                            selectedItem =
-                                                                sortedLocationListState[selectedItemIndex]
+                                                                selectedItemIndex =
+                                                                    sortedLocationListState.indexOfFirst {
+                                                                        it.locationId == item.locationId
+                                                                    }
+                                                                val selectedItemOffset =
+                                                                    listState.layoutInfo.visibleItemsInfo.find {
+                                                                        it.key == item.locationId
+                                                                    }?.offset ?: 0
+                                                                onUpdateSelectedItemIndexOffset(
+                                                                    selectedItemIndex,
+                                                                    selectedItemOffset
+                                                                )
+
+                                                            }
+                                                            val gaugeRotateJob = launch {
+                                                                onBalanceClockGaugeValues()
+                                                                homeState.clockGaugeRotation.animateTo(
+                                                                    targetValue = 0f,
+                                                                    animationSpec = tween(durationMillis = 700)
+                                                                )
+                                                                onResetDayGauge()
+                                                                delay(200)
+                                                            }
+
+                                                            joinAll(scrollJob, gaugeRotateJob)
+                                                            selectedItem = displayedLocationListState[index]
                                                             selectedPage =
                                                                 sortedLocationListState.indexOfFirst { locationState ->
                                                                     selectedItem.locationId == locationState.locationId
@@ -676,17 +718,39 @@ fun HomeScreen(
                                                                 cardWidth
                                                             )
                                                         }
-                                                    } else {
+                                                    }
+                                                    else {
                                                         // Does this branch need onUpdateSelectedItemIndexOffset
                                                         onUpdateSelectedLocationId(item.locationId)
                                                         val selectedLocationPageNumber =
                                                             locationListState.indexOfFirst {
                                                                 it.locationId == item.locationId
                                                             }
-                                                        onNavigateToDetailScreen(
-                                                            locationListState.size,
-                                                            selectedLocationPageNumber
-                                                        )
+                                                        coroutineScope.launch {
+                                                            onBalanceClockGaugeValues()
+                                                            homeState.clockGaugeRotation.animateTo(
+                                                                targetValue = 0f,
+                                                                animationSpec = tween(durationMillis = 700)
+                                                            )
+                                                            onResetDayGauge()
+
+                                                            val itemState = displayedLocationListState[index]
+                                                            val picFile = File(
+                                                                context.filesDir,
+                                                                "pictures/pic${itemState.lastPicId}/${itemState.picName}.jpeg"
+                                                            )
+                                                            if (picFile.exists()) {
+                                                                val bitmap =
+                                                                    BitmapFactory.decodeFile(picFile.absolutePath)
+                                                                onUpdateInitialLandscape(
+                                                                    bitmap.copy(Bitmap.Config.ARGB_8888, false)
+                                                                )
+                                                            }
+                                                            onNavigateToDetailScreen(
+                                                                locationListState.size,
+                                                                selectedLocationPageNumber
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             },
@@ -722,10 +786,9 @@ fun HomeScreen(
                                             dialogDisplayed = homeState.deleteDialogVisible || homeState.editDialogVisible,
                                             toBeDeletedLocationId = homeState.toBeDeletedLocationId,
                                             onDeleteItem = remember {
-                                                { locationId ->
-                                                    onDeleteLocation(
-                                                        locationId
-                                                    )
+                                                { locationId, picId ->
+                                                    onDeleteLocation(locationId)
+                                                    File(context.filesDir, "pictures/pic${picId}").deleteRecursively()
                                                 }
                                             },
                                             onReloadWeatherData = {
@@ -737,6 +800,16 @@ fun HomeScreen(
                                                         longitude = item.longitude
                                                     )
                                                 )
+                                            },
+                                            onDownloadAndSaveLandscapes = { picName ->
+                                                item.lastPicId?.let { picId ->
+                                                    onDownloadAndSaveLandscapes(
+                                                        context,
+                                                        picId,
+                                                        item.currentPictureUrl,
+                                                        picName
+                                                    )
+                                                }
                                             }
                                         )
                                     }
@@ -766,8 +839,8 @@ fun HomeScreen(
                         windowRotation = windowRotation,
                         modifier = Modifier.fillMaxSize(),
                         itemState = selectedItem,
-                        pageNumber = selectedPage,
                         appSettings = appSettings,
+                        onUpdateInitialLandscape = onUpdateInitialLandscape
                     )
                 }
             } else {

@@ -5,11 +5,15 @@
     <string name="retry">Retry</string>
     <string name="settings">Settings</string>
 
-    <string name="show_weather_condition_icon">Show/Hide weather condition icon</string>
-    <string name="show_curve_dots">Show/Hide curve dots</string>
-    <string name="show_curve_shadow">Show/Hide curve shadow</string>
-    <string name="show_sun_rise_set_icon">Show/Hide sun rise/set icon</string>
-    <string name="show_hide_grids">Show/Hide grids</string>
+    <string name="show_weather_condition">Show weather condition</string>
+    <string name="hide_weather_condition">Hide weather condition</string>
+    <string name="show_data_points">Show data points</string>
+    <string name="hide_data_points">Hide data points</string>
+    <string name="show_curve_shadow">Show curve shadow</string>
+    <string name="hide_curve_shadow">Hide curve shadow</string>
+    <string name="show_sun_rise_set">Show sun rise/set</string>
+    <string name="hide_sun_rise_set">Hide sun rise/set</string>
+    <string name="grids">Grid</string>
     <string name="theme">Theme</string>
 
     <string name="temperature">Temperature</string>
@@ -39,7 +43,10 @@
     <string name="CO">Carbon monoxide (CO)</string>
 
     <string name="temperature_MIN_MAX">Temperature min/max</string>
+    <string name="temperature_mean">Temperature mean</string>
     <string name="sun_rise_set">Sun rise/set</string>
+    <string name="cloud_cover_mean">Cloud cover mean</string>
+    <string name="humidity_mean">Humidity mean</string>
     <string name="uv_index_MAX">UV index max</string>
     <string name="precipitation_sum">Precipitation sum</string>
     <string name="precipitation_probability_MAX">Precipitation probability max</string>
@@ -53,7 +60,7 @@
     <string name="default_theme">System default</string>
 
     <string name="grid_all">All</string>
-    <string name="grid_main">main grid</string>
+    <string name="grid_main">Main grid</string>
     <string name="grid_non">No grid</string>
     <string name="diagram_grid">Diagram grid</string>
 
@@ -116,4 +123,14 @@
 
     <string name="curve_smoothness_tooltip_titel">Smoothness</string>
     <string name="curve_smoothness_tooltip_text">Increasing curve smoothness may increase error of some weather quantities value. In some cases it may lead to meaning-less values like negative probability.</string>
+
+    <string name="history_weather_description">The Historical Data section grants access to a comprehensive meteorological archive, with global records extending back to 1940. This information is derived from sophisticated reanalysis datasets, which integrate and harmonize inputs from a diverse network of sources including weather stations, aircraft, buoys, radar, and satellites. To ensure a spatially complete and consistent record, these datasets employ advanced mathematical models to interpolate values and intelligently fill observational gaps. This methodology provides highly detailed historical weather reconstructions even for remote regions, such as rural locales or the open ocean, where direct station measurements have traditionally been unavailable.</string>
+    <string name="history_weather_donate_motivation">The Historical tab provides access to detailed meteorological archives, featuring interactive graphs of hourly and daily weather variables dating back to 1940. Maintaining and providing this extensive historical data entails significant operational costs. To ensure the continued availability of this service, we kindly rely on the generous support of our users through donations. Your contribution is greatly appreciated.</string>
+    <string name="history_weather_donate_title">Historical weather data access</string>
+
+    <string name="add_location_donate_text">With your voluntary support, you can add up to 20 locations to the list while helping us cover the costs of weather data and keep improving this free app. Thank you for your support!</string>
+    <string name="remove_locations_dialog_text">You have reached locations count limit. Please remove some locations to free up space for new ones.</string>
+
+    <string name="add_location_help_text">Press and hold any location on the map to add it to your favorite list.</string>
+
 </resources>

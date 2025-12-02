@@ -3,9 +3,12 @@ package com.takaapoo.weatherer.data.repository
 import androidx.room.withTransaction
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.data.local.LocationDao
+import com.takaapoo.weatherer.data.local.LocationType
 import com.takaapoo.weatherer.data.local.WeatherDatabase
 import com.takaapoo.weatherer.data.remote.LocationApiService
 import com.takaapoo.weatherer.data.remote.LocationServerOutput
+import com.takaapoo.weatherer.data.remote.LocationTypeApiService
+import com.takaapoo.weatherer.data.remote.RemoteLocationType
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.repository.LocationRepository
 import kotlinx.coroutines.flow.Flow
@@ -14,7 +17,8 @@ import javax.inject.Inject
 class LocationRepositoryImpl @Inject constructor(
     private val weatherDatabase: WeatherDatabase,
     private val locationDao: LocationDao,
-    private val locationApiService: LocationApiService
+    private val locationApiService: LocationApiService,
+    private val locationTypeApiService: LocationTypeApiService
 ): LocationRepository {
     override suspend fun addLocation(location: Location): Int {
         locationDao.addLocation(location)
@@ -29,7 +33,7 @@ class LocationRepositoryImpl @Inject constructor(
         return locationDao.getLocationFlow(locationId)
     }
 
-    override suspend fun getLocation(locationId: Int): Location {
+    override suspend fun getLocation(locationId: Int): Location? {
         return locationDao.getLocation(locationId)
     }
 
@@ -78,19 +82,55 @@ class LocationRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun locationCount(): Flow<Int> {
+    override suspend fun updateLocationType(name: String, locationType: LocationType) {
+        locationDao.updateLocationType(name, locationType)
+    }
+
+    override suspend fun updateLocationElevation(name: String, elevation: Float) {
+        locationDao.updateLocationElevation(name, elevation)
+    }
+
+    override suspend fun updateLocationPrecipitation(name: String, precipitation: Float?) {
+        locationDao.updateLocationPrecipitation(name, precipitation)
+    }
+
+    override suspend fun updateLocationPicInfo(name: String, currentPicUrl: String, picIds: List<Int>) {
+        locationDao.updateLocationPicIds(name, currentPicUrl, picIds)
+    }
+
+    override fun locationsCount(): Flow<Int> {
         return locationDao.locationCount()
+    }
+
+    override suspend fun deleteFaultyLocations() {
+        locationDao.deleteFaultyLocations()
     }
 
 
     // Remote server functions
-    override suspend fun getLocation(text: String): MyResult<LocationServerOutput> {
+    override suspend fun getLocation(text: String): MyResult<out LocationServerOutput> {
         val response = try {
             locationApiService.getLocation(text)
         } catch (e: Exception){
             return MyResult.Error(exception = e)
         }
         return if (response.isSuccessful && response.body() != null)
+            MyResult.Success(response.body()!!)
+        else
+            MyResult.Error(message = "Retrieving data from server was not successful")
+    }
+
+    override suspend fun getLocationTypeFromServer(
+        latitude: Float,
+        longitude: Float,
+    ): MyResult<out RemoteLocationType> {
+        val response = runCatching {
+            locationTypeApiService.getLocationType(latLng = "$latitude/$longitude")
+        }.onFailure {
+            return MyResult.Error(exception = it as Exception?)
+        }.getOrNull()
+
+        return if (response!!.isSuccessful && response.body() != null)
             MyResult.Success(response.body()!!)
         else
             MyResult.Error(message = "Retrieving data from server was not successful")

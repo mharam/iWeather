@@ -143,7 +143,7 @@ fun PickColor(
     val k = if (initialHue <= 180) 0 else 1
     val initialAngle = ( ((-initialHue + k * 360)) * (pi/180) )
 
-    var angle = remember { Animatable(initialAngle) }
+    val angle = remember { Animatable(initialAngle) }
     var inRegion by remember { mutableStateOf(false) }
     var inPointer by remember { mutableStateOf(false) }
     val ringPointerSize by animateDpAsState(
@@ -184,7 +184,7 @@ fun PickColor(
             )
         })
     }
-    var trianglePointerPosition = remember(sizeScale) {
+    val trianglePointerPosition = remember(sizeScale) {
         Animatable(
             initialValue = initialTrianglePointerPosition,
             typeConverter = OffsetToVector

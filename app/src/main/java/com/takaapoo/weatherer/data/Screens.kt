@@ -33,10 +33,18 @@ data class AQDetail(
 object Radar: Screen()
 
 @Serializable
-object History: Screen()
+object ContactUs: Screen()
+
+@Serializable
+object AboutUs: Screen()
+
+@Serializable
+object RateUs: Screen()
 
 @Serializable
 object Settings: Screen()
 
 @Serializable
 object Donate: Screen()
+
+val allScreens = listOf(HomePane, AddLocation, Radar, ContactUs, AboutUs, RateUs, Settings, Donate)

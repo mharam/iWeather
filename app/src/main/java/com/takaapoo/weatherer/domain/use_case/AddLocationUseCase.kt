@@ -4,16 +4,13 @@ import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.repository.LocationRepository
 import com.takaapoo.weatherer.domain.repository.TimeRepository
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 class AddLocationUseCase @Inject constructor(
     private val locationRepository: LocationRepository,
     private val timeRepository: TimeRepository
 ){
-    suspend operator fun invoke(location: Location): MyResult<Int>{
+    suspend operator fun invoke(location: Location): MyResult<out Int>{
         val count = locationRepository.countLocationWithName(location.name)
         if (count == 0) {
             return try {
@@ -34,12 +31,14 @@ class AddLocationUseCase @Inject constructor(
         }
     }
 
-    suspend fun setLocationTime(location: Location): MyResult<String>{
+    suspend fun setLocationTime(location: Location): MyResult<out String>{
         try {
+//            Log.i("await1", "setting ${location.name} time")
             val result = timeRepository.getTime(
                 latitude = location.latitude,
                 longitude = location.longitude
             )
+//            Log.i("await1", "set ${location.name} time")
             return if (result is MyResult.Success){
                 locationRepository.updateLocationUtcOffset(
                     name = location.name,
@@ -47,7 +46,10 @@ class AddLocationUseCase @Inject constructor(
                 )
                 MyResult.Success("Location time set successfully")
             } else {
-                MyResult.Error(message = "Error in retrieving ${location.name} time")
+                MyResult.Error(
+                    exception = (result as MyResult.Error).exception,
+                    message = "Error in retrieving ${location.name} time"
+                )
             }
         } catch (e: Exception){
             return MyResult.Error(exception = e)

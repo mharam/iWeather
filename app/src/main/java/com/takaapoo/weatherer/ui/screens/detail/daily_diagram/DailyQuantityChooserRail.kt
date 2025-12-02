@@ -45,12 +45,13 @@ import com.takaapoo.weatherer.utility.toPx
 @Composable
 fun DailyQuantityChooserRail(
     modifier: Modifier = Modifier,
-    quantity: DailyWeatherQuantity,
+    allQuantities: List<DailyWeatherQuantity>,
+    selectedQuantity: DailyWeatherQuantity,
     onUpdateChartQuantity: (DailyWeatherQuantity) -> Unit
 ) {
     val density = LocalDensity.current
     val scrollState = rememberScrollState()
-    @DrawableRes val displayingIconId  = quantity.iconId
+    @DrawableRes val displayingIconId  = selectedQuantity.iconId
     val railBackgroundColor = MaterialTheme.customColorScheme.railBackground
     Box(
         modifier = modifier.fillMaxWidth()
@@ -105,41 +106,40 @@ fun DailyQuantityChooserRail(
                     .horizontalScroll(state = scrollState)
             ) {
                 Spacer(modifier = Modifier.width(56.dp))
-                DailyWeatherQuantity.entries
-                    .forEach { dailyWeatherQuantity ->
-                        val isSelected = quantity  == dailyWeatherQuantity
+                allQuantities.forEach { dailyWeatherQuantity ->
+                    val isSelected = selectedQuantity  == dailyWeatherQuantity
 //                        val chipColor = curveColors
 //                            .getOrNull(quantities.indexOf(dailyWeatherQuantity))
 //                            ?.copy(alpha = 0.5f) ?: Color.Unspecified
-                        FilterChip(
-                            modifier = Modifier
-                                .height(32.dp)
-                                /*.onGloballyPositioned {
-                                    if (it.positionInRoot().x < 80.dp.toPx(density)) {
-                                        displayingIconId = dailyWeatherQuantity.iconId
-                                    }
-                                }*/,
-                            selected = isSelected,
-                            onClick = {
-                                if (!isSelected) onUpdateChartQuantity(dailyWeatherQuantity)
-                            },
+                    FilterChip(
+                        modifier = Modifier
+                            .height(32.dp)
+                            /*.onGloballyPositioned {
+                                if (it.positionInRoot().x < 80.dp.toPx(density)) {
+                                    displayingIconId = dailyWeatherQuantity.iconId
+                                }
+                            }*/,
+                        selected = isSelected,
+                        onClick = {
+                            if (!isSelected) onUpdateChartQuantity(dailyWeatherQuantity)
+                        },
 //                            colors = FilterChipDefaults.filterChipColors(
 //                                selectedContainerColor = chipColor
 //                            ),
-                            leadingIcon = {
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Done,
-                                        contentDescription = "Done icon",
-                                        modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                    )
-                                }
-                            },
-                            label = {
-                                Text(text = stringResource(id = dailyWeatherQuantity.nameId))
+                        leadingIcon = {
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Filled.Done,
+                                    contentDescription = "Done icon",
+                                    modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                )
                             }
-                        )
-                    }
+                        },
+                        label = {
+                            Text(text = stringResource(id = dailyWeatherQuantity.nameId))
+                        }
+                    )
+                }
                 Spacer(modifier = Modifier)
             }
         }

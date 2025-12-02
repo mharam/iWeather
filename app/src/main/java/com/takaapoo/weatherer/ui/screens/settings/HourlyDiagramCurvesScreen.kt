@@ -1,6 +1,9 @@
 package com.takaapoo.weatherer.ui.screens.settings
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
@@ -52,6 +55,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBarDefaults
@@ -67,6 +71,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -74,6 +79,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -93,7 +99,7 @@ import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartState
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.HourlyChart
 import com.takaapoo.weatherer.ui.theme.Gray30
 import com.takaapoo.weatherer.ui.theme.Transparent
@@ -134,16 +140,24 @@ fun HourlyDiagramCurvesScreen(
     onUpdateCurvesColor: (curveIndex: Int, color: Int) -> Unit,
     onUpdateWholeCurvesColor: (colors: List<Color>) -> Unit,
     onSaveCurvesColor: (curveIndex: Int, color: Color) -> Unit,
-    onUpdateCurvesSmoothness: (quantity: WeatherQuantity, value: Float) -> Unit,
-    onSaveCurvesSmoothness: (quantity: WeatherQuantity, value: Float) -> Unit,
-    onAddRemoveQuantity: (quantity: WeatherQuantity, addRemove: Boolean) -> Unit,
+    onUpdateCurvesSmoothness: (quantity: HourlyWeatherQuantity, value: Float) -> Unit,
+    onSaveCurvesSmoothness: (quantity: HourlyWeatherQuantity, value: Float) -> Unit,
+    onAddRemoveQuantity: (quantity: HourlyWeatherQuantity, addRemove: Boolean) -> Unit,
 
     onNavigateUp: () -> Unit
 ) {
-    val scrollState = rememberScrollState()
+    val settingScrollState = rememberScrollState()
     val colorSheetState = rememberModalBottomSheetState()
     val coroutineScope = rememberCoroutineScope()
     var colorBottomSheetVisible by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+    var maxHeight by remember { mutableStateOf(0.dp) }
+    val cardPartHeight = dimensionResource(R.dimen.diagram_height) + dimensionResource(R.dimen.home_card_spacing)
+    val tooltipState = rememberTooltipState(isPersistent = true)
+    val blurRadius by animateDpAsState(
+        targetValue = if (tooltipState.isVisible) 8.dp else 0.dp,
+        animationSpec = tween(durationMillis = 500, easing = LinearEasing)
+    )
 
     Scaffold(
         modifier = modifier,
@@ -174,18 +188,21 @@ fun HourlyDiagramCurvesScreen(
         val layoutDirection = LocalLayoutDirection.current
         val density = LocalDensity.current
         Column(
-            modifier = Modifier
+            modifier = Modifier.blur(radius = blurRadius)
                 .fillMaxSize()
                 .padding(
                     start = paddingValues.calculateStartPadding(layoutDirection),
                     end = paddingValues.calculateEndPadding(layoutDirection),
                     top = paddingValues.calculateTopPadding()
                 )
+                .onSizeChanged {
+                    maxHeight = it.height.toDp(density)
+                }
+                .verticalScroll(scrollState)
+                .nestedScroll(SettingsScrollConnection(scrollState, coroutineScope))
         ) {
-            val diagramHorPadding =
-                dimensionResource(id = R.dimen.diagram_frame_hor_padding).toPx(density)
-            val diagramVertPadding =
-                dimensionResource(id = R.dimen.diagram_frame_ver_padding).toPx(density)
+            val diagramHorPadding = dimensionResource(id = R.dimen.diagram_frame_hor_padding).toPx(density)
+            val diagramVertPadding = dimensionResource(id = R.dimen.diagram_frame_ver_padding).toPx(density)
             val topBoxShape = RoundedCornerShape(
                 topStart = 0.dp,
                 topEnd = 0.dp,
@@ -198,7 +215,7 @@ fun HourlyDiagramCurvesScreen(
                         onUpdateInitialXAxisBounds(it.width.toDp(density))
                     }
                     .shadow(
-                        elevation = if (scrollState.canScrollBackward) 4.dp else 0.dp,
+                        elevation = if (settingScrollState.canScrollBackward) 4.dp else 0.dp,
                         shape = topBoxShape
                     )
                     .fillMaxWidth()
@@ -233,8 +250,8 @@ fun HourlyDiagramCurvesScreen(
             }
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
+                    .fillMaxWidth().height(maxHeight)
+                    .verticalScroll(settingScrollState)
             ) {
                 SettingsGroupTitle(
                     modifier = Modifier.fillMaxWidth(),
@@ -355,39 +372,36 @@ fun HourlyDiagramCurvesScreen(
                     }
                 )
 
-
-                val tooltipState = rememberTooltipState(isPersistent = true)
-
                 SettingsGroupTitle(
                     modifier = Modifier.fillMaxWidth(),
                     title = "Curves smoothness",
                     icon = {
                         TooltipBox(
                             modifier = Modifier,
-                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
+                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
+                                positioning = TooltipAnchorPosition.Above,
+                            ),
                             tooltip = {
                                 RichTooltip(
-                                    title = {
-                                        Text(
-                                            text = stringResource(R.string.curve_smoothness_tooltip_titel),
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight(500),
-                                            fontFamily = FontFamily.Default,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                            },
+//                                    title = {
+//                                        Text(
+//                                            text = stringResource(R.string.curve_smoothness_tooltip_titel),
+//                                            fontSize = 14.sp,
+//                                            fontWeight = FontWeight(500),
+//                                            fontFamily = FontFamily.Default,
+//                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+//                                        )
+//                                            },
                                     action = {
-//                                        Row {
-                                            TextButton(
-                                                onClick = {
-                                                    coroutineScope.launch {
-                                                        tooltipState.dismiss()
-                                                    }
+                                        TextButton(
+                                            onClick = {
+                                                coroutineScope.launch {
+                                                    tooltipState.dismiss()
                                                 }
-                                            ) {
-                                                Text(text = "Ok", fontFamily = FontFamily.Default)
                                             }
-//                                        }
+                                        ) {
+                                            Text(text = "Ok", fontFamily = FontFamily.Default)
+                                        }
                                     },
 //                                    caretSize = DpSize(32.dp, 16.dp)
                                 ) {
@@ -396,7 +410,7 @@ fun HourlyDiagramCurvesScreen(
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight(400),
                                         fontFamily = FontFamily.Default,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+//                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             },
@@ -523,7 +537,12 @@ fun HourlyDiagramCurvesScreen(
                         }
                     )
                 }
-                Spacer(modifier = Modifier.height(paddingValues.calculateBottomPadding() + 16.dp))
+                Spacer(
+                    modifier = Modifier.height(
+                        paddingValues.calculateBottomPadding() + cardPartHeight + 16.dp
+                                - scrollState.value.toDp(density)
+                    )
+                )
             }
         }
 

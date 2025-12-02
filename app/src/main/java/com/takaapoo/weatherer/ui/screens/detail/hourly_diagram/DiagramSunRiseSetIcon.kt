@@ -56,17 +56,37 @@ fun DrawScope.diagramSunRiseSetIcon(
 
     var x = -Float.MAX_VALUE
     val iconTop = (size.height - verticalPadding - iconSize).toInt()
+    val risePosX = sunRiseIconsPositions.map { sunRise ->
+        sunRise?.let {
+            ((it - xAxisRange.start) / xAxisLength) * (size.width - 2 * horizontalPadding) +
+                    horizontalPadding
+        }
+    }
+    val setPosX = sunSetIconsPositions.map { sunSet ->
+        sunSet?.let {
+            ((it - xAxisRange.start) / xAxisLength) * (size.width - 2 * horizontalPadding) +
+                    horizontalPadding
+        }
+    }
     clipPath(diagramBounds) {
         for (i in sunRiseIconsPositions.indices){
-            sunRiseIconsPositions[i]?.let { sunRise ->
-                val posX = ((sunRise - xAxisRange.start) / xAxisLength) * (size.width - 2 * horizontalPadding) +
-                        horizontalPadding
+            risePosX[i]?.let { posX ->
                 drawLine(
                     color = Color.Red,
                     start = Offset(x = posX, y = 0f),
                     end = Offset(x = posX, y = size.height),
                     strokeWidth = 2f
                 )
+            }
+            setPosX[i]?.let { posX ->
+                drawLine(
+                    color = Color.Red,
+                    start = Offset(x = posX, y = 0f),
+                    end = Offset(x = posX, y = size.height),
+                    strokeWidth = 2f
+                )
+            }
+            risePosX[i]?.let { posX ->
                 if (posX > x + iconsSeparation) {
                     drawImage(
                         image = ImageBitmap.imageResource(context.resources, R.drawable.sun_rise),
@@ -79,15 +99,7 @@ fun DrawScope.diagramSunRiseSetIcon(
                     x = posX
                 }
             }
-            sunSetIconsPositions[i]?.let { sunSet ->
-                val posX = ((sunSet - xAxisRange.start) / xAxisLength) * (size.width - 2 * horizontalPadding) +
-                        horizontalPadding
-                drawLine(
-                    color = Color.Red,
-                    start = Offset(x = posX, y = 0f),
-                    end = Offset(x = posX, y = size.height),
-                    strokeWidth = 2f
-                )
+            setPosX[i]?.let { posX ->
                 if (posX > x + iconsSeparation) {
                     drawImage(
                         image = ImageBitmap.imageResource(context.resources, R.drawable.sun_set),

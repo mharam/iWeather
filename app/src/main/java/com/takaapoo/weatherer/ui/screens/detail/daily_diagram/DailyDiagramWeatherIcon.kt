@@ -8,8 +8,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
-import com.takaapoo.weatherer.data.local.LocalDailyWeather
+import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.WeatherType
 import com.takaapoo.weatherer.domain.WeatherType.Companion.drawWeatherIcon
 import kotlin.math.log2
@@ -18,14 +17,16 @@ import kotlin.math.roundToInt
 
 fun DrawScope.dailyDiagramWeatherIcon(
     context: Context,
-    dailyChartData: List<LocalDailyWeather>,
+//    dailyChartData: List<LocalDailyWeather>,
+    weatherCodes: List<Int?>,
+    firstPointX: Float,
     xAxisRange: ClosedFloatingPointRange<Float>,
     cornerRadius: Float,
     horizontalPadding: Float,
     verticalPadding: Float,
 ) {
-    if (dailyChartData.isEmpty()) return
-    val firstPointX = dailyTimeToX(date = dailyChartData[0].time)!!
+//    if (dailyChartData.isEmpty()) return
+//    val firstPointX = dailyTimeToX(date = dailyChartData[0].time)!!
 
     val diagramBounds = Path().apply {
         addRoundRect(
@@ -38,11 +39,11 @@ fun DrawScope.dailyDiagramWeatherIcon(
             )
         )
     }
-    val iconSize = 40.dp.roundToPx()
+    val iconSize = context.resources.getDimensionPixelSize(R.dimen.diagram_weather_icon_size)
     val xAxisLength = xAxisRange.endInclusive - xAxisRange.start
     val maxIconCount = ((size.width - 2*horizontalPadding) / (2f*iconSize)).toInt()
     val iconsSeparation = (xAxisLength / maxIconCount).iconRoundToInt()
-    val weatherCodes = dailyChartData.map { it.weatherCode }
+//    val weatherCodes = dailyChartData.map { it.weatherCode }
     var x = (xAxisRange.start / iconsSeparation - 1).toInt() * iconsSeparation
     clipPath(diagramBounds) {
         while (x <= xAxisRange.endInclusive + iconsSeparation) {

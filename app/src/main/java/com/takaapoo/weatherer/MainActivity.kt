@@ -55,13 +55,11 @@ import com.takaapoo.weatherer.ui.viewModels.AddLocationViewModel
 import com.takaapoo.weatherer.ui.viewModels.HomeViewModel
 import com.takaapoo.weatherer.ui.viewModels.PreferenceViewModel
 import com.takaapoo.weatherer.utility.getWindowSize
-import com.takaapoo.weatherer.utility.readJSONFromAssets
+import com.takaapoo.weatherer.utility.readMoonPhaseBinFromAssets
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.jsonObject
 import java.util.Calendar
 
 
@@ -70,6 +68,7 @@ val Context.dataStore by dataStore(
     serializer = AppSettingsSerializer
 )
 lateinit var moonPhaseMap: Map<String, JsonElement>
+lateinit var moonPhase: List<Float>
 const val WEATHER_CHANNEL_ID = "WEATHER_CHANNEL"
 const val WEATHER_NOTIFICATION_ID = 1001
 
@@ -182,9 +181,9 @@ class MainActivity : ComponentActivity() {
                 addLocationViewModel.updateDeviceLocationEnabled(it)
             }
         )
-        moonPhaseMap = Json.parseToJsonElement(
-            readJSONFromAssets(this, "moon_phase.json")
-        ).jsonObject.toMap()
+//        moonPhaseMap = Json.parseToJsonElement(readJSONFromAssets(this, "moon_phase.json"))
+//            .jsonObject.toMap()
+        moonPhase = readMoonPhaseBinFromAssets(this, "moon_phase.bin")
 
         setContent {
             val appSettings by preferenceViewModel.appSettings.collectAsStateWithLifecycle()

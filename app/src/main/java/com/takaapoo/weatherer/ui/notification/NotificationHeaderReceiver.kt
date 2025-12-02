@@ -4,14 +4,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
-import androidx.glance.appwidget.updateAll
 import com.takaapoo.weatherer.domain.repository.LocalWeatherRepository
 import com.takaapoo.weatherer.domain.repository.PreferenceRepository
 import com.takaapoo.weatherer.domain.use_case.GetHourlyChartDataUseCase
 import com.takaapoo.weatherer.ui.screens.setNotificationAlarm
 import com.takaapoo.weatherer.ui.screens.updateAllWidgets
-import com.takaapoo.weatherer.ui.widget.WeatherWidget1
-import com.takaapoo.weatherer.ui.widget.WeatherWidget2
 import dagger.hilt.android.AndroidEntryPoint
 import jakarta.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -59,7 +56,7 @@ suspend fun notify(
     hourlyChartDataUseCase: GetHourlyChartDataUseCase
 ){
     val settings = preferenceRepository.getSettings()
-    if (!settings.notificationVisibility) return
+    if (!settings.notificationVisibility || settings.notificationLocationId == null) return
 
     val nonNullHeader = if (header != null && header in 1 .. 3) header
     else settings.lastNotificationHeaderSelected

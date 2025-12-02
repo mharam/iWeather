@@ -1,4 +1,4 @@
-package com.takaapoo.weatherer.ui.screens.settings
+package com.takaapoo.weatherer.ui.screens.settings.dialogs
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

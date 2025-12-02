@@ -4,19 +4,19 @@ import android.content.Context
 import android.view.View
 import android.widget.RemoteViews
 import com.takaapoo.weatherer.R
+import com.takaapoo.weatherer.data.local.LocalDailyWeather
 import com.takaapoo.weatherer.domain.WeatherType
 import com.takaapoo.weatherer.domain.WeatherType.Companion.calculateMoonType
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
-import com.takaapoo.weatherer.moonPhaseMap
+import com.takaapoo.weatherer.moonPhase
 import com.takaapoo.weatherer.ui.notification.NotificationLayout
 import com.takaapoo.weatherer.ui.notification.custom_views.SmallNotification
-import com.takaapoo.weatherer.utility.readJSONFromAssets
+import com.takaapoo.weatherer.utility.readMoonPhaseBinFromAssets
 import com.takaapoo.weatherer.utility.renderViewToBitmap
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -29,13 +29,15 @@ class SmallLayout(
     override val layout: RemoteViews,
     context: Context,
     notificationHourlyChartData: List<HourlyChartDto>,
+    notificationDailyChartData: List<LocalDailyWeather>,
     val appSettings: AppSettings
 ): NotificationLayout {
+    val locationUTCOffset = notificationHourlyChartData.getOrNull(0)?.utcOffset?.toInt() ?: 0
     val zone: ZoneId = when (appSettings.notificationDateTime) {
         HourlyDiagramTime.UTC -> ZoneId.of("UTC")
         HourlyDiagramTime.DEVICE -> ZoneId.systemDefault()
         HourlyDiagramTime.LOCATION -> {
-            ZoneOffset.ofTotalSeconds((notificationHourlyChartData.getOrNull(0)?.utcOffset?.toInt() ?: 0) * 60)
+            ZoneOffset.ofTotalSeconds(locationUTCOffset * 60)
         }
     }
 
@@ -49,15 +51,28 @@ class SmallLayout(
     val hourlyWeather = notificationHourlyChartData.find {
         it.hourlyWeather?.time == LocalDateTime.now(ZoneId.of("UTC")).truncatedTo(ChronoUnit.HOURS).toString()
     }?.hourlyWeather
+    val todayWeather = notificationDailyChartData.find {
+        it.time == LocalDate.now(ZoneOffset.ofTotalSeconds(locationUTCOffset * 60)).toString()
+    }
 
     init {
         if (notificationHourlyChartData.isNotEmpty()) {
-            moonPhaseMap = Json.parseToJsonElement(readJSONFromAssets(context, "moon_phase.json"))
-                .jsonObject.toMap()
+//            moonPhaseMap = Json.parseToJsonElement(readJSONFromAssets(context, "moon_phase.json"))
+//                .jsonObject.toMap()
+            moonPhase = readMoonPhaseBinFromAssets(context, "moon_phase.bin")
+            val locationNow = LocalDateTime.now(ZoneOffset.ofTotalSeconds(locationUTCOffset * 60))
+            val todaySunrise = todayWeather?.sunRise?.let { LocalDateTime.parse(it) }
+            val todaySunset = todayWeather?.sunSet?.let { LocalDateTime.parse(it) }
+            val isDay = if (todaySunrise != null && todaySunset != null)
+                locationNow.isAfter(todaySunrise) && locationNow.isBefore(todaySunset)
+            else true
+
             val weatherType = WeatherType.fromWMO(
                 code = hourlyWeather?.weatherCode,
-                isDay = hourlyWeather?.isDay != 0,
-                moonType = calculateMoonType(now.toLocalDate())
+                isDay = isDay,
+                moonType = calculateMoonType(
+                    LocalDate.now(ZoneOffset.ofTotalSeconds(locationUTCOffset * 60))
+                )
             )
 
             val smallNotification = SmallNotification(

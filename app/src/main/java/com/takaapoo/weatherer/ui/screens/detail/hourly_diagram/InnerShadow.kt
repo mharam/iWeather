@@ -23,6 +23,10 @@ fun DrawScope.innerShadow(
 ){
     val paint = Paint()
     drawIntoCanvas {
+        it.saveLayer(
+            Rect(0f, 0f, this.size.width, this.size.height),
+            Paint()
+        )
         paint.color = color
         paint.isAntiAlias = true
         it.saveLayer(rect, paint)
@@ -72,6 +76,7 @@ fun DrawScope.innerShadow(
         )
         frameworkPaint.xfermode = null
         frameworkPaint.maskFilter = null
+        it.restore()
     }
 
 }

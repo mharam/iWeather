@@ -21,17 +21,19 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.res.dimensionResource
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppSettings
+import com.takaapoo.weatherer.domain.model.HistoricHourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.theme.Transparent
 
 @Composable
 fun DiagramCurve(
-    hourlyData: List<HourlyChartDto?>,
+    modifier: Modifier = Modifier,
+    hourlyData: List<HourlyChartDto?> = emptyList(),
+    historicalHourlyData: List<HistoricHourlyChartDto?> = emptyList(),
     curveAnimatorProgress: Float,
     timeData: List<Int>,
-    weatherQuantity: WeatherQuantity,
-    modifier: Modifier = Modifier,
+    weatherQuantity: HourlyWeatherQuantity,
     initialXAxisRange: ClosedFloatingPointRange<Float>,
     xAxisRange: ClosedFloatingPointRange<Float>,
     yAxisRange: ClosedFloatingPointRange<Float>,
@@ -47,30 +49,43 @@ fun DiagramCurve(
     sliderPosition: Float,
     onUpdateCurveValueAtIndicator: (value: Float?) -> Unit
 ) {
-    if (weatherQuantity.airQuality && hourlyData.getOrNull(0)?.airQuality?.time == null) return
-    if (!weatherQuantity.airQuality && hourlyData.getOrNull(0)?.hourlyWeather?.time == null) return
-
+    if (historicalHourlyData.isEmpty()) {
+        if (weatherQuantity.airQuality && hourlyData.getOrNull(0)?.airQuality?.time == null) return
+        if (!weatherQuantity.airQuality && hourlyData.getOrNull(0)?.hourlyWeather?.time == null) return
+    } else {
+        if (historicalHourlyData.getOrNull(0)?.hourlyWeather?.time == null) return
+    }
     val firstPointX = timeToX(
-        time = if (weatherQuantity.airQuality) hourlyData[0]!!.airQuality!!.time
-        else hourlyData[0]!!.hourlyWeather!!.time,
-        utcOffset = hourlyData[0]?.utcOffset ?: 0L,
+        time = if (historicalHourlyData.isEmpty()) {
+            if (weatherQuantity.airQuality) hourlyData[0]!!.airQuality!!.time
+            else hourlyData[0]!!.hourlyWeather!!.time
+        } else historicalHourlyData[0]!!.hourlyWeather!!.time,
+        utcOffset = hourlyData.getOrNull(0)?.utcOffset ?: historicalHourlyData.getOrNull(0)?.utcOffset ?: 0L,
         timeClock = appSettings.hourlyDiagramTime
     )!!
 
     val lastPointX = timeToX(
-        time = if (weatherQuantity.airQuality) hourlyData.last { it?.airQuality?.time != null }!!.airQuality!!.time
-        else hourlyData.last{ it?.hourlyWeather?.time != null }!!.hourlyWeather!!.time,
-        utcOffset = hourlyData[0]?.utcOffset ?: 0L,
+        time = if (historicalHourlyData.isEmpty()) {
+            if (weatherQuantity.airQuality) hourlyData.last { it?.airQuality?.time != null }!!.airQuality!!.time
+            else hourlyData.last { it?.hourlyWeather?.time != null }!!.hourlyWeather!!.time
+        } else historicalHourlyData.last { it?.hourlyWeather?.time != null }!!.hourlyWeather!!.time,
+        utcOffset = hourlyData.getOrNull(0)?.utcOffset ?: historicalHourlyData.getOrNull(0)?.utcOffset ?: 0L,
         timeClock = appSettings.hourlyDiagramTime
     )!!
 
-    val data = quantityData(hourlyChartData = hourlyData, weatherQuantity = weatherQuantity).also {
-        if (it.isEmpty()) return
-    }
-    val graphType = weatherQuantity.graphType(smoothnessFactor)
-    val (controlPoints1, controlPoints2) = quantityControlPoints(
+    val data = quantityData(
         hourlyChartData = hourlyData,
         weatherQuantity = weatherQuantity,
+        historicWeatherData = historicalHourlyData.map { it?.hourlyWeather }
+    ).also {
+        if (it.isEmpty()) return
+    }
+    val graphType = weatherQuantity.graphType(
+        curveSmoothness = if (historicalHourlyData.isEmpty()) smoothnessFactor else 0f
+    )
+    val (controlPoints1, controlPoints2) = quantityControlPoints(
+        hourlyChartData = hourlyData,
+        hourlyWeatherQuantity = weatherQuantity,
         smoothnessFactor = smoothnessFactor
     )
 
@@ -78,35 +93,14 @@ fun DiagramCurve(
     val curveValueAtIndicator = weatherCurveXtoY(
         quantity = weatherQuantity,
         appSettings = appSettings,
-        smoothnessFactor = smoothnessFactor,
+        smoothnessFactor = if (historicalHourlyData.isEmpty()) smoothnessFactor else 0f,
         hourlyWeather = hourlyData.map { it?.hourlyWeather },
         hourlyAirQuality = hourlyData.map { it?.airQuality },
+        historicWeatherData = historicalHourlyData.map { it?.hourlyWeather },
         firstPointX = firstPointX,
         lastPointX = lastPointX,
         targetX = indicatorX
     )
-        /*when (graphType){
-        GraphTypes.CUBIC -> cubicCurveXtoY(
-            data = data,
-            controlPoints1 = controlPoints1,
-            controlPoints2 = controlPoints2,
-            firstPointX = firstPointX,
-            lastPointX = lastPointX,
-            targetX = indicatorX
-        )
-        GraphTypes.LINEAR -> linearCurveXtoY(
-            data = data,
-            firstPointX = firstPointX,
-            lastPointX = lastPointX,
-            targetX = indicatorX
-        )
-        GraphTypes.STEP -> stepCurveXtoY(
-            data = data,
-            firstPointX = firstPointX,
-            lastPointX = lastPointX,
-            targetX = indicatorX
-        )
-    }*/
     onUpdateCurveValueAtIndicator(curveValueAtIndicator)
 
     val pointSize = dimensionResource(id = R.dimen.hourly_curve_point_size)
@@ -168,16 +162,6 @@ fun DiagramCurve(
                 startY = curvePathBounds.top,
                 endY = curvePathBounds.bottom
             )
-            /*filledPathBrush = Brush.verticalGradient(
-                0f to Color.Red.copy(alpha = 0.3f) ,
-                0.45f to Transparent,
-                0.5f to Transparent,
-                0.55f to Transparent,
-                1f to Color.Blue.copy(alpha = 0.3f),
-                startY = y0 - limit,
-                endY = y0 + limit
-            )*/
-//                    Log.i("path1", "size = ${curvePath.divide().size}")
         }
 
         val diagramBounds = Path().apply {
@@ -399,6 +383,7 @@ fun DrawScope.drawIndicatorPoint(
     pointSizePx: Float,
     curveWidth: Float
 ){
+    if (yAxisStart == yAxisEnd) return
     curveValueAtIndicator?.let {
         val indicatorPointX = sliderPosition * diagramWidth + horizontalPadding
         val indicatorPointY = normalizedY(

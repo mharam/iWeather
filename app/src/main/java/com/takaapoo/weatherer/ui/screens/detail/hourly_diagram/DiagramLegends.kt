@@ -17,12 +17,12 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.takaapoo.weatherer.utility.drawThickText
 import com.takaapoo.weatherer.ui.theme.DiagramShadow
 import com.takaapoo.weatherer.ui.theme.Gray20
 import com.takaapoo.weatherer.ui.theme.OnDiagramDarkTheme
 import com.takaapoo.weatherer.ui.theme.OnDiagramLightTheme
 import com.takaapoo.weatherer.ui.theme.indicatorLineColor
+import com.takaapoo.weatherer.utility.drawThickText
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
@@ -91,8 +91,11 @@ fun DrawScope.diagramLegends(
             ChartTheme.DARK -> OnDiagramDarkTheme
             ChartTheme.APPTHEME -> onAppSurfaceColor
             ChartTheme.DAYNIGHT -> {
-                if (sunRiseSetX.contain(x.toFloat())) OnDiagramDarkTheme
-                else OnDiagramLightTheme
+                if (sunRiseSetX.isEmpty()) onAppSurfaceColor
+                else {
+                    if (sunRiseSetX.contain(x.toFloat())) OnDiagramDarkTheme
+                    else OnDiagramLightTheme
+                }
             }
         }
         clipPath(path = diagramBounds) {
@@ -191,8 +194,11 @@ fun DrawScope.diagramLegends(
                     ChartTheme.DARK -> OnDiagramDarkTheme
                     ChartTheme.APPTHEME -> onAppSurfaceColor
                     ChartTheme.DAYNIGHT -> {
-                        if (sunRiseSetX.contain(xAxisRange.start)) OnDiagramDarkTheme
-                        else OnDiagramLightTheme
+                        if (sunRiseSetX.isEmpty()) onAppSurfaceColor
+                        else {
+                            if (sunRiseSetX.contain(xAxisRange.start)) OnDiagramDarkTheme
+                            else OnDiagramLightTheme
+                        }
                     }
                 }
                 val endTickColor = when (chartTheme){
@@ -200,8 +206,11 @@ fun DrawScope.diagramLegends(
                     ChartTheme.DARK -> OnDiagramDarkTheme
                     ChartTheme.APPTHEME -> onAppSurfaceColor
                     ChartTheme.DAYNIGHT -> {
-                        if (sunRiseSetX.contain(xAxisRange.endInclusive)) OnDiagramDarkTheme
-                        else OnDiagramLightTheme
+                        if (sunRiseSetX.isEmpty()) onAppSurfaceColor
+                        else {
+                            if (sunRiseSetX.contain(xAxisRange.endInclusive)) OnDiagramDarkTheme
+                            else OnDiagramLightTheme
+                        }
                     }
                 }
                 drawLine(
@@ -269,10 +278,10 @@ fun DrawScope.diagramLegends(
     )
 }
 
-// Returns true if value is in day time
+// Returns true if value is in night time
 fun List<Pair<Float?, Float?>>.contain(value: Float): Boolean{
     this.forEach {
-        if (value > (it.first?:Float.MAX_VALUE) && value < (it.second?:(-100000f)))
+        if (value >= (it.first?:Float.MAX_VALUE) && value < (it.second?:(-1000000f)))
             return false
     }
     return true

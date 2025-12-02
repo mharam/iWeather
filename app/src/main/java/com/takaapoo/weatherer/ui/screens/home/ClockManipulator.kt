@@ -1,5 +1,6 @@
 package com.takaapoo.weatherer.ui.screens.home
 
+import android.media.MediaPlayer
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -46,6 +47,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -59,8 +61,12 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
@@ -74,7 +80,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.takaapoo.weatherer.R
-import com.takaapoo.weatherer.utility.drawThickText
 import com.takaapoo.weatherer.ui.screens.home.shapes.DayGaugeShape
 import com.takaapoo.weatherer.ui.theme.Cmu
 import com.takaapoo.weatherer.ui.theme.Gray20
@@ -85,14 +90,16 @@ import com.takaapoo.weatherer.ui.theme.TenseGreen
 import com.takaapoo.weatherer.ui.theme.TenseRed
 import com.takaapoo.weatherer.ui.theme.timeFontFamily
 import com.takaapoo.weatherer.utility.BorderedText
+import com.takaapoo.weatherer.utility.drawThickText
 import com.takaapoo.weatherer.utility.toPx
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.floor
+import kotlin.math.sign
 
 val dayList = listOf("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
-//const val RESET_BUTTON_ANGLE = -23f
-//const val RESET_BUTTON_ANGLE_RADIAN = RESET_BUTTON_ANGLE * PI.toFloat() / 180
 
 
 @Composable
@@ -108,10 +115,12 @@ fun ClockManipulator(
     dayGaugeNaturalIndex: Int,
     visibleDayIndex: Int,
     clockGaugeLock: Boolean,
+    silent: Boolean,
+    vibration: Boolean,
 
     onUpdateVisibleDayIndex: (newVisibleDay: Int) -> Unit,
     onUpdateDayGaugeIndex: (newVisibleDay: Int) -> Unit,
-    onHandleClickSound: (Float, Float ) -> Unit,
+//    onHandleClickSound: (Float, Float ) -> Unit,
     onUpdateClockGaugeRotation: (rotation: Float) -> Unit,
     onStopRotation: () -> Unit,
     onDecayRotation: (velocity: Float) -> Unit,
@@ -122,7 +131,16 @@ fun ClockManipulator(
 //    Log.i("comp1", "dayGaugeIndex = $dayGaugeIndex , clockGaugeRotation = $clockGaugeRotation")
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current
+    val context = LocalContext.current
+    val hapticFeedback = LocalHapticFeedback.current
     var previousRotationZ by remember { mutableFloatStateOf(0f) }
+    val clickSound = remember {
+        List(10){
+            MediaPlayer.create(context, R.raw.click1).apply {
+                setVolume(0.15f, 0.15f)
+            }
+        }
+    }
 
     val daysOfHours = floor(
         -(clockGaugeRotation + clockGaugeNaturalRotation) / 360f
@@ -155,6 +173,8 @@ fun ClockManipulator(
             onUpdateVisibleDayIndex(it + 1)
         }
     }
+
+    var wholeGaugeRotation by rememberSaveable { mutableFloatStateOf(0f) }
 
 
 //    val scrollUp = dayListState.isScrollingUp()
@@ -190,9 +210,31 @@ fun ClockManipulator(
                 .align(Alignment.TopCenter)
                 .graphicsLayer {
                     rotationZ = clockGaugeRotation + clockGaugeNaturalRotation
-                    if (previousRotationZ != 0f)
-                        onHandleClickSound(rotationZ, previousRotationZ)
-                    previousRotationZ = rotationZ
+                    wholeGaugeRotation = rotationZ
+                    coroutineScope.launch(Dispatchers.Default) {
+                        if (previousRotationZ != 0f) {
+                            val diff = abs((wholeGaugeRotation / 3.75f).toInt() - (previousRotationZ / 3.75f).toInt())
+                            if (wholeGaugeRotation.sign != previousRotationZ.sign){
+                                playClick(
+                                    clickSound = clickSound,
+                                    hapticFeedback = hapticFeedback,
+                                    count = 1,
+                                    silent = silent,
+                                    vibration = vibration
+                                )
+                            } else {
+                                playClick(
+                                    clickSound = clickSound,
+                                    hapticFeedback = hapticFeedback,
+                                    count = diff,
+                                    silent = silent,
+                                    vibration = vibration
+                                )
+                            }
+                        }
+                        previousRotationZ = wholeGaugeRotation
+//                        onHandleClickSound(rotationZ, previousRotationZ)
+                    }
                 }
                 .shadow(
                     elevation = 16.dp,
@@ -427,6 +469,20 @@ fun TenseText(
             strokeWidth = 1f,
             fontFamily =  timeFontFamily
         )
+    }
+}
+
+private suspend fun playClick(
+    clickSound: List<MediaPlayer>,
+    hapticFeedback: HapticFeedback,
+    count: Int,
+    silent: Boolean,
+    vibration: Boolean,
+){
+    repeat(count.coerceAtMost(10)) { i ->
+        if (!silent) clickSound[i].start()
+        if (vibration) hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        delay(20)
     }
 }
 

@@ -3,11 +3,18 @@ package com.takaapoo.weatherer.data.local
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import com.takaapoo.weatherer.domain.model.AppSettings
+import com.takaapoo.weatherer.utility.celsiusToUnit
+import com.takaapoo.weatherer.utility.kmphToUnit
+import com.takaapoo.weatherer.utility.mmToUnit
 
 @Entity(
     tableName = "daily_weather",
     foreignKeys = [
-        ForeignKey(entity = Location::class, parentColumns = ["id"], childColumns = ["location_id"],
+        ForeignKey(
+            entity = Location::class,
+            parentColumns = ["id"],
+            childColumns = ["location_id"],
             onDelete = ForeignKey.CASCADE
         )
     ],
@@ -26,4 +33,12 @@ data class LocalDailyWeather(
     @ColumnInfo(name = "precipitation_probability_max") val precipitationProbabilityMax: Float? = null,
     @ColumnInfo(name = "windspeed_10m_max") val windSpeedMax: Float? = null,
     @ColumnInfo(name = "windgusts_10m_max") val windGustsMax: Float? = null
-)
+) {
+    fun setUnits(appSettings: AppSettings) = this.copy(
+        temperatureMax = temperatureMax?.celsiusToUnit(appSettings.temperatureUnit),
+        temperatureMin = temperatureMin?.celsiusToUnit(appSettings.temperatureUnit),
+        precipitationSum = precipitationSum?.mmToUnit(appSettings.lengthUnit),
+        windSpeedMax = windSpeedMax?.kmphToUnit(appSettings.speedUnit),
+        windGustsMax = windGustsMax?.kmphToUnit(appSettings.speedUnit)
+    )
+}

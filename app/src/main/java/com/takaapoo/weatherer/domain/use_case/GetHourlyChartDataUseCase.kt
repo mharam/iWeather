@@ -14,6 +14,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import kotlin.math.max
 
 class GetHourlyChartDataUseCase @Inject constructor(
     private val locationRepository: LocationRepository,
@@ -40,14 +41,16 @@ class GetHourlyChartDataUseCase @Inject constructor(
                 locationRepository.getLocation(locationId)
             }
             val data = awaitAll(hourlyDataDeferred, dailyDataDeferred, airQualityDeferred, locationDeferred)
-            val hourlyData = data[0] as? List<LocalHourlyWeather>
-            val dailyData = data[1] as? List<LocalDailyWeather>
-            val airQuality = data[2] as? List<LocalAirQuality>
+            val hourlyData = data[0] as? List<LocalHourlyWeather> ?: emptyList()
+            val dailyData = data[1] as? List<LocalDailyWeather> ?: emptyList()
+            val airQuality = data[2] as? List<LocalAirQuality> ?: emptyList()
             val location = data[3] as? Location
-            if (hourlyData.isNullOrEmpty() || dailyData.isNullOrEmpty() ||
-                airQuality.isNullOrEmpty() || location == null) emptyList<HourlyChartDto>()
-            else
-                List(size = hourlyData.size){ index ->
+
+            if ((hourlyData.isEmpty() && dailyData.isEmpty() && airQuality.isEmpty()) || location == null)
+                emptyList()
+            else {
+                val size = max(hourlyData.size, airQuality.size)
+                List(size = size) { index ->
                     val dailyIndex = index / 24
                     HourlyChartDto(
                         hourlyWeather = hourlyData.getOrNull(index),
@@ -60,6 +63,7 @@ class GetHourlyChartDataUseCase @Inject constructor(
                         sunSet = dailyData.getOrNull(dailyIndex)?.sunSet
                     )
                 }
+            }
         }
     }
 

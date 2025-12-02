@@ -72,8 +72,8 @@ import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.DetailState
 import com.takaapoo.weatherer.ui.screens.detail.AirQualityCurrentCondition2
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.SingleConnector4
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.linearCurveXtoY
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.quantityData
 import com.takaapoo.weatherer.ui.theme.AQGreen
@@ -99,6 +99,7 @@ fun AirQualityDetailScreen(
     detailState: DetailState = DetailState(),
     location: Location,
     appSettings: AppSettings = AppSettings(),
+    drawerOpen: Boolean,
 //    sharedTransitionScope: SharedTransitionScope,
 //    animatedContentScope: AnimatedContentScope
     onNavigateUp: () -> Unit
@@ -122,12 +123,12 @@ fun AirQualityDetailScreen(
     val temperatureData = quantityData(
         weatherData = detailState.currentDayHourlyWeather,
         airData = detailState.currentDayHourlyAirQuality,
-        weatherQuantity = WeatherQuantity.TEMPERATURE
+        weatherQuantity = HourlyWeatherQuantity.TEMPERATURE
     )
     val pressureData = quantityData(
         weatherData = detailState.currentDayHourlyWeather,
         airData = detailState.currentDayHourlyAirQuality,
-        weatherQuantity = WeatherQuantity.SURFACEPRESSURE
+        weatherQuantity = HourlyWeatherQuantity.SURFACEPRESSURE
     )
     val currentTemperature = linearCurveXtoY(
         data = temperatureData,
@@ -243,7 +244,7 @@ fun AirQualityDetailScreen(
                             animatedVisibilityScope = animatedContentScope,
                         )*/,
                         detailState = detailState,
-                        quantity = WeatherQuantity.AQI,
+                        quantity = HourlyWeatherQuantity.AQI,
                         appSettings = appSettings,
                     )
                     AirQualityCurrentCondition2(
@@ -251,7 +252,7 @@ fun AirQualityDetailScreen(
                             .fillMaxWidth()
                             .padding(vertical = 8.dp),
                         detailState = detailState,
-                        quantity = WeatherQuantity.PM10,
+                        quantity = HourlyWeatherQuantity.PM10,
                         appSettings = appSettings,
                     )
                     AirQualityCurrentCondition2(
@@ -259,7 +260,7 @@ fun AirQualityDetailScreen(
                             .fillMaxWidth()
                             .padding(vertical = 8.dp),
                         detailState = detailState,
-                        quantity = WeatherQuantity.PM2_5,
+                        quantity = HourlyWeatherQuantity.PM2_5,
                         appSettings = appSettings,
                     )
                     AirQualityCurrentCondition2(
@@ -267,17 +268,7 @@ fun AirQualityDetailScreen(
                             .fillMaxWidth()
                             .padding(vertical = 8.dp),
                         detailState = detailState,
-                        quantity = WeatherQuantity.CO,
-                        appSettings = appSettings,
-                        currentTemperature = 273 + (currentTemperature ?: 0f),
-                        currentPressure = currentPressure ?: 1000f
-                    )
-                    AirQualityCurrentCondition2(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        detailState = detailState,
-                        quantity = WeatherQuantity.NO2,
+                        quantity = HourlyWeatherQuantity.CO,
                         appSettings = appSettings,
                         currentTemperature = 273 + (currentTemperature ?: 0f),
                         currentPressure = currentPressure ?: 1000f
@@ -287,7 +278,7 @@ fun AirQualityDetailScreen(
                             .fillMaxWidth()
                             .padding(vertical = 8.dp),
                         detailState = detailState,
-                        quantity = WeatherQuantity.SO2,
+                        quantity = HourlyWeatherQuantity.NO2,
                         appSettings = appSettings,
                         currentTemperature = 273 + (currentTemperature ?: 0f),
                         currentPressure = currentPressure ?: 1000f
@@ -297,7 +288,17 @@ fun AirQualityDetailScreen(
                             .fillMaxWidth()
                             .padding(vertical = 8.dp),
                         detailState = detailState,
-                        quantity = WeatherQuantity.Ozone,
+                        quantity = HourlyWeatherQuantity.SO2,
+                        appSettings = appSettings,
+                        currentTemperature = 273 + (currentTemperature ?: 0f),
+                        currentPressure = currentPressure ?: 1000f
+                    )
+                    AirQualityCurrentCondition2(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        detailState = detailState,
+                        quantity = HourlyWeatherQuantity.Ozone,
                         appSettings = appSettings,
                         currentTemperature = 273 + (currentTemperature ?: 0f),
                         currentPressure = currentPressure ?: 1000f
@@ -515,7 +516,7 @@ fun AirQualityDetailScreen(
             }
         }
     }
-    BackHandler {
+    BackHandler(enabled = !drawerOpen) {
         onNavigateUp()
     }
 }
@@ -576,6 +577,7 @@ fun AirQualityDetailScreenPreview(modifier: Modifier = Modifier) {
     WeathererTheme {
         AirQualityDetailScreen(
             location = Location(),
+            drawerOpen = false,
             onNavigateUp = {}
         )
     }

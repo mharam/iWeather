@@ -16,7 +16,6 @@ import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
 import androidx.glance.ImageProvider
-import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.SizeMode
@@ -38,6 +37,7 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
+import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontFamily
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
@@ -53,23 +53,22 @@ import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
 import com.takaapoo.weatherer.domain.repository.LocalWeatherRepository
 import com.takaapoo.weatherer.domain.repository.PreferenceRepository
 import com.takaapoo.weatherer.domain.use_case.GetHourlyChartDataUseCase
-import com.takaapoo.weatherer.moonPhaseMap
+import com.takaapoo.weatherer.moonPhase
 import com.takaapoo.weatherer.ui.notification.custom_views.timeToX
 import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HistoricalState
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.weatherCurveXtoY
 import com.takaapoo.weatherer.ui.theme.BarBlue
 import com.takaapoo.weatherer.ui.theme.BarBlueLight
 import com.takaapoo.weatherer.ui.theme.Gray20
 import com.takaapoo.weatherer.ui.theme.Gray40
 import com.takaapoo.weatherer.utility.getColorScheme
-import com.takaapoo.weatherer.utility.readJSONFromAssets
+import com.takaapoo.weatherer.utility.readMoonPhaseBinFromAssets
 import com.takaapoo.weatherer.utility.renderViewToBitmap
 import com.takaapoo.weatherer.utility.toPx
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -83,22 +82,26 @@ import kotlin.math.roundToInt
 
 class WeatherWidget2(): GlanceAppWidget() {
 
+    private val weatherKey = intPreferencesKey("weather")
     companion object {
-        private val SMALL_SQUARE = DpSize(160.dp, 180.dp)
-        private val MEDIUM_SQUARE = DpSize(260.dp, 300.dp)
-        private val BIG_SQUARE = DpSize(320.dp, 400.dp)
-        private val HORIZONTAL_RECTANGLE = DpSize(260.dp, 180.dp)
-        private val WIDE_RECTANGLE = DpSize(320.dp, 180.dp)
-        private val BIG_HORIZONTAL_RECTANGLE = DpSize(320.dp, 300.dp)
-        private val VERTICAL_RECTANGLE = DpSize(160.dp, 300.dp)
-        private val TALL_RECTANGLE = DpSize(160.dp, 400.dp)
-        private val BIG_VERTICAL_RECTANGLE = DpSize(260.dp, 400.dp)
+        val layoutWidth = intPreferencesKey("layout_width")
+        val layoutHeight = intPreferencesKey("layout_height")
+        val SMALL_SQUARE = DpSize(190.dp, 220.dp)
+        private val MEDIUM_SQUARE = DpSize(260.dp, 340.dp)
+        val BIG_SQUARE = DpSize(320.dp, 440.dp)
+        private val HORIZONTAL_RECTANGLE = DpSize(260.dp, 220.dp)
+        private val WIDE_RECTANGLE = DpSize(320.dp, 220.dp)
+        private val BIG_HORIZONTAL_RECTANGLE = DpSize(320.dp, 340.dp)
+        private val VERTICAL_RECTANGLE = DpSize(190.dp, 340.dp)
+        private val TALL_RECTANGLE = DpSize(190.dp, 440.dp)
+        private val BIG_VERTICAL_RECTANGLE = DpSize(260.dp, 440.dp)
     }
 
-    override val sizeMode: SizeMode = SizeMode.Responsive(
+    override val sizeMode: SizeMode = SizeMode.Exact /*SizeMode.Responsive(
         setOf(SMALL_SQUARE, MEDIUM_SQUARE, BIG_SQUARE, HORIZONTAL_RECTANGLE, WIDE_RECTANGLE,
             BIG_HORIZONTAL_RECTANGLE, VERTICAL_RECTANGLE, TALL_RECTANGLE, BIG_VERTICAL_RECTANGLE)
-    )
+    )*/
+    override val stateDefinition = PreferencesGlanceStateDefinition
 
     override suspend fun provideGlance(
         context: Context,
@@ -108,21 +111,26 @@ class WeatherWidget2(): GlanceAppWidget() {
         val localWeatherRepository = getHiltDependency<LocalWeatherRepository>(context)
         val hourlyChartDataUseCase = getHiltDependency<GetHourlyChartDataUseCase>(context)
         val appSettings = preferenceRepository.getSettings()
-        val hourlyChartData = hourlyChartDataUseCase(
-            locationId = appSettings.widgetLocationId,
-            startDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1).toString(),
-            endDate = LocalDate.now(ZoneId.of("UTC")).plusDays(3).toString(),
-            appSettings = appSettings
-        )
-        val dailyChartData = localWeatherRepository.getLocationDailyWeather(
-            locationId = appSettings.widgetLocationId,
-            startDate = LocalDate.now().minusDays(2).toString(),
-            endDate = LocalDate.now().plusDays(8).toString(),
-            appSettings = appSettings
-        )
+        val hourlyChartData = appSettings.widgetLocationId?.let {
+            hourlyChartDataUseCase(
+                locationId = it,
+                startDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1).toString(),
+                endDate = LocalDate.now(ZoneId.of("UTC")).plusDays(3).toString(),
+                appSettings = appSettings
+            )
+        } ?: emptyList()
+        val dailyChartData = appSettings.widgetLocationId?.let {
+            localWeatherRepository.getLocationDailyWeather(
+                locationId = it,
+                startDate = LocalDate.now().minusDays(2).toString(),
+                endDate = LocalDate.now().plusDays(8).toString(),
+                appSettings = appSettings
+            )
+        } ?: emptyList()
 
-        moonPhaseMap = Json.parseToJsonElement(readJSONFromAssets(context, "moon_phase.json"))
-            .jsonObject.toMap()
+//        moonPhaseMap = Json.parseToJsonElement(readJSONFromAssets(context, "moon_phase.json"))
+//            .jsonObject.toMap()
+        moonPhase = readMoonPhaseBinFromAssets(context, "moon_phase.bin")
 
         provideContent {
             MyContent(
@@ -159,7 +167,10 @@ class WeatherWidget2(): GlanceAppWidget() {
 //        hourlyChartQuantities: List<WeatherQuantity>,
     ) {
         val density = Density(context)
-        val size = LocalSize.current
+//        val size = LocalSize.current
+        val layoutWidth = currentState(layoutWidth) ?: BIG_SQUARE.width.value.toInt()
+        val layoutHeight = currentState(layoutHeight) ?: TALL_RECTANGLE.height.value.toInt()
+
         val colorScheme = getColorScheme(
             context = context,
             dynamicColor = appSettings.dynamicColor
@@ -212,7 +223,7 @@ class WeatherWidget2(): GlanceAppWidget() {
 
         val indicatorX = Duration.between(now.truncatedTo(ChronoUnit.HOURS), now).toMinutes() / 60f
         val currentTemperature = weatherCurveXtoY(
-            quantity = WeatherQuantity.TEMPERATURE,
+            quantity = HourlyWeatherQuantity.TEMPERATURE,
             appSettings = appSettings,
             hourlyWeather = hourlyChartData.map { it.hourlyWeather },
             hourlyAirQuality = null,
@@ -253,7 +264,7 @@ class WeatherWidget2(): GlanceAppWidget() {
                     appSettings = appSettings,
                     locationName = hourlyChartData.getOrNull(0)?.locationName ?: "",
                     date = "$dayOfWeek, $clockText",
-                    narrow = size.width < MEDIUM_SQUARE.width,
+                    narrow = layoutWidth < MEDIUM_SQUARE.width.value.toInt(),
                     weatherTypeBitmap = weatherTypeBitmap,
                     weatherType = weatherType
                 )
@@ -287,7 +298,7 @@ class WeatherWidget2(): GlanceAppWidget() {
                                         night = colorScheme.onSurface
                                     ),
                                     textAlign = TextAlign.Start,
-                                    fontSize = 56.sp,
+                                    fontSize = 48.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.SansSerif
                                 )
@@ -350,9 +361,10 @@ class WeatherWidget2(): GlanceAppWidget() {
                             }
                         }
                         Spacer(GlanceModifier.defaultWeight())
-                        if (size.width > SMALL_SQUARE.width) {
+                        if (layoutWidth > SMALL_SQUARE.width.value.toInt()) {
                             HourlyPart(
                                 context = context,
+                                layoutWidth = layoutWidth,
                                 now = now,
                                 hourlyChartData = hourlyChartData,
                                 appSettings = appSettings,
@@ -367,7 +379,7 @@ class WeatherWidget2(): GlanceAppWidget() {
                             ) {
                                 Spacer(GlanceModifier.height(16.dp))
                                 Image(
-                                    modifier = GlanceModifier.size(56.dp),
+                                    modifier = GlanceModifier.size(48.dp),
                                     provider = ImageProvider(weatherTypeBitmap!!),
                                     contentDescription = weatherType.weatherDesc
                                 )
@@ -375,10 +387,11 @@ class WeatherWidget2(): GlanceAppWidget() {
                         }
                     }
                     Spacer(GlanceModifier.defaultWeight())
-
-                    if (size.height > SMALL_SQUARE.height) {
+                    if (layoutHeight > SMALL_SQUARE.height.value.toInt()) {
                         DailyPart(
                             context = context,
+                            layoutWidth = layoutWidth,
+                            layoutHeight = layoutHeight,
                             id = id,
                             now = now,
                             appSettings = appSettings,
@@ -388,15 +401,7 @@ class WeatherWidget2(): GlanceAppWidget() {
                     }
                 }
             }
-//            Image(
-//                modifier = GlanceModifier.size(56.dp),
-//                provider = ImageProvider(weatherTypeBitmap!!),
-//                contentDescription = weatherType.weatherDesc
-//            )
         }
-
-
-
     }
 
 
@@ -476,6 +481,7 @@ class WeatherWidget2(): GlanceAppWidget() {
     @Composable
     fun HourlyPart(
         context: Context,
+        layoutWidth: Int,
         now: LocalDateTime,
         hourlyChartData: List<HourlyChartDto>,
         appSettings: AppSettings,
@@ -483,7 +489,7 @@ class WeatherWidget2(): GlanceAppWidget() {
         lastPointX: Float,
     ) {
         val density = Density(context)
-        val size = LocalSize.current
+//        val size = LocalSize.current
         val colorScheme = getColorScheme(
             context = context,
             dynamicColor = appSettings.dynamicColor
@@ -491,17 +497,13 @@ class WeatherWidget2(): GlanceAppWidget() {
 
         val hoursList = List(
             size = when {
-                size.width > HORIZONTAL_RECTANGLE.width -> 4
-                else -> 2
+                layoutWidth > WIDE_RECTANGLE.width.value -> 4
+                layoutWidth > HORIZONTAL_RECTANGLE.width.value -> 2
+                else -> 1
             }
         ) { i -> now.plusHours((i + 1).toLong()).truncatedTo(ChronoUnit.HOURS) }
 
-        val hourlyWeatherList = List(
-            size = when {
-                size.width > HORIZONTAL_RECTANGLE.width -> 4
-                else -> 2
-            }
-        ) { i ->
+        val hourlyWeatherList = List(size = hoursList.size) { i ->
             hourlyChartData.find {
                 it.hourlyWeather?.time == LocalDateTime.now(ZoneId.of("UTC"))
                     .plusHours((i + 1).toLong())
@@ -520,7 +522,7 @@ class WeatherWidget2(): GlanceAppWidget() {
                     hour
                 ).toMinutes() / 60f
                 val hourTemperature = weatherCurveXtoY(
-                    quantity = WeatherQuantity.TEMPERATURE,
+                    quantity = HourlyWeatherQuantity.TEMPERATURE,
                     appSettings = appSettings,
                     hourlyWeather = hourlyChartData.map { it.hourlyWeather },
                     hourlyAirQuality = null,
@@ -601,35 +603,35 @@ class WeatherWidget2(): GlanceAppWidget() {
                 }
             }
         }
-
-
     }
 
     @Composable
     fun DailyPart(
         context: Context,
+        layoutWidth: Int,
+        layoutHeight: Int,
         id: GlanceId,
         now: LocalDateTime,
         appSettings: AppSettings,
         dailyChartData: List<LocalDailyWeather>,
     ) {
-        val size = LocalSize.current
+//        val size = LocalSize.current
         val colorScheme = getColorScheme(
             context = context,
             dynamicColor = appSettings.dynamicColor
         )
         val density = Density(context)
-        val weatherKey = intPreferencesKey("weather")
         var weather = currentState(weatherKey) ?: 0
-        val weatherQuantity = DailyWeatherQuantity.entries.find { it.ordinal == weather } ?:
-        DailyWeatherQuantity.TEMPERATUREMINMAX
+        val allowedWeatherQuantities = DailyWeatherQuantity.entries
+            .filter { it.historicalState != HistoricalState.HISTORIC_ONLY }
+        val weatherQuantity = allowedWeatherQuantities.getOrNull(weather)
+            ?: DailyWeatherQuantity.TEMPERATUREMINMAX
         val coroutineScope = rememberCoroutineScope()
-
 
         val daysList = List(size = 7) { i ->
             now.toLocalDate().plusDays((i + 1).toLong()).dayOfWeek
                 .getDisplayName(
-                    if (size.width > SMALL_SQUARE.width) java.time.format.TextStyle.FULL
+                    if (layoutWidth > SMALL_SQUARE.width.value.toInt()) java.time.format.TextStyle.FULL
                     else java.time.format.TextStyle.SHORT,
                     Locale.getDefault()
                 )
@@ -642,6 +644,7 @@ class WeatherWidget2(): GlanceAppWidget() {
         val weatherSize = 32.dp
         val dayWeatherIconSize = 40.dp
         val dailyBoxIconOverlap = 16.dp
+        val rowHeight = 40.dp
 
         Box(
             contentAlignment = Alignment.TopEnd
@@ -653,9 +656,10 @@ class WeatherWidget2(): GlanceAppWidget() {
                 LazyColumn(
                     modifier = GlanceModifier.fillMaxWidth()
                         .height(
-                            40.dp * when {
-                                size.height > VERTICAL_RECTANGLE.height -> 5
-                                else -> 3
+                            rowHeight * when {
+                                layoutHeight > TALL_RECTANGLE.height.value.toInt() -> 7
+                                layoutHeight > VERTICAL_RECTANGLE.height.value.toInt() -> 5
+                                else -> 2
                             } + dailyBoxIconOverlap
                         )
                         .background(
@@ -696,7 +700,7 @@ class WeatherWidget2(): GlanceAppWidget() {
 
                         Row(
                             modifier = GlanceModifier.padding(horizontal = 8.dp)
-                                .fillMaxWidth().height(40.dp),
+                                .fillMaxWidth().height(rowHeight),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
@@ -711,7 +715,7 @@ class WeatherWidget2(): GlanceAppWidget() {
                                     textAlign = TextAlign.Start
                                 )
                             )
-                            if (size.width > SMALL_SQUARE.width) {
+                            if (layoutWidth > SMALL_SQUARE.width.value.toInt()) {
                                 Image(
                                     modifier = GlanceModifier.size(weatherSize),
                                     provider = ImageProvider(weatherIconBitmap!!),
@@ -761,7 +765,7 @@ class WeatherWidget2(): GlanceAppWidget() {
                             .clickable(
                                 rippleOverride = R.drawable.widget_ripple
                             ) {
-                                weather = (weather + 1) % DailyWeatherQuantity.entries.size
+                                weather = (weather + 1) % allowedWeatherQuantities.size
 
                                 coroutineScope.launch {
                                     updateAppWidgetState(context, id) { pref ->
@@ -788,7 +792,6 @@ class WeatherWidget2(): GlanceAppWidget() {
         appSettings: AppSettings
     ) {
         val text = when(quantity) {
-            DailyWeatherQuantity.TEMPERATUREMINMAX -> ""
             DailyWeatherQuantity.SUNRISESET ->
                 "${subDailyWeather?.sunRise?.substringAfterLast('T')}\n${subDailyWeather?.sunSet?.substringAfterLast('T')}"
             DailyWeatherQuantity.UVINDEXMAX ->
@@ -799,6 +802,8 @@ class WeatherWidget2(): GlanceAppWidget() {
                 "${quantity.quantityValueText(subDailyWeather?.precipitationProbabilityMax, appSettings)}"
             DailyWeatherQuantity.WINDSPEEDMAX ->
                 "${subDailyWeather?.windSpeedMax?.roundToInt()?.toString() ?: "?"} ${quantity.unit(appSettings)}"
+
+            else -> ""
         }
 
         when (quantity){

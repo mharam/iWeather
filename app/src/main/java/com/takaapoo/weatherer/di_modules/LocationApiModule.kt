@@ -22,7 +22,7 @@ object LocationApiModule {
 
     @Provides
     @Singleton
-    fun provideTimeApiService(): LocationApiService {
+    fun provideLocationApiService(): LocationApiService {
         val retrofit = Retrofit.Builder()
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .baseUrl(locationBaseURL)

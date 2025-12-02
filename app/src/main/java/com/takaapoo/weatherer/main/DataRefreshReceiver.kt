@@ -33,7 +33,7 @@ class DataRefreshReceiver(): BroadcastReceiver() {
                 wakeLock.acquire(60_000)
                 setDataRefreshAlarm(context)
                 if (NetworkUtils.isConnectedToInternet(context)) {
-                    updateWeatherUseCase.updateAllLocationsWeather()
+                    updateWeatherUseCase.updateAllLocationsWeatherBatch()
                 }
                 updateAllWidgets(context)
             } finally {

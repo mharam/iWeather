@@ -3,6 +3,7 @@ package com.takaapoo.weatherer.ui.screens.add_location
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Point
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.TweenSpec
@@ -27,19 +28,20 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.MapsInitializer
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
@@ -48,8 +50,16 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.widgets.ScaleBar
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.MyResult
+import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.MapState
-import com.takaapoo.weatherer.ui.theme.WeathererTheme
+import com.takaapoo.weatherer.domain.model.MaxFreeLocationsCount
+import com.takaapoo.weatherer.domain.model.MaxLocationsCount
+import com.takaapoo.weatherer.ui.screens.add_location.dialogs.AddLimitDialog
+import com.takaapoo.weatherer.ui.screens.add_location.dialogs.AddLocationDialog
+import com.takaapoo.weatherer.ui.screens.add_location.dialogs.DonateDialog
+import com.takaapoo.weatherer.ui.screens.add_location.dialogs.HelpDialog
+import com.takaapoo.weatherer.utility.calculateLocationSurroundingPoints
+import com.takaapoo.weatherer.utility.toPx
 
 val indicatingCircleDiameter = 200.dp
 
@@ -58,6 +68,8 @@ val indicatingCircleDiameter = 200.dp
 fun AddLocationScreen(
     modifier: Modifier = Modifier,
     mapState: MapState,
+    locationsCount: Int,
+    appSettings: AppSettings,
     onUpdateLocationPermissionGranted: (Boolean) -> Unit,
     onUpdateDeviceLocationEnabled: (Boolean) -> Unit,
     onUpdateTriggerMapRelocation: (Int) -> Unit,
@@ -71,7 +83,12 @@ fun AddLocationScreen(
     onUpdateAddLocationDialogVisibility: (Boolean) -> Unit,
     onAddLocationToDB: (Location) -> Unit,
     onUpdateSelectedLocationName: (String) -> Unit,
-    onNavigateUp: () -> Unit
+    onNavigateUp: () -> Unit,
+    onUpdateDonateDialogVisibility: (visible: Boolean) -> Unit,
+    onUpdateLocationCountDialogVisibility: (visible: Boolean) -> Unit,
+    onUpdateAddLocationHelpVisibility: (visible: Boolean) -> Unit,
+    onNavigateToDonateScreen: () -> Unit,
+    onShowPrecipitation: (location: LatLng) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -110,36 +127,40 @@ fun AddLocationScreen(
     }
     LaunchedEffect(key1 = mapState.triggerMapRelocation){
         val useBoundingBox = mapState.boundingBox != null && mapState.boundingBox.size == 4
-        cameraPositionState.animate(
-            update = if (useBoundingBox)
-                CameraUpdateFactory.newLatLngBounds(
-                    LatLngBounds(
-                        LatLng(mapState.boundingBox[1], mapState.boundingBox[0]),
-                        LatLng(mapState.boundingBox[3], mapState.boundingBox[2])
+        runCatching {
+            MapsInitializer.initialize(context)
+        }.onSuccess {
+            cameraPositionState.animate(
+                update = if (useBoundingBox)
+                    CameraUpdateFactory.newLatLngBounds(
+                        LatLngBounds(
+                            LatLng(mapState.boundingBox[1], mapState.boundingBox[0]),
+                            LatLng(mapState.boundingBox[3], mapState.boundingBox[2])
+                        ),
+                        0
+                    )
+                else
+                    CameraUpdateFactory.newLatLngZoom(
+                        mapState.destinationLocationLatLng,
+                        mapState.currentZoom
                     ),
-                    0
-                )
-            else
-                CameraUpdateFactory.newLatLngZoom(
-                    mapState.destinationLocationLatLng,
-                    mapState.currentZoom
-                ),
-            durationMs = 2000
-        )
-        if (mapState.triggerMapRelocation > 0)
-            onShowIndicatingCircle()
+                durationMs = 2000
+            )
+            if (mapState.triggerMapRelocation > 0)
+                onShowIndicatingCircle()
+        }
     }
     LaunchedEffect(mapState.addResult){
         when(mapState.addResult){
             is MyResult.Success -> {
                 snackbarHostState.showSnackbar(
-                    (mapState.addResult as MyResult.Success<*>).data as String
+                    mapState.addResult.data as String
                 )
                 onResetAddResult()
             }
             is MyResult.Error -> {
-                val exception = (mapState.addResult as MyResult.Error).exception
-                val message = (mapState.addResult as MyResult.Error).message
+                val exception = mapState.addResult.exception
+                val message = mapState.addResult.message
                 snackbarHostState.showSnackbar(
                     when {
                         exception?.message != null -> exception.message!!
@@ -165,6 +186,7 @@ fun AddLocationScreen(
             }
         )
     }
+    var surroundingPoints by remember{ mutableStateOf(emptyList<LatLng>()) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -198,8 +220,23 @@ fun AddLocationScreen(
                 properties = mapState.properties,
                 uiSettings = mapState.uiSettings,
                 onMapLongClick = {
-                    onUpdateSelectedLocationLatLng(it)
-                    onUpdateAddLocationDialogVisibility(true)
+                    surroundingPoints = calculateLocationSurroundingPoints(
+                        location = it,
+                        pointsCount = 12
+                    )
+                    if (locationsCount < MaxLocationsCount) {
+                        if (appSettings.hasDonated || locationsCount < MaxFreeLocationsCount) {
+                            onUpdateSelectedLocationLatLng(it)
+                            onUpdateAddLocationDialogVisibility(true)
+                        }
+                        else
+                            onUpdateDonateDialogVisibility(true)
+                    } else {
+                        onUpdateLocationCountDialogVisibility(true)
+                    }
+                    onShowPrecipitation(it)
+//                    val locationType = determineLocationType(context, it)
+//                    Log.i("loc1", "locationType = $locationType")
                 }
             )
             ScaleBar(
@@ -232,8 +269,27 @@ fun AddLocationScreen(
                         )
                 )
             }
+
+            val pointSize = 4.dp
+            val pointRadiusPx = (pointSize.toPx(density) / 2).toInt()
+            surroundingPoints.forEach { latLng ->
+                cameraPositionState.projection?.toScreenLocation(latLng)?.let { center ->
+                    Box(
+                        modifier = Modifier
+                            .offset {
+                                IntOffset(center.x - pointRadiusPx, center.y - pointRadiusPx)
+                            }
+                            .align(Alignment.TopStart)
+                            .requiredSize(pointSize)
+                            .background(
+                                color = Color.Red,
+                                shape = CircleShape
+                            )
+                    )
+                }
+            }
         }
-        if (mapState.addLocationDialogVisibility){
+        AnimatedVisibility (visible = mapState.addLocationDialogVisible){
             AddLocationDialog(
                 onDismissRequest = {
                     onUpdateAddLocationDialogVisibility(false)
@@ -256,33 +312,33 @@ fun AddLocationScreen(
                 nameAlreadyExists = mapState.nameAlreadyExists
             )
         }
+        AnimatedVisibility (visible = mapState.donateDialogVisible){
+            DonateDialog(
+                onDismiss = {
+                    onUpdateDonateDialogVisibility(false)
+                },
+                onConfirmation = {
+                    onUpdateDonateDialogVisibility(false)
+                    onNavigateToDonateScreen()
+                },
+            )
+        }
+        AnimatedVisibility (visible = mapState.locationCountDialogVisible){
+            AddLimitDialog(
+                onDismiss = {
+                    onUpdateLocationCountDialogVisibility(false)
+                },
+            )
+        }
+        AnimatedVisibility (visible = appSettings.addLocationHelpVisible){
+            HelpDialog(
+                onDismiss = {
+                    onUpdateAddLocationHelpVisibility(false)
+                },
+            )
+        }
     }
 
 }
 
 
-
-@Preview(showBackground = true)
-@Composable
-fun AddLocationScreenPreview() {
-    WeathererTheme {
-        AddLocationScreen(
-            onNavigateUp = {},
-            modifier = TODO(),
-            mapState = TODO(),
-            onUpdateLocationPermissionGranted = TODO(),
-            onUpdateDeviceLocationEnabled = TODO(),
-            onUpdateTriggerMapRelocation = TODO(),
-            onShowIndicatingCircle = TODO(),
-            onResetAddResult = TODO(),
-            onUpdateShowLocationState = TODO(),
-            onGoToMyLocation = TODO(),
-            onUpdateSearchQuery = TODO(),
-            onGoToLocation = TODO(),
-            onUpdateSelectedLocationLatLng = TODO(),
-            onUpdateAddLocationDialogVisibility = TODO(),
-            onAddLocationToDB = TODO(),
-            onUpdateSelectedLocationName = TODO()
-        )
-    }
-}

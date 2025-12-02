@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.TypeConverter
 
 @Entity(
     tableName = "locations",
@@ -20,5 +21,29 @@ data class Location(
     @ColumnInfo(name = "modified_time")
     val lastModifiedTime: String? = null,
     @ColumnInfo(name = "utc_offset")
-    val utcOffset: Long? = null
+    val utcOffset: Long? = null,
+    @ColumnInfo(name = "location_type")
+    val locationType: LocationType = LocationType.LAND,
+    val elevation: Float = -1000f,
+    val yearlyPrecipitation: Float? = null,
+    val currentPictureUrl: String = "",
+    val picIdsList: List<Int> = emptyList(),
 )
+
+enum class LocationType {
+    OCEAN, BEACH, LAND, LAKE, RIVER
+}
+
+// String Converters
+class Converters {
+    @TypeConverter
+    fun fromString(value: String): List<Int> {
+        if (value.isEmpty()) return emptyList()
+        return value.split(",").map { it.trim().toInt() }
+    }
+
+    @TypeConverter
+    fun toString(list: List<Int>): String {
+        return list.joinToString(",")
+    }
+}

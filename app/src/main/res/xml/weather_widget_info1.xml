@@ -5,7 +5,7 @@
     android:minResizeWidth="320dp"
     android:minResizeHeight="280dp"
     android:updatePeriodMillis="60000"
-    android:resizeMode="horizontal|vertical"
+    android:resizeMode="vertical"
     android:widgetCategory="home_screen"
     android:widgetFeatures="reconfigurable|configuration_optional"
     android:configure="com.takaapoo.weatherer.main.Widget1ConfigurationActivity"

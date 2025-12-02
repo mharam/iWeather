@@ -30,9 +30,9 @@ import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
-import com.takaapoo.weatherer.ui.screens.settings.ChooseLocationDialog
-import com.takaapoo.weatherer.ui.screens.settings.ChooseTimeAxisDialog
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
+import com.takaapoo.weatherer.ui.screens.settings.dialogs.ChooseLocationDialog
+import com.takaapoo.weatherer.ui.screens.settings.dialogs.ChooseTimeAxisDialog
 import com.takaapoo.weatherer.ui.screens.settings.SettingsGroupTitle
 import com.takaapoo.weatherer.ui.screens.settings.SettingsRow1
 
@@ -45,7 +45,7 @@ fun Widget1ConfigurationScreen(
 
     onUpdateWidgetLocationId: (id: Int) -> Unit,
     onUpdateWidgetDateTime: (time: HourlyDiagramTime) -> Unit,
-    onUpdateWidgetHourlyDiagramQuantities: (quantity: WeatherQuantity, addRemove: Boolean) -> Unit,
+    onUpdateWidgetHourlyDiagramQuantities: (quantity: HourlyWeatherQuantity, addRemove: Boolean) -> Unit,
     onSaveSettings: () -> Unit,
 ) {
     var locationDialogVisible by rememberSaveable {
@@ -130,7 +130,7 @@ fun Widget1ConfigurationScreen(
                 modifier = Modifier.fillMaxWidth(),
                 title = "Hourly weather quantities (${appSettings.widgetHourlyDiagramQuantities.size} out of 2)"
             )
-            WeatherQuantity.entries.forEach { quantity ->
+            HourlyWeatherQuantity.entries.forEach { quantity ->
                 SettingsRow1(
                     modifier = Modifier.fillMaxWidth(),
                     icon = quantity.iconId,

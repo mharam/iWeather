@@ -19,12 +19,12 @@ plugins {
 
 android {
     namespace = "com.takaapoo.weatherer"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.takaapoo.weatherer"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 2
         versionName = "0.0"
 
@@ -123,19 +123,16 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
 
     //Data Store
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation(libs.datastorePreferences)
 //    implementation("androidx.datastore:datastore-preferences-core:1.0.0")
 
     //Room
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.core:core-ktx:1.12.0")
+    implementation(libs.bundles.room)
     // To use Kotlin annotation processing tool (kapt)
-    ksp("androidx.room:room-compiler:2.6.1")
-    // optional - Kotlin Extensions and Coroutines support for Room
-    implementation("androidx.room:room-ktx:2.6.1")
+    ksp(libs.roomCompiler)
 
     //Local Date & Time
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    coreLibraryDesugaring(libs.desugarJdkLibs)
 
     implementation(libs.play.services.maps)
     implementation(libs.maps.compose)
@@ -145,18 +142,18 @@ dependencies {
     implementation(libs.maps.compose.widgets)
 
     // For managing permission request
-    implementation("androidx.fragment:fragment-ktx:1.8.1")
-    implementation("androidx.activity:activity-ktx:1.9.0")
+    implementation(libs.fragmentKtx)
+    implementation(libs.activityKtx)
 
     // Google Play Services for location
     implementation(libs.play.services.location)
 
     // AnimatedImageVector
-    implementation("androidx.compose.animation:animation-graphics:1.6.3")
+    implementation(libs.composeAnimationGraphics)
 
 
     // Shared Element Animation
-    implementation("androidx.compose.animation:animation:1.7.6")
+    implementation(libs.composeAnimation)
 
     // Material
 //    implementation("androidx.compose.material:material:1.5.3")
@@ -175,40 +172,40 @@ dependencies {
     implementation(libs.reorderable)
 
     // Adaptive Screen
-    implementation("androidx.compose.material3.adaptive:adaptive:1.1.0-beta01")
+    implementation(libs.composeAdaptive)
 //    implementation("androidx.compose.material3:material3:1.3.1")
 //    implementation("androidx.compose.material3:material3-window-size-class:1.3.1")
 //    implementation("androidx.compose.material3.adaptive:adaptive-layout:1.1.0-alpha08")
 //    implementation("androidx.compose.material3.adaptive:adaptive-navigation:1.1.0-alpha08")
 
     // Immutable Collections
-    implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.3.8")
+    implementation(libs.immutableCollections)
 
     // Splash Screen
     implementation(libs.androidx.core.splashscreen)
 
     // For AppWidgets support
-    implementation("androidx.glance:glance:1.2.0-alpha01")
-    implementation("androidx.glance:glance-appwidget:1.2.0-alpha01")
-
-    // For interop APIs with Material 3
-    implementation("androidx.glance:glance-material3:1.2.0-alpha01")
+    implementation(libs.bundles.glance)
 
     // Play console Billing
-    val billingVersion = "7.1.1"
-    implementation("com.android.billingclient:billing:$billingVersion")
-    implementation("com.android.billingclient:billing-ktx:$billingVersion")
+    implementation(libs.billing)
+    implementation(libs.billingKtx)
 
     // Lottie Animation
-    val lottieVersion = "6.6.4"
-    implementation("com.airbnb.android:lottie-compose:$lottieVersion")
-
+    implementation(libs.lottieCompose)
 
     // Used for Extracting Dynamic colors
 //    implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.10")
 
     // ViewBinding
     implementation(libs.androidx.ui.viewbinding)
+
+    // Used for getPropertyBySerialName function in UsefulFunc.kt
+    implementation(kotlin("reflect"))
+
+    // Coil
+    implementation(libs.bundles.coil)
+
 
 
 

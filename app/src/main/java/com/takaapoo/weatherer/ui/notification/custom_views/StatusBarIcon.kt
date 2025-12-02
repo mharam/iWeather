@@ -15,7 +15,7 @@ import androidx.core.content.res.ResourcesCompat
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.weatherCurveXtoY
 import com.takaapoo.weatherer.utility.toPx
 import java.time.Duration
@@ -29,7 +29,7 @@ class StatusBarIcon(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
     val hourlyChartData: List<HourlyChartDto> = emptyList(),
-    quantity: WeatherQuantity,
+    quantity: HourlyWeatherQuantity,
     appSettings: AppSettings
 ): AppCompatTextView(context, attrs, defStyleAttr) {
 
@@ -96,12 +96,12 @@ class StatusBarIcon(
             )
         }*/
         quantityValue = when (quantity) {
-            WeatherQuantity.HUMIDITY, WeatherQuantity.PRECIPITATIONPROBABILITY,
-            WeatherQuantity.CLOUDCOVER -> curveValueAtIndicator?.coerceIn(0f, 100f)
+            HourlyWeatherQuantity.HUMIDITY, HourlyWeatherQuantity.PRECIPITATIONPROBABILITY,
+            HourlyWeatherQuantity.CLOUDCOVER -> curveValueAtIndicator?.coerceIn(0f, 100f)
 
-            WeatherQuantity.WINDSPEED, WeatherQuantity.UVINDEX, WeatherQuantity.DIRECTRADIATION,
-            WeatherQuantity.DIRECTNORMALIRRADIANCE, WeatherQuantity.Ozone, WeatherQuantity.SO2,
-            WeatherQuantity.CO, WeatherQuantity.NO2, WeatherQuantity.PM10, WeatherQuantity.PM2_5 ->
+            HourlyWeatherQuantity.WINDSPEED, HourlyWeatherQuantity.UVINDEX, HourlyWeatherQuantity.DIRECTRADIATION,
+            HourlyWeatherQuantity.DIRECTNORMALIRRADIANCE, HourlyWeatherQuantity.Ozone, HourlyWeatherQuantity.SO2,
+            HourlyWeatherQuantity.CO, HourlyWeatherQuantity.NO2, HourlyWeatherQuantity.PM10, HourlyWeatherQuantity.PM2_5 ->
                 curveValueAtIndicator?.coerceAtLeast(0f)
 
             else -> curveValueAtIndicator

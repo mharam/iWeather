@@ -2,12 +2,32 @@ package com.takaapoo.weatherer.data.repository
 
 import com.takaapoo.weatherer.data.local.LocalAirQuality
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
+import com.takaapoo.weatherer.data.local.LocalHistoricDailyWeather
+import com.takaapoo.weatherer.data.local.LocalHistoricHourlyWeather
 import com.takaapoo.weatherer.data.local.LocalHourlyWeather
 import com.takaapoo.weatherer.data.local.Location
+import com.takaapoo.weatherer.data.local.SingleQuantityDailyWeather.CloudCoverDailyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityDailyWeather.HumidityDailyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityDailyWeather.PrecipitationDailyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityDailyWeather.TemperatureMeanDailyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityDailyWeather.TemperatureMinMaxDailyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityDailyWeather.WindSpeedDailyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityHourlyWeather.ApparentTemperatureHourlyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityHourlyWeather.CloudCoverHourlyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityHourlyWeather.DewPointHourlyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityHourlyWeather.HumidityHourlyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityHourlyWeather.PrecipitationHourlyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityHourlyWeather.RainHourlyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityHourlyWeather.SnowfallHourlyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityHourlyWeather.SurfacePressureHourlyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityHourlyWeather.TemperatureHourlyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityHourlyWeather.WindDirectionHourlyWeather
+import com.takaapoo.weatherer.data.local.SingleQuantityHourlyWeather.WindSpeedHourlyWeather
 import com.takaapoo.weatherer.data.local.WeatherDao
 import com.takaapoo.weatherer.domain.model.AppSettings
-import com.takaapoo.weatherer.domain.model.WeatherDto
 import com.takaapoo.weatherer.domain.repository.LocalWeatherRepository
+import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.utility.celsiusToUnit
 import com.takaapoo.weatherer.utility.cmToUnit
 import com.takaapoo.weatherer.utility.kmToUnit
@@ -19,6 +39,7 @@ import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
+
 
 class LocalWeatherRepositoryImpl @Inject constructor(
     private val weatherDao: WeatherDao
@@ -81,6 +102,8 @@ class LocalWeatherRepositoryImpl @Inject constructor(
             LocalDate.parse(startDate),
             LocalDate.parse(endDate).plusDays(1)
         ).toInt() * 24
+        if (size < 1) return emptyList()
+
         val times = List(size){
             LocalDate.parse(startDate).atStartOfDay().plusHours(it.toLong()).toString()
         }
@@ -100,8 +123,8 @@ class LocalWeatherRepositoryImpl @Inject constructor(
 
 
 
-    override suspend fun getDailyWeather(startDate: String, endDate: String): Map<Location, List<LocalDailyWeather>> {
-        return weatherDao.getDailyWeather(startDate, endDate)
+    override suspend fun getDailyWeather(startDate: String, endDate: String): Map<Int, List<LocalDailyWeather>> {
+        return weatherDao.getDailyWeather(startDate, endDate).mapKeys { (location, _) -> location.id }
     }
 //
 //    override fun getLocationDailyWeatherFlow(
@@ -132,6 +155,8 @@ class LocalWeatherRepositoryImpl @Inject constructor(
             LocalDate.parse(startDate),
             LocalDate.parse(endDate).plusDays(1)
         ).toInt()
+        if (size < 1) return emptyList()
+
         val dates = List(size){
             LocalDate.parse(startDate).plusDays(it.toLong()).toString()
         }
@@ -168,16 +193,191 @@ class LocalWeatherRepositoryImpl @Inject constructor(
     override suspend fun getHourlyWeather(
         startDate: String,
         endDate: String
-    ): Map<Location, List<LocalHourlyWeather>> {
-        return weatherDao.getHourlyWeather(startDate, endDate)
+    ): Map<Int, List<LocalHourlyWeather>> {
+        return weatherDao.getHourlyWeather(startDate, endDate).mapKeys { (location, _) -> location.id }
     }
 
     override suspend fun getHourlyAirQuality(
         startDate: String,
         endDate: String
-    ): Map<Location, List<LocalAirQuality>> {
-        return weatherDao.getHourlyAirQuality(startDate, endDate)
+    ): Map<Int, List<LocalAirQuality>> {
+        return weatherDao.getHourlyAirQuality(startDate, endDate).mapKeys { (location, _) -> location.id }
     }
 
+    override suspend fun getLocationHistoricHourlyWeather(
+        locationId: Int,
+        startDate: String,
+        endDate: String,
+    ): List<LocalHistoricHourlyWeather> {
+        val rawList = weatherDao.getLocationHistoricHourlyWeather(locationId, startDate, endDate)
+
+        val size = ChronoUnit.DAYS.between(
+            LocalDate.parse(startDate),
+            LocalDate.parse(endDate).plusDays(1)
+        ).toInt() * 24
+        if (size < 1) return emptyList()
+
+        val times = List(size){
+            LocalDate.parse(startDate).atStartOfDay().plusHours(it.toLong()).toString()
+        }
+        val hourlyWeather = MutableList(size){
+            LocalHistoricHourlyWeather(locationId, times[it])
+        }
+
+        var rawIndex = 0
+        times.forEachIndexed { index, time ->
+            if (rawList.getOrNull(rawIndex)?.time == time){
+                hourlyWeather[index] = rawList[rawIndex]
+                rawIndex++
+            }
+        }
+        return hourlyWeather
+    }
+
+    override suspend fun getRowCounts(): Long {
+        return weatherDao.getRowCounts()
+    }
+
+    override suspend fun insertHistoricHourlyColumn(
+        quantity: HourlyWeatherQuantity,
+        localHistoricHourlyWeather: List<LocalHistoricHourlyWeather>,
+    ) {
+        weatherDao.insertColumn(
+            when (quantity) {
+                HourlyWeatherQuantity.TEMPERATURE -> {
+                    localHistoricHourlyWeather.map {
+                        TemperatureHourlyWeather(it.locationId, it.time, it.temperature, it.weatherCode, it.isDay)
+                    }
+                }
+                HourlyWeatherQuantity.HUMIDITY -> {
+                    localHistoricHourlyWeather.map {
+                        HumidityHourlyWeather(it.locationId, it.time, it.humidity, it.weatherCode, it.isDay)
+                    }
+                }
+                HourlyWeatherQuantity.DEWPOINT -> {
+                    localHistoricHourlyWeather.map {
+                        DewPointHourlyWeather(it.locationId, it.time, it.dewPoint, it.weatherCode, it.isDay)
+                    }
+                }
+                HourlyWeatherQuantity.APPARENTTEMP -> {
+                    localHistoricHourlyWeather.map {
+                        ApparentTemperatureHourlyWeather(it.locationId, it.time, it.apparentTemperature, it.weatherCode, it.isDay)
+                    }
+                }
+                HourlyWeatherQuantity.PRECIPITATION -> {
+                    localHistoricHourlyWeather.map {
+                        PrecipitationHourlyWeather(it.locationId, it.time, it.precipitation, it.weatherCode, it.isDay)
+                    }
+                }
+                HourlyWeatherQuantity.RAIN -> {
+                    localHistoricHourlyWeather.map {
+                        RainHourlyWeather(it.locationId, it.time, it.rain, it.weatherCode, it.isDay)
+                    }
+                }
+                HourlyWeatherQuantity.SNOWFALL -> {
+                    localHistoricHourlyWeather.map {
+                        SnowfallHourlyWeather(it.locationId, it.time, it.snowfall, it.weatherCode, it.isDay)
+                    }
+                }
+                HourlyWeatherQuantity.CLOUDCOVER -> {
+                    localHistoricHourlyWeather.map {
+                        CloudCoverHourlyWeather(it.locationId, it.time, it.cloudCover, it.weatherCode, it.isDay)
+                    }
+                }
+                HourlyWeatherQuantity.SURFACEPRESSURE -> {
+                    localHistoricHourlyWeather.map {
+                        SurfacePressureHourlyWeather(it.locationId, it.time, it.surfacePressure, it.weatherCode, it.isDay)
+                    }
+                }
+                HourlyWeatherQuantity.WINDSPEED -> {
+                    localHistoricHourlyWeather.map {
+                        WindSpeedHourlyWeather(it.locationId, it.time, it.windSpeed, it.weatherCode, it.isDay)
+                    }
+                }
+                HourlyWeatherQuantity.WINDDIRECTION -> {
+                    localHistoricHourlyWeather.map {
+                        WindDirectionHourlyWeather(it.locationId, it.time, it.windDirection, it.weatherCode, it.isDay)
+                    }
+                }
+                else -> emptyList()
+            }
+        )
+    }
+
+    override suspend fun deleteHistoricHourlyWeather() {
+        weatherDao.deleteHistoricHourlyWeather()
+    }
+
+    override suspend fun getLocationHistoricDailyWeather(
+        locationId: Int,
+        startDate: String,
+        endDate: String,
+    ): List<LocalHistoricDailyWeather> {
+        val rawList = weatherDao.getLocationHistoricDailyWeather(locationId, startDate, endDate)
+
+        val size = ChronoUnit.DAYS.between(
+            LocalDate.parse(startDate),
+            LocalDate.parse(endDate).plusDays(1)
+        ).toInt()
+        if (size < 1) return emptyList()
+
+        val dates = List(size){
+            LocalDate.parse(startDate).plusDays(it.toLong()).toString()
+        }
+        val dailyWeather = MutableList(size){
+            LocalHistoricDailyWeather(locationId, dates[it])
+        }
+
+        var rawIndex = 0
+        dates.forEachIndexed { index, date ->
+            if (rawList.getOrNull(rawIndex)?.time == date){
+                dailyWeather[index] = rawList[rawIndex]
+                rawIndex++
+            }
+        }
+        return dailyWeather
+    }
+
+    override suspend fun insertHistoricDailyColumn(
+        quantity: DailyWeatherQuantity,
+        localHistoricDailyWeather: List<LocalHistoricDailyWeather>,
+    ) {
+        weatherDao.insertDailyColumn(
+            when (quantity) {
+                DailyWeatherQuantity.TEMPERATUREMINMAX -> {
+                    localHistoricDailyWeather.map {
+                        TemperatureMinMaxDailyWeather(it.locationId, it.time, it.temperatureMax,
+                            it.temperatureMin, it.weatherCode)
+                    }
+                }
+                DailyWeatherQuantity.TEMPERATUREMEAN -> {
+                    localHistoricDailyWeather.map {
+                        TemperatureMeanDailyWeather(it.locationId, it.time, it.temperatureMean, it.weatherCode)
+                    }
+                }
+                DailyWeatherQuantity.PRECIPITATIONSUM -> {
+                    localHistoricDailyWeather.map {
+                        PrecipitationDailyWeather(it.locationId, it.time, it.precipitationSum, it.weatherCode)
+                    }
+                }
+                DailyWeatherQuantity.WINDSPEEDMAX -> {
+                    localHistoricDailyWeather.map {
+                        WindSpeedDailyWeather(it.locationId, it.time, it.windSpeedMax, it.weatherCode)
+                    }
+                }
+                DailyWeatherQuantity.CLOUDCOVERMEAN -> {
+                    localHistoricDailyWeather.map {
+                        CloudCoverDailyWeather(it.locationId, it.time, it.cloudCoverMean, it.weatherCode)
+                    }
+                }
+                DailyWeatherQuantity.HUMIDITYMEAN -> {
+                    localHistoricDailyWeather.map {
+                        HumidityDailyWeather(it.locationId, it.time, it.relativeHumidityMean, it.weatherCode)
+                    }
+                }
+                else -> emptyList()
+            }
+        )
+    }
 
 }

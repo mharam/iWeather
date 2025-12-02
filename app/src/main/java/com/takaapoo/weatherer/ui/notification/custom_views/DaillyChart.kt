@@ -62,7 +62,10 @@ class DailyChart(
         dailyChartData
     )
 
-    val data = dailyQuantityData(dailyChartData, appSettings.notificationDailyQuantity)
+    val data = dailyQuantityData(
+        dailyData = dailyChartData,
+        weatherQuantity = appSettings.notificationDailyQuantity
+    )
     val dataMax = data.maxByOrNull { it?.endInclusive ?: -Float.MAX_VALUE }?.endInclusive ?: 1f
     val dataMin = data.minByOrNull { it?.start ?: Float.MAX_VALUE }?.start ?: 0f
     val firstPointX = dailyTimeToX(date = dailyChartData.getOrNull(0)?.time)?.toFloat()
@@ -156,9 +159,15 @@ class DailyChart(
                 quantityMax = 24f
             }
             else -> {
-                val dataMin = dailyQuantityData(dailyChartData, quantity).map { it?.start }
+                val dataMin = dailyQuantityData(
+                    dailyData = dailyChartData,
+                    weatherQuantity = quantity
+                ).map { it?.start }
                 quantityMin = dataMin.minOfOrNull { it ?: Float.MAX_VALUE }
-                val dataMax = dailyQuantityData(dailyChartData, quantity).map { it?.endInclusive }
+                val dataMax = dailyQuantityData(
+                    dailyData = dailyChartData,
+                    weatherQuantity = quantity
+                ).map { it?.endInclusive }
                 quantityMax = dataMax.maxOfOrNull { it ?: -Float.MAX_VALUE }
             }
         }

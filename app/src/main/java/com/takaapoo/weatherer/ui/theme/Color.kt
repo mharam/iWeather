@@ -91,6 +91,7 @@ val Orange40 = Color(0xFFFF9800)
 val Orange60 = Color(0xFFFF8400)
 val Green40 = Color(0xFF215E00)
 
+val TransparentBlack = Color(0x00000000)
 val Transparent = Color(0x00FFFFFF)
 val TransparentGray5 = Color(0x0D000000)
 val TransparentGray50 = Color(0x80000000)
@@ -129,14 +130,17 @@ val curveBlue = Color(0xFF34B6FC)
 val curveOrange = Color(0xFFEC9C26)
 val curvePink = Color(0xFFED48FF)
 val curveGreen = Color(0xFF03CE76)
+val curveMagenta = Color(0xFF860093)
+val curveRed = Color(0xFFFF3273)
 
-val indicatorLineColor = Color(0xFF9058F3)
+
+val indicatorLineColor = Color(0xFF008554)
 
 val BarRed = Color(0xFFFF216B)
 val BarBlue = Color(0xFF0050FF)
 val BarBlueLight = Color(0xFF009FFF)
-val BarOrange = Color(0xFFFF6F00)
-val BarYellow = Color(0xFFF5DC01)
+val BarOrange = Color(0xFFFF3C00)
+val BarYellow = Color(0xFFF59C01)
 
 val UVGreen = Color(0xFF00A73D)
 val UVYellow = Color(0xFFF6FF00)

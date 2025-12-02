@@ -88,14 +88,14 @@ fun AirQualityCurrentCondition(
     targetX: Float,
     topBannerHeight: Float,
     appSettings: AppSettings,
-    quantity: WeatherQuantity,
+    quantity: HourlyWeatherQuantity,
     scroll: Float = 0f,
     currentTemperature: Float = 273f,
     currentPressure: Float = 1000f
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
-    val unit = WeatherQuantity.AQI.unit(appSettings)
+    val unit = HourlyWeatherQuantity.AQI.unit(appSettings)
     val spaceOccupiedByValue = (dimensionResource(id = R.dimen.current_condition_gauge_width)
             + 32.dp).toPx(density)
     val iconSize = dimensionResource(id = R.dimen.current_condition_icon_size)
@@ -146,9 +146,9 @@ fun AirQualityCurrentCondition(
     }*/
     val molarVolume = 22.4 * (currentTemperature / 273) / (currentPressure / 1000)
     val quantityLevels = when(quantity){
-        WeatherQuantity.AQI -> listOf(50, 100, 150, 200, 300, 500)
-        WeatherQuantity.PM10 -> listOf(54, 154, 254, 354, 424, 604)
-        WeatherQuantity.PM2_5 -> listOf(12, 35, 55, 150, 250, 500)
+        HourlyWeatherQuantity.AQI -> listOf(50, 100, 150, 200, 300, 500)
+        HourlyWeatherQuantity.PM10 -> listOf(54, 154, 254, 354, 424, 604)
+        HourlyWeatherQuantity.PM2_5 -> listOf(12, 35, 55, 150, 250, 500)
         else -> quantity.quantityBreakPoints().map { (it * quantity.molWeight() / molarVolume).toInt() }
     }
 
@@ -263,7 +263,7 @@ fun AirQualityCurrentCondition(
                                 )
                             }
                             (listOf(0) + quantityLevels).forEachIndexed { index, value ->
-                                val text = if (quantity == WeatherQuantity.CO)
+                                val text = if (quantity == HourlyWeatherQuantity.CO)
                                     "%.1f".format(value / 1000f) else value.toString()
                                 paint.getTextPath(text, 0, text.length, 0f, 0f, textPath)
                                 textPath.computeBounds(bounds, true)
@@ -385,7 +385,7 @@ fun AirQualityCurrentCondition(
                     shape = CircleShape
                 )
                 .padding(12.dp),
-            painter = painterResource(id = WeatherQuantity.AQI.iconId),
+            painter = painterResource(id = HourlyWeatherQuantity.AQI.iconId),
             contentDescription = quantityName.toString(),
             tint = MaterialTheme.colorScheme.onPrimary
         )
@@ -446,7 +446,7 @@ private fun decoupledConstraints(isOnSeparateRow: Boolean): ConstraintSet {
 fun AirQualityCurrentCondition2(
     modifier: Modifier = Modifier,
     detailState: DetailState,
-    quantity: WeatherQuantity,
+    quantity: HourlyWeatherQuantity,
     appSettings: AppSettings,
     currentTemperature: Float = 273f,
     currentPressure: Float = 1000f
@@ -494,29 +494,29 @@ fun AirQualityCurrentCondition2(
             targetX = detailState.targetX
         )
     }*/
-    if (quantity == WeatherQuantity.CO)
+    if (quantity == HourlyWeatherQuantity.CO)
         quantityValue = quantityValue?.div(1000)
     val molarVolume = 22.4f * (currentTemperature / 273) / (currentPressure / 1000)
     val quantityLevels = when(quantity){
-        WeatherQuantity.AQI -> listOf(50f, 100f, 150f, 200f, 300f, 500f)
-        WeatherQuantity.PM10 -> listOf(54f, 154f, 254f, 354f, 424f, 604f)
-        WeatherQuantity.PM2_5 -> listOf(12f, 35f, 55f, 150f, 250f, 500f)
-        WeatherQuantity.CO -> quantity.quantityBreakPoints().map { it * quantity.molWeight() / (1000 * molarVolume) }
+        HourlyWeatherQuantity.AQI -> listOf(50f, 100f, 150f, 200f, 300f, 500f)
+        HourlyWeatherQuantity.PM10 -> listOf(54f, 154f, 254f, 354f, 424f, 604f)
+        HourlyWeatherQuantity.PM2_5 -> listOf(12f, 35f, 55f, 150f, 250f, 500f)
+        HourlyWeatherQuantity.CO -> quantity.quantityBreakPoints().map { it * quantity.molWeight() / (1000 * molarVolume) }
         else -> quantity.quantityBreakPoints().map { it * quantity.molWeight() / molarVolume }
     }
 
     val quantityName = buildAnnotatedString {
         append(quantity.title ?: AnnotatedString(stringResource(id = quantity.nameId!!)))
-        if (quantity != WeatherQuantity.AQI) {
+        if (quantity != HourlyWeatherQuantity.AQI) {
             withStyle(
                 style = SpanStyle(
                     fontSize = 14.sp,
                     baselineShift = BaselineShift.Superscript
                 )
             ) {
-                if (quantity != WeatherQuantity.CO) append(" ✻")
-                if (quantity == WeatherQuantity.CO) append(" ★")
-                if (quantity == WeatherQuantity.PM10 || quantity == WeatherQuantity.PM2_5) append("†")
+                if (quantity != HourlyWeatherQuantity.CO) append(" ✻")
+                if (quantity == HourlyWeatherQuantity.CO) append(" ★")
+                if (quantity == HourlyWeatherQuantity.PM10 || quantity == HourlyWeatherQuantity.PM2_5) append("†")
                 else append("‡")
             }
         }
@@ -649,7 +649,7 @@ fun AirQualityCurrentCondition2(
                                 )
                             }
                             (listOf(0f) + quantityLevels).forEachIndexed { index, value ->
-                                val text = if (quantity == WeatherQuantity.CO)
+                                val text = if (quantity == HourlyWeatherQuantity.CO)
                                     "%.1f".format(value) else value
                                     .roundToInt()
                                     .toString()
@@ -681,7 +681,7 @@ fun AirQualityCurrentCondition2(
                 contentDescription = null,
                 colorFilter = ColorFilter.tint(WeatherGaugeHandle)
             )
-            val floatingPointDigits = if (quantity == WeatherQuantity.CO) 2 else 0
+            val floatingPointDigits = if (quantity == HourlyWeatherQuantity.CO) 2 else 0
             BorderedText(
                 modifier = Modifier.align(Alignment.BottomCenter),
                 text = buildAnnotatedString {

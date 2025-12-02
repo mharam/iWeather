@@ -27,7 +27,7 @@ data class HomeState(
     val editDialogOldLocationName: String = "",
     val editDialogLocationId: Int = 0,
     val nameAlreadyExists: Boolean = false,
-    val editNameResult: MyResult<String> = MyResult.Loading(),
+    val editNameResult: MyResult<*> = MyResult.Loading(),
     val isRefreshing: Boolean = false,
     val clockGaugeRotation: Animatable<Float, AnimationVector1D> = Animatable(initialValue = 0f),
     val clockGaugeNaturalRotation: Float = 0f,
@@ -40,5 +40,7 @@ data class HomeState(
     val visibleDayIndex: Int = dayGaugeNaturalIndex,
     val navigatedToDetailScreen: Boolean = false,
     val filterText: String = "",
-    val clockGaugeLock: Boolean = false
+    val clockGaugeLock: Boolean = false,
+//    val donateDialogVisible: Boolean = false,
+//    val locationCountDialogVisible: Boolean = false,
 )

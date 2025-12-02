@@ -143,7 +143,7 @@ fun BoxScope.DailyDiagramTopBar(
                         id = if (weatherConditionIconsVisible) R.drawable.partly_cloudy_day_fill_24px
                         else R.drawable.partly_cloudy_day_24px
                     ),
-                    contentDescription = stringResource(id = R.string.show_weather_condition_icon)
+                    contentDescription = stringResource(id = R.string.show_weather_condition)
                 )
             }
             IconButton(
@@ -168,7 +168,7 @@ fun BoxScope.DailyDiagramTopBar(
                         ChartGrids.MAIN -> LocalContentColor.current
                         ChartGrids.NON -> MaterialTheme.customColorScheme.noGridIcon
                     },
-                    contentDescription = stringResource(id = R.string.show_hide_grids)
+                    contentDescription = stringResource(id = R.string.grids)
                 )
             }
             IconButton(

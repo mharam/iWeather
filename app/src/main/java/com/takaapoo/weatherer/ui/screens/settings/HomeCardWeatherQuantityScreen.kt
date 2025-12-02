@@ -1,6 +1,8 @@
 package com.takaapoo.weatherer.ui.screens.settings
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -26,8 +28,19 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
@@ -35,8 +48,12 @@ import androidx.compose.ui.unit.dp
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.LocationsState
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.home.WeatherItemFake
+import com.takaapoo.weatherer.utility.toDp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlin.math.max
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,13 +61,18 @@ fun HomeCardWeatherQuantityScreen(
     modifier: Modifier = Modifier,
     itemState: LocationsState,
     appSettings: AppSettings,
-    cardWeatherQuantities: List<WeatherQuantity>,
+    cardWeatherQuantities: List<HourlyWeatherQuantity>,
 
     onUpdateHomeCardQuantityUnitsVisibility: (visible: Boolean) -> Unit,
-    onUpdateCardWeatherQuantities: (quantity: WeatherQuantity, add: Boolean) -> Unit,
+    onUpdateCardWeatherQuantities: (quantity: HourlyWeatherQuantity, add: Boolean) -> Unit,
     onNavigateUp: () -> Unit
 ) {
+    val density = LocalDensity.current
+    val coroutineScope = rememberCoroutineScope()
+    val settingScrollState = rememberScrollState()
     val scrollState = rememberScrollState()
+    var maxHeight by remember { mutableStateOf(0.dp) }
+    val cardPartHeight = dimensionResource(R.dimen.home_card_max_height) + dimensionResource(R.dimen.home_card_spacing) * 2
 
     Scaffold(
         modifier = modifier,
@@ -91,11 +113,16 @@ fun HomeCardWeatherQuantityScreen(
                     end = paddingValues.calculateEndPadding(layoutDirection),
                     top = paddingValues.calculateTopPadding()
                 )
+                .onSizeChanged {
+                    maxHeight = it.height.toDp(density)
+                }
+                .verticalScroll(scrollState)
+                .nestedScroll(SettingsScrollConnection(scrollState, coroutineScope))
         ) {
             Box(
                 modifier = Modifier
                     .shadow(
-                        elevation = if (scrollState.canScrollBackward) 4.dp else 0.dp,
+                        elevation = if (settingScrollState.canScrollBackward) 4.dp else 0.dp,
                         shape = topBoxShape
                     )
                     .fillMaxWidth()
@@ -109,16 +136,16 @@ fun HomeCardWeatherQuantityScreen(
             ) {
                 WeatherItemFake(
                     itemState = itemState,
-                    pageNumber = -1,
                     appSettings = appSettings,
                     windowRotation = 0f,
                     modifier = Modifier.height(dimensionResource(R.dimen.home_card_max_height)),
+                    landscapeId = R.drawable.landscape1
                 )
             }
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
+                    .fillMaxWidth().height(maxHeight)
+                    .verticalScroll(settingScrollState)
             ) {
                 SettingsRow1(
                     modifier = Modifier.fillMaxWidth(),
@@ -142,7 +169,7 @@ fun HomeCardWeatherQuantityScreen(
                     title = "Weather quantities (${cardWeatherQuantities.size} out of 4)"
                 )
 
-                WeatherQuantity.entries.filter { it.homeCardNameId != null }.forEach { quantity ->
+                HourlyWeatherQuantity.entries.filter { it.homeCardNameId != null }.forEach { quantity ->
                     SettingsRow1(
                         modifier = Modifier.fillMaxWidth(),
                         icon = quantity.iconId,
@@ -158,8 +185,41 @@ fun HomeCardWeatherQuantityScreen(
                         }
                     )
                 }
-                Spacer(modifier = Modifier.height(paddingValues.calculateBottomPadding() + 16.dp))
+                Spacer(
+                    modifier = Modifier.height(
+                        paddingValues.calculateBottomPadding() + cardPartHeight + 16.dp
+                                - scrollState.value.toDp(density)
+                    )
+                )
             }
         }
+    }
+}
+
+class SettingsScrollConnection(
+    val scrollState: ScrollState,
+    val coroutineScope: CoroutineScope
+) : NestedScrollConnection {
+    override fun onPreScroll(
+        available: Offset,
+        source: NestedScrollSource
+    ): Offset {
+        if (scrollState.value < 0) {
+            val consumeY = max(available.y, scrollState.value.toFloat())
+            coroutineScope.launch {
+                scrollState.scrollBy(-consumeY)
+            }
+            return Offset(0f, consumeY) // Consume for outer scroll
+        }
+        return Offset.Zero // Delegate to inner
+    }
+
+    override fun onPostScroll(
+        consumed: Offset,
+        available: Offset,
+        source: NestedScrollSource,
+    ): Offset {
+        return if (available.y > 0) super.onPostScroll(consumed, available, source)
+        else available
     }
 }

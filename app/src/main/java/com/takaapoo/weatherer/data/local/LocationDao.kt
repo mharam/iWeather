@@ -22,7 +22,7 @@ interface LocationDao {
     fun getLocationFlow(locationId: Int): Flow<Location>
 
     @Query("SELECT * FROM locations WHERE id = :locationId")
-    suspend fun getLocation(locationId: Int): Location
+    suspend fun getLocation(locationId: Int): Location?
 
     @Query("SELECT * FROM locations ORDER BY custom_id")
     suspend fun getAllLocationsList(): List<Location>
@@ -42,6 +42,18 @@ interface LocationDao {
     @Query("UPDATE locations SET utc_offset = :utcOffset WHERE name = :name")
     suspend fun updateLocationUtcOffset(name: String, utcOffset:Long?)
 
+    @Query("UPDATE locations SET location_type = :locationType WHERE name = :name")
+    suspend fun updateLocationType(name: String, locationType: LocationType)
+
+    @Query("UPDATE locations SET elevation = :elevation WHERE name = :name")
+    suspend fun updateLocationElevation(name: String, elevation: Float)
+
+    @Query("UPDATE locations SET yearlyPrecipitation = :precipitation WHERE name = :name")
+    suspend fun updateLocationPrecipitation(name: String, precipitation: Float?)
+
+    @Query("UPDATE locations SET currentPictureUrl = :currentPicUrl, picIdsList = :picIds WHERE name = :name")
+    suspend fun updateLocationPicIds(name: String, currentPicUrl: String, picIds: List<Int>)
+
     @Update
     suspend fun updateLocation(vararg location: Location)
 
@@ -56,5 +68,9 @@ interface LocationDao {
 
     @Query("SELECT COUNT(*) FROM locations")
     fun locationCount(): Flow<Int>
+
+    @Query("DELETE From locations WHERE ABS(elevation - (-1000)) < 0.001" +
+            " Or yearlyPrecipitation IS NULL Or currentPictureUrl = ''")
+    suspend fun deleteFaultyLocations()
 
 }

@@ -1,9 +1,15 @@
 package com.takaapoo.weatherer.ui.screens.detail.hourly_diagram
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
@@ -14,9 +20,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.unit.Dp
 import com.takaapoo.weatherer.ui.theme.DiagramDarkTheme
@@ -25,6 +32,7 @@ import com.takaapoo.weatherer.ui.theme.DiagramLightTheme
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.TransparentGray5
 import com.takaapoo.weatherer.ui.theme.customColorScheme
+import com.takaapoo.weatherer.utility.toDp
 import kotlinx.collections.immutable.ImmutableList
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -33,6 +41,7 @@ import kotlin.math.roundToInt
 fun DiagramFrameCanvas(
     modifier: Modifier = Modifier,
     sunRiseSetX: ImmutableList<Pair<Float?, Float?>>,
+    isDayList: ImmutableList<Boolean>,
     xAxisStart: Float,
     xAxisEnd: Float,
     yAxesStarts: ImmutableList<Float>,
@@ -46,42 +55,69 @@ fun DiagramFrameCanvas(
     textMeasurer: TextMeasurer,
     verticalDashLinePhase: Float,
     horizontalDashLinePhase: Float,
+    isLoading: Boolean = false,
+
     onCalculateHorizontalBarSeparation:
         (start: Float, end: Float, diagramHeight: Float, textMeasurer: TextMeasurer) -> Pair<Float, Float>,
     onCalculateVerticalBarSeparation:
         (start: Float, end: Float, diagramWidth: Float, textMeasurer: TextMeasurer) -> Pair<Int, Float>
 ) {
     val appThemeDiagramSurfaceColor = MaterialTheme.customColorScheme.appThemeDiagramSurfaceColor
-    Canvas(
+    val density = LocalDensity.current
+    Box(
         modifier = modifier.fillMaxSize()
-            .clip(RectangleShape)   // This is to prevent DrawScope call unnecessarily
     ) {
-        diagramFrame(
-            sunRiseSetX = sunRiseSetX,
-            xAxisRange = xAxisStart .. xAxisEnd,
-            yAxesRanges = List(size = yAxesStarts.size){
-                yAxesStarts[it] .. yAxesEnds[it]
-            },
-            cornerRadius = cornerRadius.toPx(),
-            horizontalPadding = diagramHorPadding,
-            verticalPadding = diagramVertPadding,
-            mainBarColor = DiagramGrid,
-            minorBarColor = DiagramGrid,
-            minorBarVisible = minorBarVisible,
-            majorBarVisible = majorBarVisible,
-            theme = hourlyChartTheme,
-            appSurfaceColor = appThemeDiagramSurfaceColor,
-            textMeasurer = textMeasurer,
-            verticalDashLinePhase = verticalDashLinePhase,
-            horizontalDashLinePhase = horizontalDashLinePhase,
-            onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
-            onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation
-        )
+        Canvas(
+            modifier = Modifier.fillMaxSize()
+                .clip(RoundedCornerShape(size = cornerRadius))   // This is to prevent DrawScope call unnecessarily
+        ) {
+            diagramFrame(
+                sunRiseSetX = sunRiseSetX,
+                isDayList = isDayList,
+                xAxisRange = xAxisStart .. xAxisEnd,
+                yAxesRanges = List(size = yAxesStarts.size){
+                    yAxesStarts[it] .. yAxesEnds[it]
+                },
+                cornerRadius = cornerRadius.toPx(),
+                horizontalPadding = diagramHorPadding,
+                verticalPadding = diagramVertPadding,
+                mainBarColor = DiagramGrid,
+                minorBarColor = DiagramGrid,
+                minorBarVisible = minorBarVisible,
+                majorBarVisible = majorBarVisible,
+                theme = hourlyChartTheme,
+                appSurfaceColor = appThemeDiagramSurfaceColor,
+                textMeasurer = textMeasurer,
+                verticalDashLinePhase = verticalDashLinePhase,
+                horizontalDashLinePhase = horizontalDashLinePhase,
+                onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
+                onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation
+            )
+        }
+
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize()
+                    .padding(
+                        horizontal = diagramHorPadding.toDp(density),
+                        vertical = diagramVertPadding.toDp(density)
+                    )
+                    .clip(RoundedCornerShape(size = cornerRadius))
+            ) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth()
+                        .align(Alignment.BottomCenter),
+                    strokeCap = StrokeCap.Round
+                )
+            }
+        }
     }
+
 }
 
 fun DrawScope.diagramFrame(
     sunRiseSetX: List<Pair<Float?, Float?>>,
+    isDayList: ImmutableList<Boolean>,
     xAxisRange: ClosedFloatingPointRange<Float>,
     yAxesRanges: List<ClosedFloatingPointRange<Float>>,
     cornerRadius: Float,
@@ -145,21 +181,29 @@ fun DrawScope.diagramFrame(
             )
         }
         ChartTheme.DAYNIGHT -> {
-            if (sunRiseSetX.isNotEmpty()) {
-                val colorStops = sunRiseSetX.map { (sunRise, sunSet) ->
-                    if (sunRise != null && sunSet != null) {
-                        listOf(
-                            (sunRise - 1 - xAxisRange.start) / xAxisLength to DiagramDarkTheme,
-                            (sunRise - xAxisRange.start) / xAxisLength to DiagramLightTheme,
-                            (sunSet - xAxisRange.start) / xAxisLength to DiagramLightTheme,
-                            (sunSet + 1 - xAxisRange.start) / xAxisLength to DiagramDarkTheme
-                        )
-                    } else
-                        emptyList()
-                }.flatten().toTypedArray()
+            val colorStops = sunRiseSetX.map { (sunRise, sunSet) ->
+                (if (sunRise != null) {
+                    listOf(
+                        (sunRise - xAxisRange.start) / xAxisLength to DiagramDarkTheme,
+                        (sunRise - xAxisRange.start) / xAxisLength to DiagramLightTheme,
+                    )
+                } else
+                    emptyList())
+                    .plus(
+                        if (sunSet != null) {
+                            listOf(
+                                (sunSet - xAxisRange.start) / xAxisLength to DiagramLightTheme,
+                                (sunSet - xAxisRange.start) / xAxisLength to DiagramDarkTheme
+                            )
+                        } else
+                            emptyList()
+                    )
+            }.flatten().toMutableList()
+
+            if (colorStops.isNotEmpty()) {
                 drawRoundRect(
                     brush = Brush.horizontalGradient(
-                        colorStops = colorStops,
+                        colorStops = colorStops.toTypedArray(),
                         startX = diagramRectangle.left,
                         endX = diagramRectangle.right
                     ),
@@ -168,8 +212,10 @@ fun DrawScope.diagramFrame(
                     cornerRadius = CornerRadius(cornerRadius, cornerRadius)
                 )
             } else {
+                val color = if (isDayList.firstOrNull() == true) DiagramLightTheme
+                else DiagramDarkTheme
                 drawRoundRect(
-                    color = appSurfaceColor,
+                    color = color,
                     topLeft = Offset(diagramRectangle.left, diagramRectangle.top),
                     size = Size(diagramRectangle.width, diagramRectangle.height),
                     cornerRadius = CornerRadius(cornerRadius, cornerRadius)

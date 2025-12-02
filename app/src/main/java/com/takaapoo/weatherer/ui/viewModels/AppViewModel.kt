@@ -27,6 +27,7 @@ class AppViewModel @Inject constructor(
     preferenceRepository: PreferenceRepository,
     private val hourlyChartDataUseCase: GetHourlyChartDataUseCase,
     private val localWeatherRepository: LocalWeatherRepository,
+//    private val locationRepository: LocationRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppUiState())
@@ -34,26 +35,36 @@ class AppViewModel @Inject constructor(
 
     val settingsFlow = preferenceRepository.getSettingsFlow()
     val notificationHourlyChartData: StateFlow<List<HourlyChartDto>> =
-        settingsFlow.map {
-            hourlyChartDataUseCase(
-                locationId = it.notificationLocationId,
-                startDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1).toString(),
-                endDate = LocalDate.now(ZoneId.of("UTC")).plusDays(3).toString(),
-                appSettings = it
-            )
+        settingsFlow.map { appSettings ->
+            val locationId = appSettings.notificationLocationId /*?:
+            locationRepository.getAllLocationsList().firstOrNull()?.id*/
+            if (locationId != null) {
+                    hourlyChartDataUseCase(
+                        locationId = locationId,
+                        startDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1).toString(),
+                        endDate = LocalDate.now(ZoneId.of("UTC")).plusDays(3).toString(),
+                        appSettings = appSettings
+                    )
+            } else
+                emptyList()
         }.stateIn(
             viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
     val notificationDailyChartData: StateFlow<List<LocalDailyWeather>> =
-        settingsFlow.map {
-            localWeatherRepository.getLocationDailyWeather(
-                locationId = it.notificationLocationId,
-                startDate = LocalDate.now().toString(),
-                endDate = LocalDate.now().plusDays(4).toString(),
-                appSettings = it
-            )
+        settingsFlow.map { appSettings ->
+            val locationId = appSettings.notificationLocationId /*?:
+            locationRepository.getAllLocationsList().firstOrNull()?.id*/
+            if (locationId != null) {
+                localWeatherRepository.getLocationDailyWeather(
+                    locationId = locationId,
+                    startDate = LocalDate.now().toString(),
+                    endDate = LocalDate.now().plusDays(4).toString(),
+                    appSettings = appSettings
+                )
+            } else
+                emptyList()
         }.stateIn(
             viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -89,6 +100,6 @@ class AppViewModel @Inject constructor(
 data class AppUiState(
     val currentScreen: Screen = HomePane,
     val notifChannelDialogVisibility: Boolean = false,
-    val notificationBitmaps: List<Bitmap?> = emptyList<Bitmap?>(),
+    val notificationBitmaps: List<Bitmap?> = emptyList(),
     val notificationHeader: Int = 1
 )

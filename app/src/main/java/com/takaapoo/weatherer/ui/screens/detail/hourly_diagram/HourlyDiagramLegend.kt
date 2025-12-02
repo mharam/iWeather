@@ -31,18 +31,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppSettings
-import com.takaapoo.weatherer.ui.screens.detail.WeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.utility.BorderedText
 import kotlinx.collections.immutable.ImmutableList
 
 @Composable
 fun HourlyDiagramLegend(
     modifier: Modifier = Modifier,
-    chartQuantities: ImmutableList<WeatherQuantity>,
+    chartQuantities: ImmutableList<HourlyWeatherQuantity>,
     dotsOnCurveVisible: Boolean,
     curveValueAtIndicator: ImmutableList<Float?>,
     appSettings: AppSettings,
-    onRemoveChartQuantity: (quantity: WeatherQuantity) -> Unit
+    onRemoveChartQuantity: (quantity: HourlyWeatherQuantity) -> Unit
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -59,19 +59,19 @@ fun HourlyDiagramLegend(
             AnimatedVisibility(visible = weatherQuantity != null) {
                 weatherQuantity?.let {
                     val quantityValue = when (it) {
-                        WeatherQuantity.HUMIDITY, WeatherQuantity.PRECIPITATIONPROBABILITY,
-                        WeatherQuantity.CLOUDCOVER -> curveValueAtIndicator[index]?.coerceIn(0f, 100f)
+                        HourlyWeatherQuantity.HUMIDITY, HourlyWeatherQuantity.PRECIPITATIONPROBABILITY,
+                        HourlyWeatherQuantity.CLOUDCOVER -> curveValueAtIndicator[index]?.coerceIn(0f, 100f)
 
-                        WeatherQuantity.WINDSPEED, WeatherQuantity.UVINDEX, WeatherQuantity.DIRECTRADIATION,
-                        WeatherQuantity.DIRECTNORMALIRRADIANCE, WeatherQuantity.Ozone, WeatherQuantity.SO2,
-                        WeatherQuantity.CO, WeatherQuantity.NO2, WeatherQuantity.PM10, WeatherQuantity.PM2_5 ->
+                        HourlyWeatherQuantity.WINDSPEED, HourlyWeatherQuantity.UVINDEX, HourlyWeatherQuantity.DIRECTRADIATION,
+                        HourlyWeatherQuantity.DIRECTNORMALIRRADIANCE, HourlyWeatherQuantity.Ozone, HourlyWeatherQuantity.SO2,
+                        HourlyWeatherQuantity.CO, HourlyWeatherQuantity.NO2, HourlyWeatherQuantity.PM10, HourlyWeatherQuantity.PM2_5 ->
                             curveValueAtIndicator[index]?.coerceAtLeast(0f)
 
                         else -> curveValueAtIndicator[index]
                     }
                     text[index] = buildAnnotatedString {
                         append(
-                            if (it.nameId != null) AnnotatedString(stringResource(id = it.nameId))
+                            if (it.nameId != null) AnnotatedString(stringResource(id = it.nameId!!))
                             else it.title!!
                         )
                         when (quantityValue) {
@@ -126,9 +126,9 @@ fun HourlyDiagramLegendRow(
             fillColor = color,
             fontSize = 16.sp
         )
-        Spacer(modifier = Modifier.width(8.dp))
+//        Spacer(modifier = Modifier.width(8.dp))
         IconButton(
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier.padding(horizontal = 12.dp).size(24.dp),
             onClick = { onRemoveQuantity() }
         ) {
             Icon(

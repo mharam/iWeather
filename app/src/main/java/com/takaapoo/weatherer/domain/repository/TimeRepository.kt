@@ -8,5 +8,5 @@ interface TimeRepository {
     suspend fun getTime(
         latitude: Float,
         longitude: Float
-    ): MyResult<FullTime>
+    ): MyResult<out FullTime>
 }

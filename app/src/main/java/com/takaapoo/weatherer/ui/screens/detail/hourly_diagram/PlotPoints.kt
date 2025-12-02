@@ -32,40 +32,39 @@ fun DrawScope.plotPoints(
     val step = 2f.pow(log2(2 * xAxisLength / (initialXAxisRange.endInclusive - initialXAxisRange.start)).roundToInt())
         .coerceAtLeast(1f).roundToInt()
 
-    var x = firstPointX
-    data.filterIndexed { index, _ -> timeData[index] % step == 0 }
-        .forEach { value ->
-            value?.let { y ->
-                val point = listOf(
-                    Offset(
-                        x = ((x - xAxisRange.start) / xAxisLength) * diagramWidth + horizontalPadding,
-                        y = (1 - (y - yAxisRange.start) / yAxisLength) * diagramHeight + verticalPadding
-                    )
+//    var x = firstPointX
+    data.forEachIndexed { index, value ->
+        if (timeData[index] % step == 0 && value != null) {
+            val point = listOf(
+                Offset(
+                    x = ((firstPointX + index - xAxisRange.start) / xAxisLength) * diagramWidth + horizontalPadding,
+                    y = (1 - (value - yAxisRange.start) / yAxisLength) * diagramHeight + verticalPadding
                 )
-                when (dotType){
-                    DotType.TRIANGLE, DotType.DIAMOND -> {
-                        drawOutline(
-                            outline = pointOutline(
-                                center = point[0],
-                                dimension = pointSize,
-                                dotType = dotType
-                            ),
-                            color = curveColor
-                        )
-                    }
-                    DotType.SQUARE, DotType.CIRCLE -> {
-                        drawPoints(
-                            points = point,
-                            pointMode = PointMode.Points,
-                            cap = if (dotType == DotType.SQUARE) StrokeCap.Square else StrokeCap.Round,
-                            color = curveColor,
-                            strokeWidth = pointSize
-                        )
-                    }
+            )
+            when (dotType){
+                DotType.TRIANGLE, DotType.DIAMOND -> {
+                    drawOutline(
+                        outline = pointOutline(
+                            center = point[0],
+                            dimension = pointSize,
+                            dotType = dotType
+                        ),
+                        color = curveColor
+                    )
+                }
+                DotType.SQUARE, DotType.CIRCLE -> {
+                    drawPoints(
+                        points = point,
+                        pointMode = PointMode.Points,
+                        cap = if (dotType == DotType.SQUARE) StrokeCap.Square else StrokeCap.Round,
+                        color = curveColor,
+                        strokeWidth = pointSize
+                    )
                 }
             }
-            x += step
         }
+//            x += step
+    }
 }
 
 

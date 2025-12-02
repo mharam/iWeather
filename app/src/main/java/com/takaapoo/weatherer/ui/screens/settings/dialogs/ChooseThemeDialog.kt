@@ -1,4 +1,5 @@
-package com.takaapoo.weatherer.ui.screens.settings
+package com.takaapoo.weatherer.ui.screens.settings.dialogs
+
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,20 +12,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.takaapoo.weatherer.R
-import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
+import com.takaapoo.weatherer.domain.model.AppTheme
 import com.takaapoo.weatherer.ui.screens.detail.DialogMultiChoiceRow
+import com.takaapoo.weatherer.ui.theme.WeathererTheme
 
 
 @Composable
-fun ChooseTimeAxisDialog(
+fun ChooseThemeDialog(
     modifier: Modifier = Modifier,
-    time: HourlyDiagramTime,
-    title: String? = null,
+    appTheme: AppTheme,
     onDismiss: () -> Unit,
-    onConfirmation: (selectedTime: HourlyDiagramTime) -> Unit,
-) {
+    onConfirmation: (theme: AppTheme) -> Unit,
+){
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
@@ -38,25 +40,39 @@ fun ChooseTimeAxisDialog(
         modifier = modifier,
         icon = {
             Icon(
-                painter = painterResource(R.drawable.clock_icon),
+                painter = painterResource(R.drawable.theme),
                 contentDescription = null
             )
         },
         title = {
-            Text(text = title ?: "Time axis clock")
+            Text(text = stringResource(id = R.string.app_theme))
         },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                HourlyDiagramTime.entries.forEach { diagramTime ->
+                AppTheme.entries.forEach { theme ->
                     DialogMultiChoiceRow(
-                        text = stringResource(diagramTime.description),
-                        isSelected = time == diagramTime,
-                        onSelect = { onConfirmation(diagramTime) }
+                        text = stringResource(theme.description),
+                        isSelected = theme == appTheme,
+                        onSelect = { onConfirmation(theme) }
                     )
                 }
             }
         }
     )
+}
+
+
+
+@Preview(showBackground = true)
+@Composable
+fun ChooseThemeDialogPreview() {
+    WeathererTheme {
+        ChooseThemeDialog(
+            appTheme = AppTheme.SYSTEM,
+            onDismiss = {},
+            onConfirmation = {}
+        )
+    }
 }

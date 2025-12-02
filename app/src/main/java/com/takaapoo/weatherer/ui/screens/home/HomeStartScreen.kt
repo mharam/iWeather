@@ -61,6 +61,7 @@ fun HomeStartScreen(
     val infiniteTransition = rememberInfiniteTransition(label = "text")
     Box(
         modifier = modifier.fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
     ) {
         val rad by infiniteTransition.animateValue(
             initialValue = -0.4f,

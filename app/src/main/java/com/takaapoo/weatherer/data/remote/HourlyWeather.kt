@@ -45,7 +45,8 @@ data class HourlyWeather(
     @SerialName(value = "is_day") val isDay: List<Int?> = HourlyWeatherDefaultValues,
     @SerialName(value = "freezinglevel_height") val freezingLevelHeight: List<Float?> = HourlyWeatherDefaultValues,
     @SerialName(value = "direct_radiation") val directRadiation: List<Float?> = HourlyWeatherDefaultValues,
-    @SerialName(value = "direct_normal_irradiance") val directNormalIrradiance: List<Float?> = HourlyWeatherDefaultValues
+    @SerialName(value = "direct_normal_irradiance") val directNormalIrradiance: List<Float?> = HourlyWeatherDefaultValues,
+    @SerialName(value = "snow_depth") val snowDepth: List<Float?> = HourlyWeatherDefaultValues
 )
 
 fun HourlyWeather.toLocalHourlyWeather(
@@ -82,7 +83,9 @@ fun HourlyWeather.toLocalHourlyWeather(
             directRadiation = directRadiation.toMutableList().apply {
                 add(index = 0, element = lastLocalHourlyWeather.directRadiation) },
             directNormalIrradiance = directNormalIrradiance.toMutableList().apply {
-                add(index = 0, element = lastLocalHourlyWeather.directNormalIrradiance) }
+                add(index = 0, element = lastLocalHourlyWeather.directNormalIrradiance) },
+            snowDepth = snowDepth.toMutableList().apply {
+                add(index = 0, element = lastLocalHourlyWeather.snowDepth) },
             )
     } else this.copy(visibility = visibility.map { it?.div(1000f) })
 
@@ -199,7 +202,9 @@ fun HourlyWeather.toLocalHourlyWeather(
             directNormalIrradianceControl1X = directNormalIrradianceControl1.getOrNull(i)?.x,
             directNormalIrradianceControl1Y = directNormalIrradianceControl1.getOrNull(i)?.y,
             directNormalIrradianceControl2X = directNormalIrradianceControl2.getOrNull(i)?.x,
-            directNormalIrradianceControl2Y = directNormalIrradianceControl2.getOrNull(i)?.y
+            directNormalIrradianceControl2Y = directNormalIrradianceControl2.getOrNull(i)?.y,
+
+            snowDepth = extendedData.snowDepth[i],
         )
     }
 }
