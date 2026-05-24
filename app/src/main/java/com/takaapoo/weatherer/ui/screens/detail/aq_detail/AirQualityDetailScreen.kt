@@ -47,7 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
@@ -57,16 +56,13 @@ import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.toFontFamily
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.model.AppSettings
@@ -89,7 +85,6 @@ import com.takaapoo.weatherer.ui.theme.timeFontFamily
 import com.takaapoo.weatherer.utility.BorderedText
 import com.takaapoo.weatherer.utility.toCelsius
 import com.takaapoo.weatherer.utility.toPa
-import com.takaapoo.weatherer.utility.toSp
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
@@ -151,10 +146,9 @@ fun AirQualityDetailScreen(
                 modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer),
                 title = {
                     Text(
-                        text = location.name,
-                        fontFamily = Font(R.font.cmu_serif_bold).toFontFamily(),
-                        color = MaterialTheme.colorScheme.onBackground,
-                        fontSize = 20.sp
+                        text = "Air quality details",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 },
                 navigationIcon = {
@@ -173,10 +167,12 @@ fun AirQualityDetailScreen(
                                 .format(DateTimeFormatter.ofPattern("HH\u200C:\u200Cmm"))
                         else detailState.localDateTime.toLocalTime()
                             .format(DateTimeFormatter.ofPattern("HH\u200C \u200Cmm")),
-                        fontFamily = timeFontFamily
+                        fontFamily = timeFontFamily,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontSize = 14.sp
                     )
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0x00FFFFFF)
                 ),
                 windowInsets = WindowInsets(
@@ -188,14 +184,14 @@ fun AirQualityDetailScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(color = MaterialTheme.customColorScheme.detailScreenSurface)
                 .padding(
                     top = paddingValues.calculateTopPadding(),
                     start = 8.dp,
                     end = 8.dp
                 )
-                .background(color = MaterialTheme.customColorScheme.detailScreenSurface)
         ) {
-            Box(
+            /*Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = dimensionResource(id = R.dimen.detail_screen_subtitle_vertical_padding))
@@ -222,18 +218,18 @@ fun AirQualityDetailScreen(
                         fontSize = dimensionResource(id = R.dimen.detail_screen_subtitle_font_size).toSp(density)
                     )
                 }
-            }
+            }*/
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(state = rememberScrollState())
             ) {
-                Spacer(
-                    modifier = Modifier.height(
-                        dimensionResource(id = R.dimen.detail_screen_subtitle_height) +
-                                dimensionResource(id = R.dimen.detail_screen_subtitle_vertical_padding)
-                    )
-                )
+//                Spacer(
+//                    modifier = Modifier.height(
+//                        dimensionResource(id = R.dimen.detail_screen_subtitle_height) +
+//                                dimensionResource(id = R.dimen.detail_screen_subtitle_vertical_padding)
+//                    )
+//                )
 //                with(sharedTransitionScope) {
                     AirQualityCurrentCondition2(
                         modifier = Modifier.Companion

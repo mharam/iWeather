@@ -15,6 +15,7 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.location.SettingsClient
 import com.google.android.gms.maps.model.LatLng
 import com.takaapoo.weatherer.data.local.Location
+import com.takaapoo.weatherer.di_modules.MainDispatcher
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.model.MapState
 import com.takaapoo.weatherer.domain.repository.LocationRepository
@@ -23,6 +24,7 @@ import com.takaapoo.weatherer.domain.use_case.AddLocationUseCase
 import com.takaapoo.weatherer.domain.use_case.UpdateWeatherUseCase
 import com.takaapoo.weatherer.ui.screens.add_location.REQUEST_CHECK_SETTINGS
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,6 +42,7 @@ class AddLocationViewModel @Inject constructor(
     private val addLocationUseCase: AddLocationUseCase,
     locationRepository: LocationRepository,
     private val remoteWeatherRepository: RemoteWeatherRepository,
+    @param:MainDispatcher private val mainDispatcher: CoroutineDispatcher
 ): ViewModel() {
 
     private val origin = LatLng(0.0, 0.0)
@@ -60,7 +63,7 @@ class AddLocationViewModel @Inject constructor(
     }
 
     fun addLocationToDB(location: Location) {
-        viewModelScope.launch {
+        viewModelScope.launch(mainDispatcher) {
             when (val result = addLocationUseCase(location)){
                 is MyResult.Success -> {
                     _mapState.update {
@@ -155,7 +158,7 @@ class AddLocationViewModel @Inject constructor(
     }
 
     fun showIndicatingCircle(){
-        viewModelScope.launch {
+        viewModelScope.launch(mainDispatcher) {
             delay(900)
             _mapState.emit(
                 _mapState.value.copy(
@@ -184,9 +187,9 @@ class AddLocationViewModel @Inject constructor(
         }
     }
 
-    private fun getLocation(text: String){
-        viewModelScope.launch {
-            val locationResult = addLocationUseCase.getLocation(text)
+    private fun getLocation(name: String){
+        viewModelScope.launch(mainDispatcher){
+            val locationResult = addLocationUseCase.getLocation(name)
             if (locationResult is MyResult.Success) {
                 _mapState.update {
                     it.copy(locations = locationResult.data.features)
@@ -209,7 +212,6 @@ class AddLocationViewModel @Inject constructor(
                 triggerMapRelocation = it.triggerMapRelocation + 1
             )
         }
-//        triggerMapRelocation++
     }
 
     fun updateTriggerMapRelocation(value: Int){
@@ -235,7 +237,7 @@ class AddLocationViewModel @Inject constructor(
     }
 
     fun loadALocationWeatherData(location: Location){
-        viewModelScope.launch {
+        viewModelScope.launch(mainDispatcher) {
             updateWeatherDataLoadingStatus(locationId = location.id, status = MyResult.Loading())
             val weatherResult = updateWeatherUseCase(location)
             updateWeatherDataLoadingStatus(locationId = location.id, status = weatherResult)
@@ -254,7 +256,7 @@ class AddLocationViewModel @Inject constructor(
         val settingsClient: SettingsClient = LocationServices.getSettingsClient(context)
 
         settingsClient.checkLocationSettings(builder.build())
-            .addOnSuccessListener { locationSettingsResponse ->
+            .addOnSuccessListener { _ ->
                 // All location settings are satisfied. The client can initialize location requests here.
                 fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
                     .addOnSuccessListener { location : android.location.Location? ->

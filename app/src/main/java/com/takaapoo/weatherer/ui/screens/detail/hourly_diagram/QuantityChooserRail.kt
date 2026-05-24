@@ -73,7 +73,7 @@ fun QuantityChooserRail(
 ) {
     val density = LocalDensity.current
     val scrollState = rememberLazyListState()
-    val itemList = if (isHistorical) HourlyWeatherQuantity.entries.filter { it.isHistorical == true }
+    val itemList = if (isHistorical) HourlyWeatherQuantity.entries.filter { it.isHistorical }
         else HourlyWeatherQuantity.entries.filter { it.airQuality == isAirQualityQuantities }
 
     val railBackgroundColor = MaterialTheme.customColorScheme.railBackground

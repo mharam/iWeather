@@ -1,6 +1,7 @@
 package com.takaapoo.weatherer.ui.screens.settings
 
 import android.graphics.Region
+import androidx.annotation.VisibleForTesting
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector2D
 import androidx.compose.animation.core.TwoWayConverter
@@ -621,10 +622,11 @@ private fun calculateTrianglePointerColor(
     )
 }
 
-private fun linearInterpolateColors(colors: List<Color>, fraction: Float): Color {
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+internal fun linearInterpolateColors(colors: List<Color>, fraction: Float): Color {
     return when (colors.size){
         0 -> Transparent
-        1 -> colors[0]
+        1 -> colors.first()
         2 -> Color(
             red = (1-fraction) * colors[0].red + fraction * colors[1].red,
             green = (1-fraction) * colors[0].green + fraction * colors[1].green,
@@ -667,7 +669,9 @@ private fun findNearestPointOnTriangle(
     return distances.minByOrNull { it.first }?.second ?: p1
 }
 
-private fun nearestPointOnLineSegment(a: Offset, b: Offset, p: Offset): Offset {
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+internal fun nearestPointOnLineSegment(a: Offset, b: Offset, p: Offset): Offset {
+    if (a == b) return a
     val ab = b - a
     val ap = p - a
 
@@ -686,7 +690,8 @@ private fun Offset.distanceToSquared(other: Offset): Float {
     return dx * dx + dy * dy
 }
 
-private fun Offset.distanceToLineSegment(a: Offset, b: Offset): Float {
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+internal fun Offset.distanceToLineSegment(a: Offset, b: Offset): Float {
     if (this == a || this == b) return 0f
     val ab = b - a
     val ap = this - a
@@ -700,13 +705,20 @@ private fun Offset.distanceToLineSegment(a: Offset, b: Offset): Float {
     return sqrt(ap2 * sin2)
 }
 
-private fun Offset.trianglePointerColor(
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+internal fun Offset.trianglePointerColor(
     pointer1: Offset,
     pointer2: Offset,
     pointer3: Offset,
     baseColor: Color,
     triangleHeight: Float,
 ): Color {
+//    val trianglePolygon = Polygon(listOf(pointer1.toPoint(), pointer2.toPoint(), pointer3.toPoint()))
+//    val pointerPosition = if (!trianglePolygon.isPointInside(this.toPoint()) &&
+//        !trianglePolygon.isPointOnEdge(this.toPoint()))
+//        findNearestPointOnTriangle(pointer1, pointer2, pointer2, this)
+//    else
+//        this
     val color1 = baseColor * (this.distanceToLineSegment(pointer2, pointer3) / triangleHeight)
     val color2 = Color.Black * (this.distanceToLineSegment(pointer1, pointer2) / triangleHeight)
     val color3 = Color.White * (this.distanceToLineSegment(pointer1, pointer3) / triangleHeight)

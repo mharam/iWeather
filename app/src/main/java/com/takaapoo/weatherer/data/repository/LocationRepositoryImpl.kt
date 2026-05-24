@@ -29,7 +29,7 @@ class LocationRepositoryImpl @Inject constructor(
         return locationDao.getAllLocations()
     }
 
-    override fun getLocationFlow(locationId: Int): Flow<Location> {
+    override fun getLocationFlow(locationId: Int): Flow<Location?> {
         return locationDao.getLocationFlow(locationId)
     }
 

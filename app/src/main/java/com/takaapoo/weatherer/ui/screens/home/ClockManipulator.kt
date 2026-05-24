@@ -2,6 +2,7 @@ package com.takaapoo.weatherer.ui.screens.home
 
 import android.media.MediaPlayer
 import androidx.annotation.DrawableRes
+import androidx.annotation.VisibleForTesting
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.VectorConverter
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -41,10 +43,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -57,8 +57,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedback
@@ -67,31 +65,28 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextMeasurer
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.toFontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.takaapoo.weatherer.R
+import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.indicesOf
 import com.takaapoo.weatherer.ui.screens.home.shapes.DayGaugeShape
-import com.takaapoo.weatherer.ui.theme.Cmu
-import com.takaapoo.weatherer.ui.theme.Gray20
 import com.takaapoo.weatherer.ui.theme.Gray30
-import com.takaapoo.weatherer.ui.theme.Orange40
-import com.takaapoo.weatherer.ui.theme.Orange60
 import com.takaapoo.weatherer.ui.theme.TenseGreen
 import com.takaapoo.weatherer.ui.theme.TenseRed
 import com.takaapoo.weatherer.ui.theme.timeFontFamily
 import com.takaapoo.weatherer.utility.BorderedText
 import com.takaapoo.weatherer.utility.drawThickText
 import com.takaapoo.weatherer.utility.toPx
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -117,10 +112,10 @@ fun ClockManipulator(
     clockGaugeLock: Boolean,
     silent: Boolean,
     vibration: Boolean,
+    dispatchers: CoroutineDispatcher = Dispatchers.Default,
 
     onUpdateVisibleDayIndex: (newVisibleDay: Int) -> Unit,
     onUpdateDayGaugeIndex: (newVisibleDay: Int) -> Unit,
-//    onHandleClickSound: (Float, Float ) -> Unit,
     onUpdateClockGaugeRotation: (rotation: Float) -> Unit,
     onStopRotation: () -> Unit,
     onDecayRotation: (velocity: Float) -> Unit,
@@ -128,18 +123,21 @@ fun ClockManipulator(
     onUndoButtonPressed: () -> Unit,
 
 ) {
-//    Log.i("comp1", "dayGaugeIndex = $dayGaugeIndex , clockGaugeRotation = $clockGaugeRotation")
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val context = LocalContext.current
     val hapticFeedback = LocalHapticFeedback.current
     var previousRotationZ by remember { mutableFloatStateOf(0f) }
+    val clicksCount = 10
     val clickSound = remember {
-        List(10){
+        List(clicksCount){
             MediaPlayer.create(context, R.raw.click1).apply {
                 setVolume(0.15f, 0.15f)
             }
         }
+    }
+    val clickStarted = remember {
+        MutableList(clicksCount){ false }
     }
 
     val daysOfHours = floor(
@@ -173,27 +171,7 @@ fun ClockManipulator(
             onUpdateVisibleDayIndex(it + 1)
         }
     }
-
     var wholeGaugeRotation by rememberSaveable { mutableFloatStateOf(0f) }
-
-
-//    val scrollUp = dayListState.isScrollingUp()
-//    Log.i("index1", "scroll in progress = ${dayListState.isScrollInProgress} , ${calculateDayScrollIndex()}")
-//    if (dayListState.isScrollInProgress && calculateDayScrollIndex() == 0){
-//        LaunchedEffect(key1 = dayListState.isScrollInProgress){
-//            initialScrollIndex =
-//                if (scrollUp) dayListState.firstVisibleItemIndex + 1
-//                else dayListState.firstVisibleItemIndex
-//            Log.i("index1", "initial scroll = ${initialScrollIndex - Int.MAX_VALUE/2} , scroll up = ${scrollUp}")
-//        }
-//        DisposableEffect(Unit){
-//            onDispose {
-//                updateDayGaugeIndex(dayListState.firstVisibleItemIndex - initialScrollIndex)
-//                updateVisibleDayIndex(dayListState.firstVisibleItemIndex - initialScrollIndex)
-//                Log.i("index1", "index = ${dayListState.firstVisibleItemIndex - Int.MAX_VALUE/2} , diff = ${dayListState.firstVisibleItemIndex - initialScrollIndex}")
-//            }
-//        }
-//    }
 
     Box(
         modifier = modifier
@@ -211,12 +189,13 @@ fun ClockManipulator(
                 .graphicsLayer {
                     rotationZ = clockGaugeRotation + clockGaugeNaturalRotation
                     wholeGaugeRotation = rotationZ
-                    coroutineScope.launch(Dispatchers.Default) {
+                    coroutineScope.launch(dispatchers) {
                         if (previousRotationZ != 0f) {
                             val diff = abs((wholeGaugeRotation / 3.75f).toInt() - (previousRotationZ / 3.75f).toInt())
                             if (wholeGaugeRotation.sign != previousRotationZ.sign){
                                 playClick(
                                     clickSound = clickSound,
+                                    clickStarted = clickStarted,
                                     hapticFeedback = hapticFeedback,
                                     count = 1,
                                     silent = silent,
@@ -225,6 +204,7 @@ fun ClockManipulator(
                             } else {
                                 playClick(
                                     clickSound = clickSound,
+                                    clickStarted = clickStarted,
                                     hapticFeedback = hapticFeedback,
                                     count = diff,
                                     silent = silent,
@@ -251,8 +231,7 @@ fun ClockManipulator(
             val smallTickSize = Size(width = gaugeSizePx / 300, height = gaugeSizePx / 90)
             val smallTickTopLeft = Offset(x = (gaugeSizePx - smallTickSize.width) / 2, y = 10f)
 
-            var counter  = 0
-            for (deg in 0 .. 345 step 15) {
+            for ((counter, deg) in (0 .. 345 step 15).withIndex()) {
                 rotate(degrees = deg.toFloat()) {
                     drawRoundRect(
                         color = if (deg == 0) primaryColor else otherColor,
@@ -271,7 +250,6 @@ fun ClockManipulator(
                         borderWidth = if (deg == 0) 3f else 2f
                     )
                 }
-                counter++
                 for (i in 1 .. 3) {
                     rotate(degrees = (deg + i * 3.75f)) {
                         drawRoundRect(
@@ -316,15 +294,9 @@ fun ClockManipulator(
             )
             Spacer(Modifier.height(4.dp))
             Row(
-                modifier = Modifier.offset(y = (-16).dp),
+                modifier = Modifier.offset(y = (-16).dp).testTag("row"),
                 verticalAlignment = Alignment.CenterVertically
             ){
-//            AmPmText(
-//                text = "AM",
-//                clockGaugeRotation = clockGaugeRotation,
-//                clockGaugeNaturalRotation = clockGaugeNaturalRotation
-//            )
-
                 IconButton(
                     modifier = Modifier,
                     onClick = onUndoButtonPressed
@@ -381,7 +353,7 @@ fun ClockManipulator(
                                     }
                                     .wrapContentHeight(),
                                 textAlign = TextAlign.Center,
-                                fontFamily = Cmu,
+                                fontFamily = timeFontFamily,
                                 fontSize = 18.sp
                             )
                         }
@@ -395,14 +367,9 @@ fun ClockManipulator(
                     Icon(
                         painter = if (clockGaugeLock) painterResource(id = R.drawable.lock)
                         else painterResource(id = R.drawable.lock_open),
-                        contentDescription = "Reset clock",
+                        contentDescription = "Lock clock",
                     )
                 }
-//            AmPmText(
-//                text = "PM",
-//                clockGaugeRotation = clockGaugeRotation,
-//                clockGaugeNaturalRotation = clockGaugeNaturalRotation
-//            )
             }
             TenseText(
                 modifier = Modifier.offset(y = (-32).dp),
@@ -444,10 +411,6 @@ fun TenseText(
         else -> Tense.PAST
     }
     val color = if (tense == Tense.LIVE) TenseGreen else TenseRed
-    val tenseAlpha = if (tense == Tense.LIVE) 1f
-    else {
-        if (tenseVisibility < 0.5f) 0f else 1f
-    }
 
     Box(
         modifier = modifier.width(dimensionResource(R.dimen.tense_width))
@@ -458,7 +421,10 @@ fun TenseText(
 //            )
             .padding(horizontal = 8.dp)
             .graphicsLayer {
-                alpha = tenseAlpha
+                alpha = if (tense == Tense.LIVE) 1f
+                else {
+                    if (tenseVisibility < 0.5f) 0f else 1f
+                }
             }
     ) {
         BorderedText(
@@ -472,85 +438,56 @@ fun TenseText(
     }
 }
 
-private suspend fun playClick(
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+internal suspend fun playClick(
     clickSound: List<MediaPlayer>,
+    clickStarted: MutableList<Boolean>,
     hapticFeedback: HapticFeedback,
     count: Int,
     silent: Boolean,
     vibration: Boolean,
 ){
-    repeat(count.coerceAtMost(10)) { i ->
-        if (!silent) clickSound[i].start()
+    val toBePlayedIndices = clickStarted.indicesOf(false)
+    val clickCount = count.coerceAtMost(toBePlayedIndices.size)
+    for (i in 0 until clickCount){
+        clickStarted[toBePlayedIndices[i]] = true
+    }
+    repeat(clickCount) { i ->
+        if (!silent) clickSound[toBePlayedIndices[i]].start()
         if (vibration) hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         delay(20)
+        clickStarted[toBePlayedIndices[i]] = false
     }
 }
 
+@Preview(showBackground = true)
 @Composable
-fun AmPmText(
-    modifier: Modifier = Modifier,
-    text: String,
-    clockGaugeRotation: Float,
-    clockGaugeNaturalRotation: Float,
-) {
-    val mod = (clockGaugeRotation + clockGaugeNaturalRotation).mod(360f)
-    val isOn = if (text == "AM") mod > 180f || (mod < 0 && mod > -180)
-    else mod <= -180f || (mod in 0f..180f)
-
-    if (isOn) {
-        Box {
-            Text(
-                modifier = modifier,
-                text = text,
-                textAlign = TextAlign.Center,
-                fontSize = 14.sp,
-                fontFamily = Font(resId = R.font.lato_black).toFontFamily(),
-                color = Orange60,
-                style = TextStyle(
-                    drawStyle = Stroke(width = 2f)
-                )
-            )
-            Text(
-                modifier = modifier,
-                text = text,
-                textAlign = TextAlign.Center,
-                fontSize = 14.sp,
-                fontFamily = Font(resId = R.font.lato_black).toFontFamily(),
-                color = Orange40,
-                style = TextStyle(
-                    shadow = Shadow(
-                        color = Orange40,
-                        blurRadius = 10f
-                    )
-                )
-            )
-        }
-    } else {
-        Box {
-            Text(
-                modifier = modifier,
-                text = text,
-                textAlign = TextAlign.Center,
-                fontSize = 14.sp,
-                fontFamily = Font(resId = R.font.lato_black).toFontFamily(),
-                color = Gray20,
-                style = TextStyle(
-                    drawStyle = Stroke(width = 2f)
-                )
-            )
-//            Text(
-//                modifier = modifier,
-//                text = text,
-//                textAlign = TextAlign.Center,
-//                fontSize = 14.sp,
-//                fontFamily = Font(resId = R.font.lato_black).toFontFamily(),
-//                color = Color.White
-//            )
-        }
-    }
+fun ClockManipulatorPreview() {
+    ClockManipulator(
+        gaugeSize = 300.dp,
+        dayGaugeResource = R.drawable.day_gauge_light,
+        clockGaugeRotation = 0f,
+        clockGaugeNaturalRotation = 0f,
+        clockGaugeRotationCoefficient = 1f,
+        dayListState = rememberLazyListState(),
+        dayGaugeIndex = 0,
+        dayGaugeNaturalIndex = 0,
+        visibleDayIndex = 0,
+        clockGaugeLock = false,
+        silent = true,
+        vibration = false,
+        onUpdateVisibleDayIndex = { _ -> },
+        onUpdateDayGaugeIndex = { _ -> },
+        onUpdateClockGaugeRotation = { _ -> },
+        onStopRotation = {},
+        onDecayRotation = { _ -> },
+        onUpdateClockGaugeLock = { _ -> },
+        onUndoButtonPressed = {}
+    )
 }
 
-@Composable
+
+/*@Composable
 private fun LazyListState.isScrollingUp(): Boolean {
     var previousIndex by remember(this) { mutableIntStateOf(firstVisibleItemIndex) }
     var previousScrollOffset by remember(this) { mutableIntStateOf(firstVisibleItemScrollOffset) }
@@ -566,6 +503,6 @@ private fun LazyListState.isScrollingUp(): Boolean {
             }
         }
     }.value
-}
+}*/
 
 

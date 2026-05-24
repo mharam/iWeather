@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.widget.Toast
 import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -30,7 +31,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -55,11 +55,8 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -102,6 +99,7 @@ import com.takaapoo.weatherer.utility.toDp
 import com.takaapoo.weatherer.utility.toPx
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
@@ -172,12 +170,16 @@ fun HomeScreen(
     onMenuButtonClick: () -> Unit,
     onNavigateToDetailScreen: (locationsCount: Int, initialPageNumber: Int) -> Unit,
     onNavigateToAddLocationScreen: () -> Unit,
+    onNavigateUp: () -> Unit = {},
     onPrepareDeleteLocation: (locationId: Int) -> Unit,
     onReloadALocationWeatherData: (location: Location) -> Unit,
     onUpdateClockGaugeLock: (lock: Boolean) -> Unit,
+    onUpdateItemDragged: (state: Boolean) -> Unit,
 
     onDownloadAndSaveLandscapes: (context: Context, picId: Int, picUrl: String, picName: String?) -> Unit,
-    onUpdateInitialLandscape: (bitmap: Bitmap) -> Unit
+    onUpdateInitialLandscape: (bitmap: Bitmap) -> Unit,
+    onReInitialize: () -> Unit = {},
+    onAdjustSettings: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -190,6 +192,7 @@ fun HomeScreen(
             ignoreCase = true
         )
     }
+//    val updatedDisplayedLocationList by rememberUpdatedState(displayedLocationListState)
     val listState = rememberLazyListState(
         initialFirstVisibleItemIndex = (initialFirstItemIndex?.plus(1) ?: homeState.selectedItemIndex),
         initialFirstVisibleItemScrollOffset = -homeState.selectedItemOffset
@@ -211,16 +214,44 @@ fun HomeScreen(
     val cardHeightPx = cardMaxHeight.toPx(density)
 
     val clockManipulatorHeight = (dimensionResource(R.dimen.clock_manipulator_height))
-    var topAppBarHeight by remember{ mutableStateOf(64.dp) }
+//    var topAppBarHeight by remember{ mutableStateOf(64.dp) }
     val animateScrolling = remember { mutableStateOf(false) }
-    var clockGaugeShown = listState.clockGaugeVisibility(cardHeightPx, animateScrolling)
+    val clockGaugeHideOffset = (clockManipulatorHeight + 56.dp).toPx(density)
+    val clockGaugeYAnimatable = remember { Animatable(0f) }
 
-    val clockGaugeY by animateFloatAsState(
-        targetValue = if (homeState.clockGaugeLock || clockGaugeShown) 0f
-        else (clockManipulatorHeight + 56.dp).toPx(density),
-        label = "clock gauge offset",
-        animationSpec = tween(durationMillis = 300)
-    )
+    LaunchedEffect(listState, homeState.clockGaugeLock) {
+        var previousTime = System.currentTimeMillis()
+        var previousScroll = listState.firstVisibleItemScrollOffset + listState.firstVisibleItemIndex * cardHeightPx
+        var visibility = true
+
+        snapshotFlow { listState.firstVisibleItemScrollOffset to listState.firstVisibleItemIndex }
+            .collect { (scrollOffset, scrollIndex) ->
+                val currentScroll = scrollOffset + scrollIndex * cardHeightPx
+                val currentTime = System.currentTimeMillis()
+                val deltaTime = currentTime - previousTime
+                if (deltaTime > 0) {
+                    val velocity = (1000f * (currentScroll - previousScroll) / deltaTime)
+                    previousScroll = currentScroll
+                    previousTime = currentTime
+
+                    if (!animateScrolling.value) {
+                        val newVisibility = when {
+                            !listState.canScrollForward || !listState.canScrollBackward -> true
+                            velocity > 1100f -> false
+                            velocity < -1100f -> true
+                            else -> visibility
+                        }
+                        if (newVisibility != visibility || homeState.clockGaugeLock) {
+                            visibility = newVisibility
+                            clockGaugeYAnimatable.animateTo(
+                                targetValue = if (homeState.clockGaugeLock || visibility) 0f else clockGaugeHideOffset,
+                                animationSpec = tween(durationMillis = 300)
+                            )
+                        }
+                    }
+                }
+            }
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val topAppBarState = rememberTopAppBarState(
@@ -235,11 +266,9 @@ fun HomeScreen(
         mutableStateOf((900.dp).coerceAtMost(homeScreenWidth.toDp(density) / sin(PI/6).toFloat()))
     }
     val clockGaugeRotationCoefficient = 360 / (PI.toFloat() * clockGaugeWidth.toPx(density))
-//    val updatingZoom by rememberUpdatedState(newValue = zoom)
-
 
     var cardAlpha by rememberSaveable { mutableStateOf(zoom > 1f) }
-    var selectedItemIndex by remember { mutableIntStateOf(0) }
+//    var selectedItemIndex by remember { mutableIntStateOf(0) }
     var selectedItem by remember {
         mutableStateOf(sortedLocationListState.getOrElse(
             index = homeState.selectedItemIndex,
@@ -306,9 +335,7 @@ fun HomeScreen(
         }
         onResetZoom()
     }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        clockGaugeShown = true
-    }
+
 
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -454,7 +481,7 @@ fun HomeScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .graphicsLayer { translationY = clockGaugeY }
+                                .graphicsLayer { translationY = clockGaugeYAnimatable.value }
                                 .padding(bottom = 8.dp)
                         ) {
                             val dayGaugeResource = when (appSettings.theme) {
@@ -526,7 +553,8 @@ fun HomeScreen(
                                 onUpdateToBeDeletedLocationId()
                                 onUpdateDialogVisibility(DialogType.DELETE, false)
                                 if (homeState.selectedLocationId == homeState.deleteDialogLocationId) {
-                                    onUpdateHomePaneContent(HomePaneContent.LOCATIONLIST)
+//                                    onUpdateHomePaneContent(HomePaneContent.LOCATIONLIST)
+                                    onNavigateUp()
                                 }
                                 onPrepareDeleteLocation(homeState.deleteDialogLocationId)
                                 val deletedPage = sortedLocationListState.indexOfFirst {
@@ -594,8 +622,8 @@ fun HomeScreen(
                                     key = { _, item -> item.locationId }
                                 ) { index, item ->
                                     ReorderableItem(
-                                        reorderableLazyListState,
-                                        item.locationId
+                                        state = reorderableLazyListState,
+                                        key = item.locationId,
                                     ) { isDragging ->
                                         val itemModifier = if (cardAlpha) {
                                             Modifier.graphicsLayer {
@@ -606,6 +634,7 @@ fun HomeScreen(
                                         } else {
                                             Modifier
                                                 .longPressDraggableHandle(
+                                                    enabled = homeState.itemDragged,
                                                     onDragStarted = {
                                                         longPressedItemId = item.locationId
                                                         hapticFeedback.performHapticFeedback(
@@ -633,16 +662,14 @@ fun HomeScreen(
                                                 }
                                         }
                                         WeatherItem2(
-//                                    zoom = 1f,
                                             cardMaxHeight = cardMaxHeight,
-//                                    windowRotation = 0f,
                                             modifier = itemModifier,
                                             itemState = item,
                                             landscapeReload = landscapeReload,
-//                                            pageNumber = sortedLocationListState.indexOfFirst { locationState ->
-//                                                item.locationId == locationState.locationId
-//                                            },
-                                            onNavigateToItem = remember(displayedLocationListState) {
+                                            onNavigateToItem = remember(
+//                                                listState.layoutInfo.visibleItemsInfo,
+
+                                            ) {
                                                 { cardX, cardY, cardWidth ->
                                                     val itemOffset =
                                                         listState.layoutInfo.visibleItemsInfo.find {
@@ -664,8 +691,70 @@ fun HomeScreen(
 
                                                         else -> 0f
                                                     }
+                                                    navigateToHomeScreenItem(
+                                                        coroutineScope = coroutineScope,
+                                                        singlePane = singlePane,
+                                                        sortedLocationListState = sortedLocationListState,
+                                                        homeState = homeState,
+                                                        itemState = displayedLocationListState[index],
+                                                        file = context.filesDir,
 
-                                                    if (singlePane) {
+                                                        onAnimateScrollList = {
+                                                            listState.animateScrollBy(
+                                                                value = scrollAmount,
+                                                                animationSpec = tween(
+                                                                    durationMillis = 300,
+                                                                    easing = CubicBezierEasing(0.5f, 0f, 0.9f, 0.3f)
+                                                                )
+                                                            )
+                                                            val selectedItemIndex =
+                                                                sortedLocationListState.indexOfFirst {
+                                                                    it.locationId == item.locationId
+                                                                }
+                                                            val selectedItemOffset =
+                                                                listState.layoutInfo.visibleItemsInfo.find {
+                                                                    it.key == item.locationId
+                                                                }?.offset ?: 0
+                                                            onUpdateSelectedItemIndexOffset(
+                                                                selectedItemIndex,
+                                                                selectedItemOffset
+                                                            )
+                                                        },
+                                                        onUpdateAnimateScrolling = {
+                                                            animateScrolling.value = it
+                                                        },
+                                                        onBalanceClockGaugeValues = onBalanceClockGaugeValues,
+                                                        onResetDayGauge = onResetDayGauge,
+                                                        onUpdateSelectedItem = {
+                                                            selectedItem = it
+                                                        },
+                                                        onUpdateSelectedPage = {
+                                                            selectedPage = it
+                                                        },
+                                                        onNavigateToItem = {
+                                                            onNavigateToItem(
+                                                                item.locationId,
+                                                                cardX,
+                                                                cardY - scrollAmount,
+                                                                cardWidth
+                                                            )
+                                                        },
+                                                        onUpdateSelectedLocationId = {
+                                                            onUpdateSelectedLocationId(item.locationId)
+                                                        },
+                                                        onUpdateInitialLandscape = onUpdateInitialLandscape,
+                                                        onNavigateToDetailScreen = {
+                                                            onNavigateToDetailScreen(
+                                                                locationListState.size,
+                                                                locationListState.indexOfFirst {
+                                                                    it.locationId == item.locationId
+                                                                }
+                                                            )
+                                                        }
+                                                    )
+
+
+                                                    /*if (singlePane) {
                                                         coroutineScope.launch {
                                                             val scrollJob = launch {
                                                                 animateScrolling.value = true
@@ -681,7 +770,7 @@ fun HomeScreen(
                                                                         )
                                                                     )
                                                                 )
-                                                                selectedItemIndex =
+                                                                val selectedItemIndex =
                                                                     sortedLocationListState.indexOfFirst {
                                                                         it.locationId == item.locationId
                                                                     }
@@ -751,9 +840,10 @@ fun HomeScreen(
                                                                 selectedLocationPageNumber
                                                             )
                                                         }
-                                                    }
+                                                    }*/
                                                 }
-                                            },
+                                            }
+                                            ,
                                             appSettings = appSettings,
                                             dataLoadingStatus = weatherDataLoadStatus.getOrElse(
                                                 key = item.locationId,
@@ -810,7 +900,8 @@ fun HomeScreen(
                                                         picName
                                                     )
                                                 }
-                                            }
+                                            },
+                                            onUpdateItemDragged = onUpdateItemDragged
                                         )
                                     }
                                 }
@@ -852,29 +943,14 @@ fun HomeScreen(
             )*/
     }
 
+    LifecycleEventEffect(event = Lifecycle.Event.ON_RESUME) {
+//        onReInitialize()
+        onAdjustSettings()
+    }
 }
 
 
-
 /*@Composable
-private fun LazyListState.scrollVelocity(itemSize: Float): Float {
-    var previousTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var previousScroll by remember(this) {
-        mutableFloatStateOf(firstVisibleItemScrollOffset + firstVisibleItemIndex * itemSize)
-    }
-
-    val currentScroll = remember {
-        derivedStateOf { firstVisibleItemScrollOffset  + firstVisibleItemIndex * itemSize }
-    }.value
-    val currentTime = remember(key1 = currentScroll) { System.currentTimeMillis() }
-    return 1000f * (currentScroll - previousScroll) / (currentTime - previousTime)
-        .also {
-            previousScroll = currentScroll
-            previousTime = currentTime
-        }
-}*/
-
-@Composable
 fun LazyListState.clockGaugeVisibility(itemSize: Float, animateScrolling: MutableState<Boolean>): Boolean {
     var visibility by remember { mutableStateOf(true) }
     var previousTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -901,9 +977,79 @@ fun LazyListState.clockGaugeVisibility(itemSize: Float, animateScrolling: Mutabl
             }
     }
     return visibility
+}*/
+
+
+fun navigateToHomeScreenItem(
+    coroutineScope: CoroutineScope,
+    singlePane: Boolean,
+    sortedLocationListState: ImmutableList<LocationsState>,
+    homeState: HomeState,
+    itemState: LocationsState,
+    file: File,
+
+    onAnimateScrollList: suspend (() -> Unit),
+    onUpdateAnimateScrolling: (Boolean) -> Unit,
+    onBalanceClockGaugeValues: () -> Unit,
+    onResetDayGauge: () -> Unit,
+    onUpdateSelectedItem: (LocationsState) -> Unit,
+    onUpdateSelectedPage: (page: Int) -> Unit,
+    onNavigateToItem: () -> Unit,
+    onUpdateSelectedLocationId: () -> Unit,
+    onUpdateInitialLandscape: (bitmap: Bitmap) -> Unit,
+    onNavigateToDetailScreen: () -> Unit
+) {
+    if (singlePane) {
+        coroutineScope.launch {
+            val scrollJob = launch {
+                onUpdateAnimateScrolling(true)
+                onAnimateScrollList()
+            }
+            val gaugeRotateJob = launch {
+                onBalanceClockGaugeValues()
+                homeState.clockGaugeRotation.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(durationMillis = 700)
+                )
+                onResetDayGauge()
+                delay(200)
+            }
+
+            joinAll(scrollJob, gaugeRotateJob)
+            onUpdateSelectedItem(itemState)
+            onUpdateSelectedPage(
+                sortedLocationListState.indexOfFirst { locationState ->
+                    itemState.locationId == locationState.locationId
+                }
+            )
+            onNavigateToItem()
+        }
+    }
+    else {
+        // Does this branch need onUpdateSelectedItemIndexOffset
+        onUpdateSelectedLocationId()
+        coroutineScope.launch {
+            onBalanceClockGaugeValues()
+            homeState.clockGaugeRotation.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 700)
+            )
+            onResetDayGauge()
+
+            val picFile = File(
+                file,
+                "pictures/pic${itemState.lastPicId}/${itemState.picName}.jpeg"
+            )
+            if (picFile.exists()) {
+                val bitmap = BitmapFactory.decodeFile(picFile.absolutePath)
+                onUpdateInitialLandscape(
+                    bitmap.copy(Bitmap.Config.ARGB_8888, false)
+                )
+            }
+            onNavigateToDetailScreen()
+        }
+    }
 }
-
-
 
 /*
 

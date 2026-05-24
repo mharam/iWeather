@@ -2,7 +2,6 @@ package com.takaapoo.weatherer.ui.viewModels
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.util.Log
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
@@ -14,6 +13,11 @@ import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.LocalAirQuality
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
 import com.takaapoo.weatherer.data.local.LocalHourlyWeather
+import com.takaapoo.weatherer.di_modules.DefaultDispatcher
+import com.takaapoo.weatherer.di_modules.IoDispatcher
+import com.takaapoo.weatherer.di_modules.MainDispatcher
+import com.takaapoo.weatherer.di_modules.SystemClock
+import com.takaapoo.weatherer.di_modules.UtcClock
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.WeatherType.Companion.calculateMoonType
 import com.takaapoo.weatherer.domain.model.HomePaneContent
@@ -36,7 +40,7 @@ import com.takaapoo.weatherer.utility.mmToUnit
 import com.takaapoo.weatherer.utility.paToUnit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
@@ -46,6 +50,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
@@ -55,9 +60,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.time.Clock
 import java.time.Duration
 import java.time.LocalDateTime
-import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
 import javax.inject.Inject
@@ -74,10 +79,16 @@ class HomeViewModel @Inject constructor(
     private val preferenceRepository: PreferenceRepository,
     dataRefreshRepository: DataRefreshRepository,
     private val updateWeatherUseCase: UpdateWeatherUseCase,
-    @ApplicationContext val applicationContext: Context,
+    @param:ApplicationContext val applicationContext: Context,
+    @param:MainDispatcher private val mainDispatcher: CoroutineDispatcher,
+    @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
+    @param:SystemClock private val systemClock: Clock,
+    @param:UtcClock private val utcClock: Clock,
 ): ViewModel() {
 
-    private val _homeState = MutableStateFlow(HomeState())
+    var dateTimeFlowEmissionPermission: Boolean = true
+    private val _homeState = MutableStateFlow(HomeState(clock = systemClock))
     val homeState = _homeState
         .onStart {
             initializeDayListState(
@@ -87,7 +98,7 @@ class HomeViewModel @Inject constructor(
         .stateIn(
             scope = viewModelScope,
             started =  SharingStarted.WhileSubscribed(5000),
-            initialValue = HomeState()
+            initialValue = HomeState(clock = systemClock)
         )
 
     private val _homePaneState = MutableStateFlow(HomePaneState())
@@ -108,18 +119,18 @@ class HomeViewModel @Inject constructor(
     }
 
     private val utcDateTimeFlow = flow {
-        while (true) {
-            emit(LocalDateTime.now(ZoneId.of("UTC")))
-            val localNow = LocalDateTime.now()
+        while (dateTimeFlowEmissionPermission) {
+            emit(LocalDateTime.now(utcClock))
+            val localNow = LocalDateTime.now(systemClock)
             _homeState.update {
                 it.copy(
                     clockGaugeNaturalRotation = - localNow.toLocalTime().toSecondOfDay() / 240f,
                     dayGaugeNaturalIndex = Int.MAX_VALUE / 2 + localNow.dayOfWeek.value - 1
                 )
             }
-            delay(10_000)
+            delay(600_000)
         }
-    }
+    }.flowOn(mainDispatcher)
     private lateinit var localNow: LocalDateTime
 //    private var weight1 = 0f
 //    private var weight2 = 0f
@@ -509,7 +520,8 @@ class HomeViewModel @Inject constructor(
             clockGaugeMinutesFlow,
             dayGaugeMinutesFlow,
             preferenceRepository.getSettingsFlow()
-        ){ locations, utcTime, clockMinuteIncremented, dayMinuteIncremented, appSettings ->
+        ) { locations, utcTime, clockMinuteIncremented,
+            dayMinuteIncremented, appSettings ->
             if (locations.isEmpty()) return@combine emptyList()
 
             val modifiedUtcTime = utcTime.plusMinutes(
@@ -518,13 +530,13 @@ class HomeViewModel @Inject constructor(
             val modifiedUtcDate = modifiedUtcTime.toLocalDate()
             val startDate = modifiedUtcDate.minusDays(4).toString()
             val endDate = modifiedUtcDate.plusDays(4).toString()
-            val hourlyWeatherDeferred = viewModelScope.async(Dispatchers.IO) {
+            val hourlyWeatherDeferred = viewModelScope.async(ioDispatcher) {
                 localWeatherRepository.getHourlyWeather(startDate, endDate)
             }
-            val hourlyAirQualityDeferred = viewModelScope.async(Dispatchers.IO) {
+            val hourlyAirQualityDeferred = viewModelScope.async(ioDispatcher) {
                 localWeatherRepository.getHourlyAirQuality(startDate, endDate)
             }
-            val dailyWeatherDeferred = viewModelScope.async(Dispatchers.IO) {
+            val dailyWeatherDeferred = viewModelScope.async(ioDispatcher) {
                 localWeatherRepository.getDailyWeather(startDate, endDate)
             }
             val weatherData = awaitAll(hourlyWeatherDeferred, hourlyAirQualityDeferred, dailyWeatherDeferred)
@@ -532,7 +544,7 @@ class HomeViewModel @Inject constructor(
             val hourlyAirQuality = weatherData[1] as Map<Int, List<LocalAirQuality>>
             val dailyWeather = weatherData[2] as Map<Int, List<LocalDailyWeather>>
 
-            return@combine withContext(Dispatchers.Default){
+            return@combine withContext(defaultDispatcher){
                 locations.mapIndexed { index, location ->
                     val allTimesValue = hourlyWeather[location.id]?.map { it.time }
                     val timeIndex = allTimesValue?.indexOfFirst {
@@ -835,7 +847,7 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }.stateIn(
-            scope = viewModelScope.plus(Dispatchers.Default),
+            scope = viewModelScope.plus(defaultDispatcher),
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = listOf(LocationsState(locationId = -2))
         )
@@ -991,7 +1003,6 @@ class HomeViewModel @Inject constructor(
                     editDialogLocationId = id,
                     editDialogOldLocationName = locationName
                 )
-                else -> it
             }
         }
     }
@@ -1150,6 +1161,11 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun updateItemDragged(state: Boolean){
+        _homeState.update {
+            it.copy(itemDragged = state)
+        }
+    }
 
 
 
@@ -1213,46 +1229,40 @@ class HomeViewModel @Inject constructor(
                     storageDir.mkdirs()
                 }
                 if (picName != null) {
-                    val file = File(storageDir, "${picName}.jpeg")
-                    val url = "${picUrl}/${picName}.jpeg"
-                    val request = ImageRequest.Builder(context)
-                        .data(url)
-                        .target(
-                            onError = {
-                                file.deleteRecursively()
-                            },
-                            onSuccess = { image ->
-                                file.outputStream().use { outputStream ->
-                                    image.toBitmap().compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
-                                }
-                            }
-                        )
-                        .build()
-                    context.imageLoader.execute(request)
+                    requestAndStore(context, storageDir, picUrl, picName).join()
                 } else {
                     landScapeNames.map { name ->
-                        val file = File(storageDir, "${name}.jpeg")
-                        val url = "${picUrl}/${name}.jpeg"
-                        val request = ImageRequest.Builder(context)
-                            .data(url)
-                            .target(
-                                onError = {
-                                    file.deleteRecursively()
-                                },
-                                onSuccess = { image ->
-                                    file.outputStream().use { outputStream ->
-                                        image.toBitmap().compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
-                                    }
-                                }
-                            )
-                            .build()
-                        async(Dispatchers.IO) {
-                            context.imageLoader.execute(request)
-                        }
+                        requestAndStore(context, storageDir, picUrl, name)
                     }.joinAll()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+
+        }
+    private suspend fun requestAndStore(
+        context: Context,
+        storageDir: File,
+        picUrl: String,
+        picName: String?,
+    ) = withContext(ioDispatcher) {
+        val file = File(storageDir, "${picName}.jpeg")
+        val url = "${picUrl}/${picName}.jpeg"
+        val request = ImageRequest.Builder(context)
+            .data(url)
+            .target(
+                onError = {
+                    file.deleteRecursively()
+                },
+                onSuccess = { image ->
+                    file.outputStream().use { outputStream ->
+                        image.toBitmap().compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+                    }
+                }
+            )
+            .build()
+        return@withContext async {
+            context.imageLoader.execute(request)
+        }
     }
 }

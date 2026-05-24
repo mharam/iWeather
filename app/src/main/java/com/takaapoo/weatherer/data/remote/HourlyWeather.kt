@@ -4,7 +4,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.util.fastForEachIndexed
 import com.takaapoo.weatherer.data.local.LocalHourlyWeather
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.indicesOf
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.nonNullDataSegments
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
@@ -107,7 +106,6 @@ fun HourlyWeather.toLocalHourlyWeather(
         generateControlPoints2(extendedData.directNormalIrradiance)
 
 
-//Log.i("data1", "times $locationId = ${extendedData.time.last()}")
     return List(size = extendedData.time.size){ i ->
         LocalHourlyWeather(
             locationId = locationId,
@@ -301,9 +299,9 @@ fun generateControlPoints2(data: List<Float?>): Pair<List<Offset?>, List<Offset?
     return controlPoint1 to controlPoint2
 }
 
-fun generateControlPoints(data: List<Float>): Pair<List<Offset?>, List<Offset?>> {
+/*fun generateControlPoints(data: List<Float>): Pair<List<Offset?>, List<Offset?>> {
 //    val m = data.indexOf(null)
-    val n = data.size-1 /*if (m == -1) data.size-1 else m-1*/
+    val n = data.size-1 *//*if (m == -1) data.size-1 else m-1*//*
     if (n < 1) return listOf(null) to listOf(null)
 
     val p = List(size = n+1){ index ->
@@ -370,9 +368,9 @@ fun generateControlPoints(data: List<Float>): Pair<List<Offset?>, List<Offset?>>
     }
     return controlPoint1.mapIndexed { index, offset -> offset - Offset(x = index.toFloat(), y = 0f) } to
             controlPoint2.mapIndexed { index, offset -> offset - Offset(x = index.toFloat(), y = 0f) }
-}
+}*/
 
-fun generateControlPointsForNullableData(data: List<Float?>): Pair<List<Offset?>, List<Offset?>> {
+/*fun generateControlPointsForNullableData(data: List<Float?>): Pair<List<Offset?>, List<Offset?>> {
     val dataList = data.nonNullDataSegments()
     val n = data.size - 1
     val controlPoint1: MutableList<Offset?> = MutableList(size = n){ null }
@@ -390,8 +388,9 @@ fun generateControlPointsForNullableData(data: List<Float?>): Pair<List<Offset?>
         subList2.addAll(cntr2)
     }
     return controlPoint1 to controlPoint2
-}
+}*/
 
+/*
 private fun generateControlPointsWithInitialCondition(
     data: List<Float?>,
     initialGradient: Offset,
@@ -427,4 +426,4 @@ private fun generateControlPointsWithInitialCondition(
 
     return controlPoint1.mapIndexed { index, offset -> offset - Offset(x = index.toFloat(), y = 0f) } to
             controlPoint2.mapIndexed { index, offset -> offset - Offset(x = index.toFloat(), y = 0f) }
-}
+}*/

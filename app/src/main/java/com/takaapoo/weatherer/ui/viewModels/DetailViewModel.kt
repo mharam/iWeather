@@ -1,14 +1,12 @@
 package com.takaapoo.weatherer.ui.viewModels
 
 import android.graphics.Bitmap
-import android.util.Log
 import androidx.annotation.FloatRange
 import androidx.annotation.IntRange
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextMeasurer
@@ -16,7 +14,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.createBitmap
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.takaapoo.weatherer.data.local.LocalAirQuality
@@ -24,6 +21,11 @@ import com.takaapoo.weatherer.data.local.LocalDailyWeather
 import com.takaapoo.weatherer.data.local.LocalHistoricDailyWeather
 import com.takaapoo.weatherer.data.local.LocalHourlyWeather
 import com.takaapoo.weatherer.data.local.Location
+import com.takaapoo.weatherer.di_modules.DefaultDispatcher
+import com.takaapoo.weatherer.di_modules.IoDispatcher
+import com.takaapoo.weatherer.di_modules.MainDispatcher
+import com.takaapoo.weatherer.di_modules.SystemClock
+import com.takaapoo.weatherer.di_modules.UtcClock
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.DailyChartState
@@ -32,9 +34,9 @@ import com.takaapoo.weatherer.domain.model.HistoricDailyChartDto
 import com.takaapoo.weatherer.domain.model.HistoricHourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartState
+import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
 import com.takaapoo.weatherer.domain.model.SettingsUnits
 import com.takaapoo.weatherer.domain.model.toSettingsUnits
-import com.takaapoo.weatherer.domain.repository.AirQualityRepository
 import com.takaapoo.weatherer.domain.repository.LocalWeatherRepository
 import com.takaapoo.weatherer.domain.repository.LocationRepository
 import com.takaapoo.weatherer.domain.repository.PreferenceRepository
@@ -56,7 +58,7 @@ import com.takaapoo.weatherer.utility.landScapeName
 import com.takaapoo.weatherer.utility.mmToUnit
 import com.takaapoo.weatherer.utility.swap
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
@@ -71,6 +73,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transform
@@ -79,10 +82,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import java.time.Clock
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.ZoneId
 import javax.inject.Inject
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -100,11 +103,16 @@ class DetailViewModel @Inject constructor(
     private val preferenceRepository: PreferenceRepository,
     private val locationRepository: LocationRepository,
     private val localWeatherRepository: LocalWeatherRepository,
-    private val airQualityRepository: AirQualityRepository,
+//    private val airQualityRepository: AirQualityRepository,
     private val hourlyChartDataUseCase: GetHourlyChartDataUseCase,
     private val historicalHourlyChartDataUseCase: HistoricalHourlyChartDataUseCase,
     private val historicalDailyChartDataUseCase: HistoricalDailyChartDataUseCase,
-    savedStateHandle: SavedStateHandle
+    @param:MainDispatcher private val mainDispatcher: CoroutineDispatcher,
+    @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
+    @param:SystemClock private val systemClock: Clock,
+    @param:UtcClock private val utcClock: Clock,
+//    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     var allLocations: List<Location> = emptyList()
@@ -117,8 +125,15 @@ class DetailViewModel @Inject constructor(
     val settingsFlow = preferenceRepository.getSettingsFlow()
     var settingsUnits: SettingsUnits = SettingsUnits()
 
-    private val _detailState: MutableStateFlow<List<DetailState>> = MutableStateFlow(List(size = 0){ DetailState() })
+    private val _detailState: MutableStateFlow<List<DetailState>> = MutableStateFlow(
+        List(size = 0){ DetailState() }
+    )
     val detailState: StateFlow<List<DetailState>> = _detailState.asStateFlow()
+    var detailStateUpdatePermission = true
+
+    // Used for when deleting or swapping locations
+    private val _dataReadyForDisplay = MutableStateFlow(false)
+    val dataReadyForDisplay = _dataReadyForDisplay.asStateFlow()
 
     private var _hourlyChartState: MutableList<MutableStateFlow<HourlyChartState>> =
         MutableList(size = 0){ MutableStateFlow(HourlyChartState()) }
@@ -160,6 +175,10 @@ class DetailViewModel @Inject constructor(
 
     var initialLandScape = createBitmap(bitmapWidth, bitmapHeight)
 
+    var initialXAxisStart = -30f
+    var initialXAxisEnd = 48f
+    var historicInitialXAxisStart = -30f
+    var historicInitialXAxisEnd = 48f
     private lateinit var initialYAxesStarts: List<MutableList<Float>>
     private lateinit var initialYAxesEnds: List<MutableList<Float>>
     private lateinit var initialHistoricYAxesStarts: List<MutableList<Float>>
@@ -210,31 +229,32 @@ class DetailViewModel @Inject constructor(
             initialHistoricDailyYAxesStarts = MutableList(allLocations.size){ 0f }
             initialHistoricDailyYAxesEnds = MutableList(allLocations.size){ 0f }
 
-            launch(Dispatchers.Default) {
-                while (true) {
+            launch(defaultDispatcher) {
+                while (detailStateUpdatePermission) {
                     updateDetailState()
-                    delay(60_000)
+                    delay(600_000)
                 }
             }
-            launch(Dispatchers.Default) {
-                while (true) {
+            launch(defaultDispatcher) {
+                while (detailStateUpdatePermission) {
+//                    println("while!")
                     if (allLocations.size != _detailState.value.size) continue
                     allLocations.forEachIndexed { index, location ->
                         _detailState.update { detailStateList ->
                             detailStateList.toMutableList().apply {
                                 this[index] = this[index].copy(
-                                    localDateTime = LocalDateTime.now(ZoneId.of("UTC"))
+                                    localDateTime = LocalDateTime.now(utcClock)
                                         .plusMinutes(location.utcOffset ?: 0)
                                 )
                             }
                         }
                     }
-                    delay(4_000)
+                    delay(400_000)
                 }
             }
             setSliderThumbPositions()
 
-            launch(Dispatchers.Default) {
+            launch(defaultDispatcher) {
                 settingsFlow.map { it.toSettingsUnits() }
                     .distinctUntilChanged()
                     .collectLatest {
@@ -251,7 +271,7 @@ class DetailViewModel @Inject constructor(
                     }
             }
             // This is needed when refreshing weather data to update current weather in detail screen instantly
-            launch(Dispatchers.Default) {
+            launch(defaultDispatcher) {
                 allLocationsFlow.collectLatest {
                     modifyAllLocations(it)
                     updateDetailState()
@@ -259,6 +279,7 @@ class DetailViewModel @Inject constructor(
             }
             initializedCompleted = true
             adjustSettings()
+            _dataReadyForDisplay.value = true
         }
     }
 
@@ -275,7 +296,7 @@ class DetailViewModel @Inject constructor(
 
     private fun hourlyChartDataFlow(index: Int) =
         combine(
-            _hourlyChartState[index].map {
+            _hourlyChartState.getOrElse(index){ flowOf(HourlyChartState()) }.map {
                 it.xAxisStart.value to it.xAxisEnd.value
             },
             settingsFlow
@@ -315,7 +336,7 @@ class DetailViewModel @Inject constructor(
         )
 
     private fun dailyChartDataFlow(index: Int) = combine(
-        _dailyChartState[index].map {
+        _dailyChartState.getOrElse(index){ flowOf(DailyChartState()) }.map {
             it.xAxisStart.value to it.xAxisEnd.value
         },
         settingsFlow
@@ -345,9 +366,10 @@ class DetailViewModel @Inject constructor(
 
     private fun historicHourlyChartDataFlow(index: Int): StateFlow<List<HistoricHourlyChartDto>> {
         return combine(
-            _historicalHourlyChartState[index].distinctUntilChangedBy {
-                (it.chartQuantities to it.awaker)
-            },
+            _historicalHourlyChartState.getOrElse(index){ flowOf(HourlyChartState()) }
+                .distinctUntilChangedBy {
+                    (it.chartQuantities to it.awaker)
+                                        },
             settingsFlow,
             _detailState.distinctUntilChangedBy { it.getOrNull(index)?.detailPagerIndex }
         ) { hourlyChartState, appSettings, detailState ->
@@ -406,9 +428,10 @@ class DetailViewModel @Inject constructor(
 
     private fun historicDailyChartDataFlow(index: Int): StateFlow<List<HistoricDailyChartDto>> {
         return combine(
-            _historicalDailyChartState[index].distinctUntilChangedBy {
-                (it.chartQuantity to it.awaker)
-            },
+            _historicalDailyChartState.getOrElse(index){ flowOf(DailyChartState()) }
+                .distinctUntilChangedBy {
+                    (it.chartQuantity to it.awaker)
+                                        },
             settingsFlow,
             _detailState.distinctUntilChangedBy { it.getOrNull(index)?.detailPagerIndex }
         ) { dailyChartState, appSettings, detailState ->
@@ -478,29 +501,9 @@ class DetailViewModel @Inject constructor(
 
             val newAllLocations = locationRepository.getAllLocationsList()
             if (newAllLocations.size <= allLocations.size) return@launch
+            _dataReadyForDisplay.value = false
             val addedLocationsCount = newAllLocations.size - allLocations.size
-//            if(addedLocationsCount < 0) {
-//                deletedLocationIndex = allLocations.indexOfFirst { !newAllLocations.contains(it) }
-//                deletedLocationIndex.let { index ->
-//                    _detailState.update {
-//                        it - it[index]
-//                    }
-//                    _hourlyChartState.removeAt(index)
-//                    _locationsHourlyChartData.removeAt(index)
-//                    _dailyChartState.update {
-//                        it - it[index]
-//                    }
-//                    initialYAxesStarts = initialYAxesStarts.apply {
-//                        this.toMutableList().removeAt(index)
-//                    }
-//                    initialYAxesEnds = initialYAxesEnds.apply {
-//                        this.toMutableList().removeAt(index)
-//                    }
-//                    initialDailyYAxesStarts.removeAt(index)
-//                    initialDailyYAxesEnds.removeAt(index)
-//                }
-//                allLocations = newAllLocations
-//            } else {
+
             _detailState.update {
                 it + List(size = addedLocationsCount) { DetailState() }
             }
@@ -547,7 +550,8 @@ class DetailViewModel @Inject constructor(
                 }
             )
             updateDetailState()
-//            }
+            adjustSettings()
+            _dataReadyForDisplay.value = true
         }
     }
 
@@ -556,7 +560,7 @@ class DetailViewModel @Inject constructor(
         viewModelScope.launch {
             deletedLocationIndex = allLocations.indexOfFirst { it.id == deletedLocationId }
             if (deletedLocationIndex == -1) return@launch
-
+            _dataReadyForDisplay.value = false
             _detailState.update {
                 it - it[deletedLocationIndex]
             }
@@ -564,56 +568,72 @@ class DetailViewModel @Inject constructor(
             _dailyChartState.removeAt(deletedLocationIndex)
             _historicalHourlyChartState.removeAt(deletedLocationIndex)
             _historicalDailyChartState.removeAt(deletedLocationIndex)
-            initialYAxesStarts = initialYAxesStarts.apply {
-                this.toMutableList().removeAt(deletedLocationIndex)
+            initialYAxesStarts = initialYAxesStarts.filterIndexed { index, _ ->
+                index != deletedLocationIndex
             }
-            initialYAxesEnds = initialYAxesEnds.apply {
-                this.toMutableList().removeAt(deletedLocationIndex)
+            initialYAxesEnds = initialYAxesEnds.filterIndexed { index, _ ->
+                index != deletedLocationIndex
             }
             initialDailyYAxesStarts.removeAt(deletedLocationIndex)
             initialDailyYAxesEnds.removeAt(deletedLocationIndex)
-            initialHistoricYAxesStarts = initialHistoricYAxesStarts.apply {
-                this.toMutableList().removeAt(deletedLocationIndex)
+            initialHistoricYAxesStarts = initialHistoricYAxesStarts.filterIndexed { index, _ ->
+                index != deletedLocationIndex
             }
-            initialHistoricYAxesEnds = initialHistoricYAxesEnds.apply {
-                this.toMutableList().removeAt(deletedLocationIndex)
+            initialHistoricYAxesEnds = initialHistoricYAxesEnds.filterIndexed { index, _ ->
+                index != deletedLocationIndex
             }
             initialHistoricDailyYAxesStarts.removeAt(deletedLocationIndex)
             initialHistoricDailyYAxesEnds.removeAt(deletedLocationIndex)
 
-            allLocations = allLocations.toMutableList().apply { removeAt(deletedLocationIndex) }
-            _locationsHourlyChartData = MutableList(size = allLocations.size){ i ->
-                hourlyChartDataFlow(i)
-            }
-            _locationsDailyChartData = MutableList(size = allLocations.size){ i ->
-                dailyChartDataFlow(i)
+            allLocations = allLocations.filterIndexed { index, _ ->
+                index != deletedLocationIndex
             }
 
-            historicalHourlyChartData = MutableList(size = allLocations.size){ i ->
-                historicHourlyChartDataFlow(i)
+            allLocations.forEachIndexed { i, _ ->
+                _locationsHourlyChartData[i] = hourlyChartDataFlow(i)
+                _locationsDailyChartData[i] = dailyChartDataFlow(i)
+                historicalHourlyChartData[i] = historicHourlyChartDataFlow(i)
+                historicalDailyChartData[i] = historicDailyChartDataFlow(i)
             }
-            historicalDailyChartData = MutableList(size = allLocations.size){ i ->
-                historicDailyChartDataFlow(i)
-            }
+
+//            _locationsHourlyChartData = MutableList(size = allLocations.size){ i ->
+//                hourlyChartDataFlow(i)
+//            }
+//            _locationsDailyChartData = MutableList(size = allLocations.size){ i ->
+//                dailyChartDataFlow(i)
+//            }
+//
+//            historicalHourlyChartData = MutableList(size = allLocations.size){ i ->
+//                historicHourlyChartDataFlow(i)
+//            }
+//            historicalDailyChartData = MutableList(size = allLocations.size){ i ->
+//                historicDailyChartDataFlow(i)
+//            }
+            delay(1000)
+            _dataReadyForDisplay.value = true
+            _locationsHourlyChartData.removeLastOrNull()
+            _locationsDailyChartData.removeLastOrNull()
+            historicalHourlyChartData.removeLastOrNull()
+            historicalDailyChartData.removeLastOrNull()
         }
     }
 
 
     private suspend fun updateDetailState(){
-        val utcCurrentTime = LocalDateTime.now(ZoneId.of("UTC"))
+        val utcCurrentTime = LocalDateTime.now(utcClock)
         val utcCurrentDate = utcCurrentTime.toLocalDate()
         val targetX = (utcCurrentTime.toLocalTime().toSecondOfDay() / daySeconds) * 24
         if (allLocations.size != _detailState.value.size) return
 
         val startDate = utcCurrentDate.toString()
         val endDate = utcCurrentDate.plusDays(1).toString()
-        val hourlyWeatherDeferred = viewModelScope.async(Dispatchers.IO) {
+        val hourlyWeatherDeferred = viewModelScope.async(ioDispatcher) {
             localWeatherRepository.getHourlyWeather(startDate, endDate)
         }
-        val hourlyAirQualityDeferred = viewModelScope.async(Dispatchers.IO) {
+        val hourlyAirQualityDeferred = viewModelScope.async(ioDispatcher) {
             localWeatherRepository.getHourlyAirQuality(startDate, endDate)
         }
-        val dailyWeatherDeferred = viewModelScope.async(Dispatchers.IO) {
+        val dailyWeatherDeferred = viewModelScope.async(ioDispatcher) {
             localWeatherRepository.getDailyWeather(
                 utcCurrentDate.minusDays(1).toString(),
                 utcCurrentDate.plusDays(1).toString()
@@ -626,7 +646,6 @@ class DetailViewModel @Inject constructor(
 
         coroutineScope {
             val appSettings = preferenceRepository.getSettings()
-            Log.i("update1", "${allLocations.map{it.name}} : ${allLocations.map {it.picIdsList}}")
             allLocations.forEachIndexed { index, location ->
                 val hourlyWeather = allHourlyWeather[location.id]?.map { it.setUnits(appSettings) }
                     ?: emptyList()
@@ -638,8 +657,7 @@ class DetailViewModel @Inject constructor(
                 }
                 if (timeIndex < 2) return@forEachIndexed
 
-                val localDate = utcCurrentTime.plusMinutes(location.utcOffset ?: 0)
-                        .toLocalDate().toString()
+                val localDate = utcCurrentTime.plusMinutes(location.utcOffset ?: 0).toLocalDate().toString()
 //                    val dailyWeather = localWeatherRepository.getLocationDailyWeather(
 //                        locationId = location.id,
 //                        startDate = localDate,
@@ -653,6 +671,7 @@ class DetailViewModel @Inject constructor(
                 _detailState.update { detailStateList ->
                     detailStateList.toMutableList().apply {
                         this[index] = this[index].copy(
+                            locationName = location.name,
                             utcOffset = location.utcOffset,
                             maxTemperature = todayWeather?.temperatureMax,
                             minTemperature = todayWeather?.temperatureMin,
@@ -661,8 +680,7 @@ class DetailViewModel @Inject constructor(
                             currentDayHourlyWeather = hourlyWeather,
                             currentDayHourlyAirQuality = hourlyAirQuality,
                             targetX = targetX,
-                            localDateTime = LocalDateTime.now(ZoneId.of("UTC"))
-                                .plusMinutes(location.utcOffset ?: 0),
+                            localDateTime = LocalDateTime.now(utcClock).plusMinutes(location.utcOffset ?: 0),
                             currentPictureUrl = location.currentPictureUrl,
                             lastPicId = location.picIdsList.lastOrNull(),
                             picName = landScapeName(
@@ -679,16 +697,20 @@ class DetailViewModel @Inject constructor(
     }
 
 
-    fun setSliderThumbPositions(){
-        val utcNow = LocalDateTime.now(ZoneId.of("UTC")).toString()
+    fun setSliderThumbPositions(diagramTime: HourlyDiagramTime? = null){
+        val utcNow = LocalDateTime.now(utcClock).toString()
         viewModelScope.launch {
-            val appSettings = preferenceRepository.getSettings()
+            // This while is used to make curve and thumb reposition synced when modifying diagram
+            // time axis clock.
+            while (diagramTime != null && diagramTime != preferenceRepository.getSettings().hourlyDiagramTime)
+                delay(1)
+
+            val hourlyDiagramTime = diagramTime ?: preferenceRepository.getSettings().hourlyDiagramTime
             allLocations.forEachIndexed { index, location ->
-                val nowX = timeToX(utcNow, location.utcOffset, appSettings.hourlyDiagramTime) ?: 0f
+                val nowX = timeToX(utcNow, location.utcOffset, hourlyDiagramTime, utcClock) ?: 0f
                 _hourlyChartState[index].update { chartState ->
                     chartState.copy(
-                        sliderThumbPosition = ((nowX - chartState.initialXAxisStart) /
-                                (chartState.initialXAxisEnd - chartState.initialXAxisStart))
+                        sliderThumbPosition = ((nowX - initialXAxisStart) / (initialXAxisEnd - initialXAxisStart))
                     )
                 }
                 _historicalHourlyChartState[index].update { chartState ->
@@ -699,7 +721,7 @@ class DetailViewModel @Inject constructor(
             }
         }
 
-        allLocations.forEachIndexed { index, location ->
+        allLocations.forEachIndexed { index, _ ->
             _dailyChartState[index].update { chartState ->
                 chartState.copy(
                     sliderThumbPosition = ((0f - chartState.initialDailyXAxisStart) /
@@ -769,7 +791,7 @@ class DetailViewModel @Inject constructor(
         val rangeTenPercentage = (quantityMax - quantityMin) / 10
         return when (weatherQuantity) {
             DailyWeatherQuantity.TEMPERATUREMINMAX -> {
-                val coefficient = if (settingsUnits.temperatureUnit == Temperature.FAHRENHEIT) (9/5) else 1
+                val coefficient = if (settingsUnits.temperatureUnit == Temperature.FAHRENHEIT) (9/5f) else 1f
                 if (quantityMax - quantityMin < 5 * coefficient)
                     quantityMin - 5 * coefficient to quantityMax + 5 * coefficient
                 else
@@ -804,7 +826,7 @@ class DetailViewModel @Inject constructor(
 
     fun updateDailyChartQuantity(quantity: DailyWeatherQuantity, pageIndex: Int, isHistoric: Boolean){
         val state = if (isHistoric) _historicalDailyChartState else _dailyChartState
-        state[pageIndex].update { chartState ->
+        state.getOrNull(pageIndex)?.update { chartState ->
             chartState.copy(
                 chartQuantity = quantity,
                 curveAnimator = Animatable(initialValue = 0f)
@@ -861,6 +883,7 @@ class DetailViewModel @Inject constructor(
         }
     }
 
+    // Not tested!
     fun addYAxis(
         start: Float,
         end: Float,
@@ -962,7 +985,7 @@ class DetailViewModel @Inject constructor(
     ){
         val quantityMin: Float?
         val quantityMax: Float?
-        when (quantity ){
+        when (quantity){
             DailyWeatherQuantity.TEMPERATUREMINMAX -> {
                 val dataMin = if (isHistoric)
                     historicalDailyChartData[pageIndex].value.map { it.dailyWeather?.temperatureMin }
@@ -1022,7 +1045,7 @@ class DetailViewModel @Inject constructor(
 
     private fun removeYAxis(curveIndex: Int, pageIndex: Int, isHistoric: Boolean){
         val state = if (isHistoric) _historicalHourlyChartState else _hourlyChartState
-        state[pageIndex].update { chartState ->
+        state.getOrNull(pageIndex)?.update { chartState ->
             chartState.copy(
                 yAxesStarts = chartState.yAxesStarts.filterIndexed { index, _ ->
                     index != curveIndex
@@ -1155,11 +1178,11 @@ class DetailViewModel @Inject constructor(
         val oldXAxisCenter = _historicalHourlyChartState[pageIndex].value.let {
             it.xAxisEnd.value + it.xAxisStart.value
         } / 2
-        val newXAxisCenter = Duration.between(LocalDate.now().atStartOfDay(), date.atStartOfDay()).toHours()
+        val newXAxisCenter = Duration.between(LocalDate.now(utcClock).atStartOfDay(), date.atStartOfDay()).toHours()
         val xAxisLength = _historicalHourlyChartState[pageIndex].value.let {
             it.xAxisEnd.value - it.xAxisStart.value
         }
-        withContext(Dispatchers.Main) {
+        withContext(mainDispatcher) {
             launch {
                 _historicalHourlyChartState[pageIndex].value.xAxisStart.animateTo(
                     targetValue = newXAxisCenter - xAxisLength/2,
@@ -1197,7 +1220,7 @@ class DetailViewModel @Inject constructor(
         val xAxisLength = _historicalDailyChartState[pageIndex].value.let {
             it.xAxisEnd.value - it.xAxisStart.value
         }
-        withContext(Dispatchers.Main) {
+        withContext(mainDispatcher) {
             launch {
                 _historicalDailyChartState[pageIndex].value.xAxisStart.animateTo(
                     targetValue = newXAxisCenter - xAxisLength/2,
@@ -1263,9 +1286,8 @@ class DetailViewModel @Inject constructor(
         isHistoric: Boolean = false,
     ){
         val chartState = if (isHistoric) _historicalHourlyChartState else _hourlyChartState
-        val initialXAxisLength = chartState[pageIndex].value.let {
-            it.initialXAxisEnd - it.initialXAxisStart
-        }
+        val initialXAxisLength = initialXAxisEnd - initialXAxisStart
+
         val xAxisLengthMin = initialXAxisLength / 20
         val xAxisLengthMax = initialXAxisLength * 9
 
@@ -1375,12 +1397,11 @@ class DetailViewModel @Inject constructor(
 
     suspend fun scaleToNormalHourlyDiagramAxis(center: Offset, pageIndex: Int, isHistoric: Boolean){
         val chartState = if (isHistoric) _historicalHourlyChartState else _hourlyChartState
-        val initialXAxisLength = chartState[pageIndex].value.let {
-            it.initialXAxisEnd - it.initialXAxisStart
-        }
+        val initialXAxisLength = initialXAxisEnd - initialXAxisStart
+
         val xAxisLengthMin = initialXAxisLength / 20
         val xAxisLengthMax = initialXAxisLength * 9
-        withContext(context = Dispatchers.Main){
+        withContext(context = mainDispatcher){
             launch {
                 val xAxisLength = chartState[pageIndex].value.let { it.xAxisEnd.value - it.xAxisStart.value }
                 val scaleX =
@@ -1432,7 +1453,7 @@ class DetailViewModel @Inject constructor(
         }
         val xAxisLengthMin = initialXAxisLength / 2
         val xAxisLengthMax = initialXAxisLength * 36
-        withContext(context = Dispatchers.Main){
+        withContext(context = mainDispatcher){
             launch {
                 val xAxisLength = chartState[pageIndex].value.let { it.xAxisEnd.value - it.xAxisStart.value }
                 val scaleX =
@@ -1475,10 +1496,10 @@ class DetailViewModel @Inject constructor(
             durationMillis = 1000,
             easing = CubicBezierEasing(0.6f, 0.6f, 0.4f, 1f)
         )
-        withContext(context = Dispatchers.Default){
+        withContext(context = defaultDispatcher){
             launch {
                 _hourlyChartState[pageIndex].value.xAxisStart.animateTo(
-                    targetValue = _hourlyChartState[pageIndex].value.initialXAxisStart,
+                    targetValue = initialXAxisStart,
                     animationSpec = animationSpec,
                     block = {
                         _hourlyChartState[pageIndex].update { chartState ->
@@ -1491,7 +1512,7 @@ class DetailViewModel @Inject constructor(
             }
             launch {
                 _hourlyChartState[pageIndex].value.xAxisEnd.animateTo(
-                    targetValue = _hourlyChartState[pageIndex].value.initialXAxisEnd,
+                    targetValue = initialXAxisEnd,
                     animationSpec = animationSpec,
                 )
             }
@@ -1520,7 +1541,7 @@ class DetailViewModel @Inject constructor(
             durationMillis = 1000,
             easing = CubicBezierEasing(0.6f, 0.6f, 0.4f, 1f)
         )
-        withContext(context = Dispatchers.Default){
+        withContext(context = defaultDispatcher){
             launch {
                 _dailyChartState[pageIndex].value.xAxisStart.animateTo(
                     targetValue = _dailyChartState[pageIndex].value.initialDailyXAxisStart,
@@ -1597,26 +1618,6 @@ class DetailViewModel @Inject constructor(
             detailStateList.toMutableList().apply{
                 this[pageIndex] = this[pageIndex].copy(
                     chooseDiagramThemeDialogVisible = visible
-                )
-            }
-        }
-    }
-
-    fun updateHourlyDiagramSettingRectangle(rect: Rect, pageIndex: Int){
-        _detailState.update { detailStateList ->
-            detailStateList.toMutableList().apply {
-                this[pageIndex] = this[pageIndex].copy(
-                    hourlyDiagramSettingRectangle = rect
-                )
-            }
-        }
-    }
-
-    fun updateDailyDiagramSettingRectangle(rect: Rect, pageIndex: Int){
-        _detailState.update { detailStateList ->
-            detailStateList.toMutableList().apply {
-                this[pageIndex] = this[pageIndex].copy(
-                    dailyDiagramSettingRectangle = rect
                 )
             }
         }
@@ -1757,7 +1758,7 @@ class DetailViewModel @Inject constructor(
 
     fun updateSliderThumbPosition(movement: Float, pageIndex: Int, isHistoric: Boolean){
         val state = if (isHistoric) _historicalHourlyChartState else _hourlyChartState
-        state[pageIndex].update { chartState ->
+        state.getOrNull(pageIndex)?.update { chartState ->
             chartState.copy(
                 sliderThumbPosition = (chartState.sliderThumbPosition + movement).coerceIn(0f, 1f)
             )
@@ -1766,7 +1767,7 @@ class DetailViewModel @Inject constructor(
 
     fun updateDailySliderThumbPosition(movement: Float, pageIndex: Int, isHistoric: Boolean){
         val state = if (isHistoric) _historicalDailyChartState else _dailyChartState
-        state[pageIndex].update { chartState ->
+        state.getOrNull(pageIndex)?.update { chartState ->
             chartState.copy(
                 sliderThumbPosition = (chartState.sliderThumbPosition + movement).coerceIn(0f, 1f)
             )
@@ -1775,10 +1776,11 @@ class DetailViewModel @Inject constructor(
 
     fun updateCurveValueAtIndicator(curveIndex: Int, value: Float?, pageIndex: Int, isHistoric: Boolean){
         val state = if (isHistoric) _historicalHourlyChartState else _hourlyChartState
-        state[pageIndex].update { chartState ->
+        state.getOrNull(pageIndex)?.update { chartState ->
             chartState.copy(
                 curveValueAtIndicator = chartState.curveValueAtIndicator.toMutableList().apply {
-                    this[curveIndex] = value
+                    if (curveIndex in this.indices)
+                        this[curveIndex] = value
                 }
             )
         }
@@ -1786,7 +1788,7 @@ class DetailViewModel @Inject constructor(
 
     fun updateDailyCurveValueAtIndicator(valueMin: Float, valueMax: Float, pageIndex: Int, isHistoric: Boolean){
         val state = if (isHistoric) _historicalDailyChartState else _dailyChartState
-        state[pageIndex].update { chartState ->
+        state.getOrNull(pageIndex)?.update { chartState ->
             chartState.copy(
                 curveValueMinAtIndicator = valueMin,
                 curveValueMaxAtIndicator = valueMax
@@ -1818,6 +1820,7 @@ class DetailViewModel @Inject constructor(
     }
 
     fun swapLocations(id1: Int, id2: Int){
+        _dataReadyForDisplay.value = false
         val index1 = allLocations.indexOfFirst { it.id == id1 }
         val index2 = allLocations.indexOfFirst { it.id == id2 }
         allLocations = allLocations.toMutableList().apply {
@@ -1853,28 +1856,22 @@ class DetailViewModel @Inject constructor(
                 swap(index1, index2)
             }
         }
-        _hourlyChartState = _hourlyChartState.apply { swap(index1, index2) }
+        _hourlyChartState.swap(index1, index2)
         _locationsHourlyChartData[index1] = hourlyChartDataFlow(index1)
         _locationsHourlyChartData[index2] = hourlyChartDataFlow(index2)
 
-        _dailyChartState = _dailyChartState.apply { swap(index1, index2) }
+        _dailyChartState.swap(index1, index2)
         _locationsDailyChartData[index1] = dailyChartDataFlow(index1)
         _locationsDailyChartData[index2] = dailyChartDataFlow(index2)
 
-        _historicalHourlyChartState = _historicalHourlyChartState.apply { swap(index1, index2) }
+        _historicalHourlyChartState.swap(index1, index2)
         historicalHourlyChartData[index1] = historicHourlyChartDataFlow(index1)
         historicalHourlyChartData[index2] = historicHourlyChartDataFlow(index2)
 
-        _historicalDailyChartState = _historicalDailyChartState.apply { swap(index1, index2) }
-    }
-
-    fun updateChartsVisibility(visible: Boolean, pageIndex: Int){
-        _detailState.update { detailList ->
-            detailList.toMutableList().apply {
-                this[pageIndex] = this[pageIndex].copy(
-                    chartsVisibility = visible
-                )
-            }
+        _historicalDailyChartState.swap(index1, index2)
+        viewModelScope.launch {
+            delay(1000)
+            _dataReadyForDisplay.value = true
         }
     }
 
@@ -1899,14 +1896,9 @@ class DetailViewModel @Inject constructor(
         val middleDailyXAxis = Duration.between(LocalDate.now().atStartOfDay(),
             LocalDate.of(2000, 1, 1).atStartOfDay()).toDays().toFloat()
 
-        _hourlyChartState.forEach {
-            it.update { chartState ->
-                chartState.copy(
-                    initialXAxisStart = initialHourlyXAxisStart,
-                    initialXAxisEnd = initialHourlyXAxisEnd
-                )
-            }
-        }
+        initialXAxisStart = initialHourlyXAxisStart
+        initialXAxisEnd = initialHourlyXAxisEnd
+
         _dailyChartState.forEach {
             it.update { chartState ->
                 chartState.copy(
@@ -1915,14 +1907,9 @@ class DetailViewModel @Inject constructor(
                 )
             }
         }
-        _historicalHourlyChartState.forEachIndexed { index, stateFlow ->
-            stateFlow.update { chartState ->
-                chartState.copy(
-                    initialXAxisStart = middleXAxis - historicHourlyXAxisLength * 24 / 2,
-                    initialXAxisEnd = middleXAxis + historicHourlyXAxisLength * 24 / 2
-                )
-            }
-        }
+        historicInitialXAxisStart = middleXAxis - historicHourlyXAxisLength * 24 / 2
+        historicInitialXAxisEnd = middleXAxis + historicHourlyXAxisLength * 24 / 2
+
         _historicalDailyChartState.forEachIndexed { index, stateFlow ->
             stateFlow.update { chartState ->
                 chartState.copy(
@@ -1935,56 +1922,58 @@ class DetailViewModel @Inject constructor(
         setSliderThumbPositions()
     }
 
-    fun initializeXAxisBounds(pageIndex: Int){
-        viewModelScope.launch {
-            _hourlyChartState[pageIndex].update { chartState ->
-                chartState.apply {
-                    xAxisStart.snapTo(initialXAxisStart)
-                    xAxisEnd.snapTo(initialXAxisEnd)
-                    yAxesStarts.forEachIndexed { index, animatable ->
-                        animatable.snapTo(initialYAxesStarts[pageIndex][index])
+    fun initializeXAxisBounds(){
+        allLocations.forEachIndexed { pageIndex, _ ->
+            viewModelScope.launch {
+                _hourlyChartState[pageIndex].update { chartState ->
+                    chartState.apply {
+                        xAxisStart.snapTo(initialXAxisStart)
+                        xAxisEnd.snapTo(initialXAxisEnd)
+                        yAxesStarts.forEachIndexed { index, animatable ->
+                            animatable.snapTo(initialYAxesStarts[pageIndex][index])
+                        }
+                        yAxesEnds.forEachIndexed { index, animatable ->
+                            animatable.snapTo(initialYAxesEnds[pageIndex][index])
+                        }
                     }
-                    yAxesEnds.forEachIndexed { index, animatable ->
-                        animatable.snapTo(initialYAxesEnds[pageIndex][index])
+                    chartState.copy(
+                        awaker = chartState.awaker + 1
+                    )
+                }
+                _dailyChartState[pageIndex].update { chartState ->
+                    chartState.apply {
+                        xAxisStart.snapTo(chartState.initialDailyXAxisStart)
+                        xAxisEnd.snapTo(chartState.initialDailyXAxisEnd)
                     }
+                    chartState.copy(
+                        awaker = chartState.awaker + 1
+                    )
                 }
-                chartState.copy(
-                    awaker = chartState.awaker + 1
-                )
-            }
-            _dailyChartState[pageIndex].update { chartState ->
-                chartState.apply {
-                    xAxisStart.snapTo(chartState.initialDailyXAxisStart)
-                    xAxisEnd.snapTo(chartState.initialDailyXAxisEnd)
-                }
-                chartState.copy(
-                    awaker = chartState.awaker + 1
-                )
-            }
 
-            _historicalHourlyChartState[pageIndex].update { chartState ->
-                chartState.apply {
-                    xAxisStart.snapTo(initialXAxisStart)
-                    xAxisEnd.snapTo(initialXAxisEnd)
-                    yAxesStarts.forEachIndexed { index, animatable ->
-                        animatable.snapTo(initialHistoricYAxesStarts[pageIndex][index])
+                _historicalHourlyChartState[pageIndex].update { chartState ->
+                    chartState.apply {
+                        xAxisStart.snapTo(historicInitialXAxisStart)
+                        xAxisEnd.snapTo(historicInitialXAxisEnd)
+                        yAxesStarts.forEachIndexed { index, animatable ->
+                            animatable.snapTo(initialHistoricYAxesStarts[pageIndex][index])
+                        }
+                        yAxesEnds.forEachIndexed { index, animatable ->
+                            animatable.snapTo(initialHistoricYAxesEnds[pageIndex][index])
+                        }
                     }
-                    yAxesEnds.forEachIndexed { index, animatable ->
-                        animatable.snapTo(initialHistoricYAxesEnds[pageIndex][index])
+                    chartState.copy(
+                        awaker = chartState.awaker + 1
+                    )
+                }
+                _historicalDailyChartState[pageIndex].update { chartState ->
+                    chartState.apply {
+                        xAxisStart.snapTo(chartState.initialDailyXAxisStart)
+                        xAxisEnd.snapTo(chartState.initialDailyXAxisEnd)
                     }
+                    chartState.copy(
+                        awaker = chartState.awaker + 1
+                    )
                 }
-                chartState.copy(
-                    awaker = chartState.awaker + 1
-                )
-            }
-            _historicalDailyChartState[pageIndex].update { chartState ->
-                chartState.apply {
-                    xAxisStart.snapTo(chartState.initialDailyXAxisStart)
-                    xAxisEnd.snapTo(chartState.initialDailyXAxisEnd)
-                }
-                chartState.copy(
-                    awaker = chartState.awaker + 1
-                )
             }
         }
     }

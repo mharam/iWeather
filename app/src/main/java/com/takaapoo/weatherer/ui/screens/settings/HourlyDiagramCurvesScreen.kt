@@ -92,15 +92,21 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartState
+import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
+import com.takaapoo.weatherer.domain.model.SettingsState
+import com.takaapoo.weatherer.ui.screens.detail.ChooseDiagramThemeDialog
 import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartGrids
+import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.HourlyChart
+import com.takaapoo.weatherer.ui.screens.settings.dialogs.ChooseDiagramGridDialog
+import com.takaapoo.weatherer.ui.screens.settings.dialogs.ChooseTimeAxisDialog
 import com.takaapoo.weatherer.ui.theme.Gray30
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
@@ -109,7 +115,6 @@ import com.takaapoo.weatherer.utility.mostContrastColor
 import com.takaapoo.weatherer.utility.toDp
 import com.takaapoo.weatherer.utility.toPx
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -122,8 +127,10 @@ fun HourlyDiagramCurvesScreen(
     singlePane: Boolean,
     hourlyChartData: ImmutableList<HourlyChartDto>,
     hourlyChartState: HourlyChartState,
+    settingsState: SettingsState,
+    initialXAxisRange: ClosedFloatingPointRange<Float>,
 
-    onUpdateInitialXAxisBounds: (width: Dp) -> Unit,
+//    onUpdateInitialXAxisBounds: (width: Dp) -> Unit,
     onAddYAxis: (start: Float, end: Float, diagramHeight: Float,
                  textMeasurer: TextMeasurer, axisIndex: Int?, curveAnimatorInitialValue: Float) -> Unit,
     onMoveHourlyDiagramAxis: (Offset) -> Unit,
@@ -143,6 +150,9 @@ fun HourlyDiagramCurvesScreen(
     onUpdateCurvesSmoothness: (quantity: HourlyWeatherQuantity, value: Float) -> Unit,
     onSaveCurvesSmoothness: (quantity: HourlyWeatherQuantity, value: Float) -> Unit,
     onAddRemoveQuantity: (quantity: HourlyWeatherQuantity, addRemove: Boolean) -> Unit,
+    onUpdateTimeAxis: (time: HourlyDiagramTime) -> Unit,
+    onUpdateChartTheme: (chartTheme: ChartTheme) -> Unit,
+    onUpdateChartGrid: (grid: ChartGrids) -> Unit,
 
     onNavigateUp: () -> Unit
 ) {
@@ -158,6 +168,42 @@ fun HourlyDiagramCurvesScreen(
         targetValue = if (tooltipState.isVisible) 8.dp else 0.dp,
         animationSpec = tween(durationMillis = 500, easing = LinearEasing)
     )
+
+    when {
+        settingsState.timeAxisDialogVisibility -> {
+            ChooseTimeAxisDialog(
+                time = appSettings.hourlyDiagramTime,
+                onDismiss = {
+                    onUpdateTimeAxisDialogVisibility(false)
+                },
+                onConfirmation = {
+                    onUpdateTimeAxis(it)
+                }
+            )
+        }
+        settingsState.diagramThemeDialogVisibility -> {
+            ChooseDiagramThemeDialog(
+                chartTheme = hourlyChartState.chartTheme,
+                onConfirmation = {
+                    onUpdateThemeDialogVisibility(false)
+                },
+                onSelectTheme = {
+                    onUpdateChartTheme(it)
+                }
+            )
+        }
+        settingsState.diagramGridDialogVisibility -> {
+            ChooseDiagramGridDialog(
+                chartGrid = hourlyChartState.chartGrid,
+                onDismiss = {
+                    onUpdateGridDialogVisibility(false)
+                },
+                onConfirmation = {
+                    onUpdateChartGrid(it)
+                },
+            )
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -211,9 +257,9 @@ fun HourlyDiagramCurvesScreen(
             )
             Box(
                 modifier = Modifier
-                    .onSizeChanged {
-                        onUpdateInitialXAxisBounds(it.width.toDp(density))
-                    }
+//                    .onSizeChanged {
+//                        onUpdateInitialXAxisBounds(it.width.toDp(density))
+//                    }
                     .shadow(
                         elevation = if (settingScrollState.canScrollBackward) 4.dp else 0.dp,
                         shape = topBoxShape
@@ -235,9 +281,10 @@ fun HourlyDiagramCurvesScreen(
                         modifier = Modifier.fillMaxSize(),
                         diagramHorPadding = diagramHorPadding,
                         diagramVertPadding = diagramVertPadding,
-                        hourlyChartData = hourlyChartData.toImmutableList(),
+                        hourlyChartData = hourlyChartData,
                         hourlyChartState = hourlyChartState,
                         appSettings = appSettings,
+                        initialXAxisRange = initialXAxisRange,
                         onAddYAxis = onAddYAxis,
                         onMoveAxis = onMoveHourlyDiagramAxis,
                         onScaleAxis = onScaleHourlyDiagramAxis,

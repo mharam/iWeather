@@ -9,13 +9,16 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.gif.AnimatedImageDecoder
 import coil3.gif.GifDecoder
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.CachePolicy
 import coil3.request.crossfade
+import com.takaapoo.weatherer.utility.HttpFallbackInterceptor
 import dagger.hilt.EntryPoint
 import dagger.hilt.EntryPoints
 import dagger.hilt.InstallIn
 import dagger.hilt.android.HiltAndroidApp
 import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
 
 
 @HiltAndroidApp
@@ -27,7 +30,10 @@ class WeatherApplication : Application(), Configuration.Provider, SingletonImage
     }
 
     override val workManagerConfiguration = Configuration.Builder()
-        .setWorkerFactory(EntryPoints.get(this, HiltWorkerFactoryEntryPoint::class.java).workerFactory())
+        .setWorkerFactory(EntryPoints.get(
+            this,
+            HiltWorkerFactoryEntryPoint::class.java
+        ).workerFactory())
         .build()
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
@@ -41,6 +47,16 @@ class WeatherApplication : Application(), Configuration.Provider, SingletonImage
                 } else {
                     add(GifDecoder.Factory())
                 }
+            }
+            .components {
+                // Add the network fetcher with your custom OkHttpClient
+                add(OkHttpNetworkFetcherFactory (
+                    callFactory =
+                        OkHttpClient.Builder()
+                            .addInterceptor(HttpFallbackInterceptor())
+                            .build()
+
+                ))
             }
             .build()
     }

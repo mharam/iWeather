@@ -5,16 +5,14 @@ import android.util.Log
 import com.google.android.gms.maps.model.LatLng
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.data.local.LocationType
-import com.takaapoo.weatherer.data.remote.AirQuality
-import com.takaapoo.weatherer.data.remote.DailyWeather
 import com.takaapoo.weatherer.data.remote.DailyWeatherPack
-import com.takaapoo.weatherer.data.remote.HourlyWeather
 import com.takaapoo.weatherer.data.remote.HourlyWeatherPack
 import com.takaapoo.weatherer.data.remote.RemoteLocationType
 import com.takaapoo.weatherer.data.remote.WholeAirQuality
 import com.takaapoo.weatherer.data.remote.toLocalAirQuality
 import com.takaapoo.weatherer.data.remote.toLocalDailyWeather
 import com.takaapoo.weatherer.data.remote.toLocalHourlyWeather
+import com.takaapoo.weatherer.di_modules.DefaultDispatcher
 import com.takaapoo.weatherer.di_modules.IoDispatcher
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.repository.AirQualityRepository
@@ -26,7 +24,6 @@ import com.takaapoo.weatherer.utility.determineLocationType
 import com.takaapoo.weatherer.utility.oldest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -49,7 +46,8 @@ class UpdateWeatherUseCase @Inject constructor (
     private val locationRepository: LocationRepository,
     private val landScapeRepository: LandScapeRepository,
     private val addLocationUseCase: AddLocationUseCase,
-    @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher
+    @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+    @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher
 ) {
     val defaultPastDays = 90
     val tryCounter: MutableMap<Int, Int> = mutableMapOf()
@@ -70,7 +68,9 @@ class UpdateWeatherUseCase @Inject constructor (
                     )
                     if (weatherResult is MyResult.Success && isActive) {
                         localWeatherRepository.addHourlyWeather(
-                            weatherResult.data.hourlyWeather.toLocalHourlyWeather(locationId = location.id)
+                            weatherResult.data.hourlyWeather.toLocalHourlyWeather(
+                                locationId = location.id
+                            )
                         )
                     } else {
                         throw (weatherResult as MyResult.Error).let { it.exception ?: Exception(it.message) }
@@ -113,7 +113,7 @@ class UpdateWeatherUseCase @Inject constructor (
 //                    Log.i("size1", "Air quality job finished!")
                 }
                 launch {
-                    val locationTypeDeferred = async(context = Dispatchers.Default) {
+                    val locationTypeDeferred = async(context = defaultDispatcher) {
                         determineLocationType(
                             context,
                             LatLng(location.latitude.toDouble(), location.longitude.toDouble())
@@ -130,7 +130,6 @@ class UpdateWeatherUseCase @Inject constructor (
                     val locationTypes = awaitAll(locationTypeDeferred, locationTypeResultDeferred)
                     val internalLocationType = locationTypes[0] as LocationType
                     val externalLocationTypeResult = locationTypes[1] as MyResult<RemoteLocationType>?
-//                    Log.i("loc1", "internalLocationType = $internalLocationType")
                     when {
                         internalLocationType == LocationType.BEACH || externalLocationTypeResult == null -> {
                             landType = internalLocationType.ordinal + 1
@@ -143,7 +142,6 @@ class UpdateWeatherUseCase @Inject constructor (
                             val externalLocationType = LocationType.entries.find {
                                 it.name == externalLocationTypeResult.data.feature
                             }
-//                            Log.i("loc1", "externalLocationType = $externalLocationType")
                             val locationType = when (externalLocationType) {
                                 LocationType.LAND -> if (internalLocationType == LocationType.OCEAN)
                                     LocationType.BEACH else externalLocationType
@@ -152,7 +150,6 @@ class UpdateWeatherUseCase @Inject constructor (
                                 LocationType.OCEAN, LocationType.RIVER -> externalLocationType
                                 else -> internalLocationType
                             }
-
                             landType = locationType.ordinal + 1
                             locationRepository.updateLocationType(
                                 name = location.name,
@@ -210,9 +207,9 @@ class UpdateWeatherUseCase @Inject constructor (
                 )
                 if (picturesResult is MyResult.Success) {
                     val landscapes = picturesResult.data
-                    val allPreviousPicIds = locationRepository.getAllLocationsList().map {
+                    val allPreviousPicIds = locationRepository.getAllLocationsList().flatMap {
                         it.picIdsList
-                    }.flatten()
+                    }
                     val previousIds = locationRepository.getLocation(location.id)?.picIdsList ?: emptyList()
                     val nonUsedLandscapes = landscapes.filterNot {
                         allPreviousPicIds.contains(it.id)
@@ -252,7 +249,7 @@ class UpdateWeatherUseCase @Inject constructor (
         }
     }
 
-    private suspend fun addNullData(locationId: Int){
+    /*private suspend fun addNullData(locationId: Int){
         localWeatherRepository.addHourlyWeather(
             HourlyWeather().toLocalHourlyWeather(locationId)
         )
@@ -262,7 +259,7 @@ class UpdateWeatherUseCase @Inject constructor (
         airQualityRepository.addAirQuality(
             AirQuality().toLocalAirQuality(locationId)
         )
-    }
+    }*/
 
 
     /*suspend fun updateAllLocationsWeather(){
@@ -359,7 +356,8 @@ class UpdateWeatherUseCase @Inject constructor (
 
     @Throws(Throwable::class)
     suspend fun updateAllLocationsWeatherBatch(){
-        locationRepository.deleteFaultyLocations()
+//        locationRepository.deleteFaultyLocations()
+        Log.i("update1", "updateAllLocationsWeatherBatch")
         val timeNow = LocalDateTime.now(ZoneId.of("UTC"))
         val allLocations = locationRepository.getAllLocationsList()
         if (allLocations.isEmpty()) return
@@ -399,8 +397,8 @@ class UpdateWeatherUseCase @Inject constructor (
                     pastDays = pastDays
                 )
             }
-            val results = awaitAll(hourlyResult, dailyResult, wholeAirQualityResult)
             launch {
+                val results = awaitAll(hourlyResult, dailyResult, wholeAirQualityResult)
                 if (results[0] is MyResult.Success) {
                     val data = (results[0] as MyResult.Success<List<HourlyWeatherPack>>).data
                     data.forEachIndexed { i, hourlyWeatherPack ->
@@ -411,11 +409,7 @@ class UpdateWeatherUseCase @Inject constructor (
                             )
                         )
                     }
-                } else {
-                    throw (results[0] as MyResult.Error).let { it.exception ?: Exception(it.message) }
                 }
-            }
-            launch {
                 if (results[1] is MyResult.Success) {
                     val data = (results[1] as MyResult.Success<List<DailyWeatherPack>>).data
                     data.forEachIndexed { i, dailyWeatherPack ->
@@ -425,11 +419,7 @@ class UpdateWeatherUseCase @Inject constructor (
                             )
                         )
                     }
-                } else {
-                    throw (results[1] as MyResult.Error).let { it.exception ?: Exception(it.message) }
                 }
-            }
-            launch {
                 if (results[2] is MyResult.Success) {
                     val data = (results[2] as MyResult.Success<List<WholeAirQuality>>).data
                     data.forEachIndexed { i, wholeAirQuality ->
@@ -437,26 +427,76 @@ class UpdateWeatherUseCase @Inject constructor (
                             wholeAirQuality.airQuality.toLocalAirQuality(allLocations[i].id)
                         )
                     }
-                } else {
-                    throw (results[2] as MyResult.Error).let { it.exception ?: Exception(it.message) }
                 }
             }
 
-            val setTimeDeferred = allLocations.map { location ->
-                async(ioDispatcher) {
-                    val addResult = addLocationUseCase.setLocationTime(location)
-                    if (addResult is MyResult.Success) {
-                        locationRepository.updateLocationLastModifiedTime(
-                            name = location.name,
-                            lastModifiedTime = LocalDateTime.now(ZoneId.of("UTC"))
-                                .truncatedTo(ChronoUnit.SECONDS).toString()
-                        )
-                    } else {
-                        Log.i("await1", "${addResult as MyResult.Error}")
+            launch {
+                val setTimeDeferred = allLocations.map { location ->
+                    async(ioDispatcher) {
+                        val addResult = addLocationUseCase.setLocationTime(location)
+                        if (addResult is MyResult.Success) {
+                            locationRepository.updateLocationLastModifiedTime(
+                                name = location.name,
+                                lastModifiedTime = LocalDateTime.now(ZoneId.of("UTC"))
+                                    .truncatedTo(ChronoUnit.SECONDS).toString()
+                            )
+                        }
+                    }
+                }
+                Log.i("update1", "setTimeDeferred")
+                setTimeDeferred.awaitAll()
+                Log.i("update1", "َAfter setTimeDeferred")
+            }
+
+            launch {
+                Log.i("update1", "precipitations = ${allLocations.map { it.yearlyPrecipitation }}")
+                val nullPrecipitationLocations = allLocations.filter { it.yearlyPrecipitation == null }
+                if (nullPrecipitationLocations.isNotEmpty()) {
+                    val yearlyPrecipitationResult = remoteWeatherRepository.getYearlyPrecipitationFromServerBatch(
+                        latitude = nullPrecipitationLocations.map { it.latitude },
+                        longitude = nullPrecipitationLocations.map { it.longitude }
+                    )
+                    if (yearlyPrecipitationResult is MyResult.Success) {
+                        nullPrecipitationLocations.forEachIndexed { i, location ->
+                            locationRepository.updateLocationPrecipitation(
+                                name = location.name,
+                                precipitation = yearlyPrecipitationResult.data[i] ?: 300f
+                            )
+                        }
                     }
                 }
             }
-            setTimeDeferred.awaitAll()
+
+            allLocations.filter { it.currentPictureUrl.isEmpty() }.forEach { location ->
+                Log.i("update1", "location pic: ${location.name}")
+                val picturesResult = landScapeRepository.getLandScapeList(
+                    latitude = location.latitude,
+                    elevation = location.elevation,
+                    precipitation = location.yearlyPrecipitation ?: 300f,
+                    landType = location.locationType.ordinal + 1
+                )
+                if (picturesResult is MyResult.Success) {
+                    val landscapes = picturesResult.data
+                    Log.i("update1", "landscapes = ${landscapes.map { it.id }}")
+                    val allPreviousPicIds = locationRepository.getAllLocationsList().flatMap {
+                        it.picIdsList
+                    }
+                    val previousIds = locationRepository.getLocation(location.id)?.picIdsList ?: emptyList()
+                    val nonUsedLandscapes = landscapes.filterNot {
+                        allPreviousPicIds.contains(it.id)
+                    }
+                    val selectedLandscape = nonUsedLandscapes.randomOrNull() ?: landscapes.random()
+
+                    val updatedLocationPicIds =
+                        if (nonUsedLandscapes.isEmpty()) listOf(selectedLandscape.id)
+                        else previousIds + listOf(selectedLandscape.id)
+                    locationRepository.updateLocationPicInfo(
+                        name = location.name,
+                        currentPicUrl = selectedLandscape.url,
+                        picIds = updatedLocationPicIds,
+                    )
+                }
+            }
         }
     }
 }

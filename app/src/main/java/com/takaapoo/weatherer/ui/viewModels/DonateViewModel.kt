@@ -39,7 +39,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DonateViewModel @Inject constructor(
-    @ApplicationContext val applicationContext: Context,
+    @param:ApplicationContext val applicationContext: Context,
     val preferenceRepository: PreferenceRepository
 ): ViewModel() {
 
@@ -124,7 +124,7 @@ class DonateViewModel @Inject constructor(
                 billingResult: BillingResult, purchases: List<Purchase?> ->
             if (billingResult.responseCode == BillingResponseCode.OK) {
                 purchases.forEach { purchase ->
-                    purchasedProductsIds.addAll(purchase?.products ?: emptyList<String>())
+                    purchasedProductsIds.addAll(purchase?.products ?: emptyList())
                     purchase?.let {
                         handlePurchase(purchase)
                     }

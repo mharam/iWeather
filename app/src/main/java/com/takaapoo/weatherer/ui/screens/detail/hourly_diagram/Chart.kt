@@ -1,6 +1,5 @@
 package com.takaapoo.weatherer.ui.screens.detail.hourly_diagram
 
-import android.util.Log
 import androidx.annotation.StringRes
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -65,9 +64,9 @@ import com.takaapoo.weatherer.utility.toPx
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.time.Clock
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -80,13 +79,13 @@ import kotlin.math.sin
 
 
 enum class DotType{ SQUARE, CIRCLE, TRIANGLE, DIAMOND }
-enum class ChartTheme(@StringRes val nameId: Int){
+enum class ChartTheme(@param:StringRes val nameId: Int){
     LIGHT(nameId = R.string.light_theme),
     DARK(nameId = R.string.dark_theme),
     APPTHEME(nameId = R.string.app_theme),
     DAYNIGHT(nameId = R.string.day_night)
 }
-enum class ChartGrids(@StringRes val nameId: Int){
+enum class ChartGrids(@param:StringRes val nameId: Int){
     All(nameId = R.string.grid_all),
     MAIN(nameId = R.string.grid_main),
     NON(nameId = R.string.grid_non)
@@ -104,6 +103,8 @@ fun HourlyChart(
     historicalHourlyData: ImmutableList<HistoricHourlyChartDto> = persistentListOf(),
     hourlyChartState: HourlyChartState = HourlyChartState(),
     appSettings: AppSettings,
+    initialXAxisRange: ClosedFloatingPointRange<Float>,
+
     onAddYAxis: (start: Float, end: Float, diagramHeight: Float, textMeasurer: TextMeasurer,
                  axisIndex: Int?, curveAnimatorInitialValue: Float) -> Unit = { _ , _, _, _, _, _ -> },
     onMoveAxis: (Offset) -> Unit = {},
@@ -145,6 +146,7 @@ fun HourlyChart(
     val frameHeight = dimensionResource(R.dimen.diagram_height).toPx(density) - 2*diagramVertPadding
     LaunchedEffect(
         hourlyChartState.chartQuantities.size,
+        hourlyChartData,
         hourlyChartState.settingsUpdated,
         hourlyChartState.xAxisAnimationTrigger,
         historicalHourlyData.getOrNull(0)?.weatherQuantities,
@@ -163,7 +165,8 @@ fun HourlyChart(
                     curveAnimatorInitialValue = if (firstTimeAddingCurve) 1f else 0f,
                     onAddYAxis = onAddYAxis
                 )
-                firstTimeAddingCurve = false
+                if (hourlyChartData.isNotEmpty() || historicalHourlyData.isNotEmpty())
+                    firstTimeAddingCurve = false
             }
         }
     }
@@ -289,7 +292,7 @@ fun HourlyChart(
                             ?: 0f,
                         timeData = time,
                         weatherQuantity = weatherQuantity,
-                        initialXAxisRange = hourlyChartState.initialXAxisStart..hourlyChartState.initialXAxisEnd,
+                        initialXAxisRange = initialXAxisRange,
                         xAxisRange = hourlyChartState.xAxisStart.value..hourlyChartState.xAxisEnd.value,
                         yAxisRange = it.value..hourlyChartState.yAxesEnds[curveNumber].value,
                         cornerRadius = cornerRadius.toPx(density),
@@ -949,7 +952,6 @@ private fun prepareAddCurve(
                     )
                     val quantityMax = data.maxOfOrNull { it ?: Float.MIN_VALUE }
                     val quantityMin = data.minOfOrNull { it ?: Float.MAX_VALUE }
-//                    Log.i("min1", "quantityMax = $quantityMax , quantityMin = $quantityMin")
                     if (quantityMin != null && quantityMax != null) {
                         val (modifiedQuantityMin, modifiedQuantityMax) =
                             quantityMinMaxModifier(
@@ -958,7 +960,6 @@ private fun prepareAddCurve(
                                 quantityMax,
                                 appSettings
                             )
-//                        Log.i("min1", "modifiedQuantityMax = $modifiedQuantityMax , modifiedQuantityMin = $modifiedQuantityMin")
                         onAddYAxis(
                             modifiedQuantityMin,
                             modifiedQuantityMax,
@@ -975,11 +976,16 @@ private fun prepareAddCurve(
 }
 
 
-fun timeToX(time: String?, utcOffset: Long?, timeClock: HourlyDiagramTime): Float?{
+fun timeToX(
+    time: String?,
+    utcOffset: Long?,
+    timeClock: HourlyDiagramTime,
+    utcClock: Clock = Clock.systemUTC(),
+): Float?{
     if (time == null || utcOffset == null) return null
     val deviceUtcOffset = ZonedDateTime.now(ZoneId.systemDefault()).offset.totalSeconds / 3600f
     return Duration.between(
-        LocalDate.now().atStartOfDay(),
+        LocalDate.now(utcClock).atStartOfDay(),
         LocalDateTime.parse(time)
     ).toSeconds()/3600f +
             when (timeClock) {
@@ -1002,6 +1008,7 @@ fun LinearChartPreview(
 ) {
     HourlyChart(
         appSettings = AppSettings(),
+        initialXAxisRange = -30f .. 48f,
         onCalculateHorizontalBarSeparation = detailViewModel::calculateHorizontalBarSeparation,
         onCalculateVerticalBarSeparation = detailViewModel::calculateVerticalBarSeparation,
         onUpdateCurveValueAtIndicator = { _, _ -> }

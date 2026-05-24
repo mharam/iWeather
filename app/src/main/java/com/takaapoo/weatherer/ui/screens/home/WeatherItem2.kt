@@ -1,6 +1,7 @@
 package com.takaapoo.weatherer.ui.screens.home
 
 import android.graphics.BitmapFactory
+import android.util.Log
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
@@ -56,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -64,6 +66,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -81,8 +84,11 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -113,7 +119,6 @@ import com.takaapoo.weatherer.ui.theme.Gray60
 import com.takaapoo.weatherer.ui.theme.HomeCardDay
 import com.takaapoo.weatherer.ui.theme.HomeCardNight
 import com.takaapoo.weatherer.ui.theme.Lato
-import com.takaapoo.weatherer.ui.theme.LoadingData
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.TransparentGray50
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
@@ -132,14 +137,9 @@ import kotlin.math.sin
 @OptIn(ExperimentalFoundationApi::class, ExperimentalAnimationGraphicsApi::class)
 @Composable
 fun WeatherItem2(
-//    zoom: Float,
     cardMaxHeight: Dp,
-//    windowRotation: Float,
     modifier: Modifier = Modifier,
     itemState: LocationsState,
-//    picId: Int?,
-//    picName: String,
-//    picUrl: String,
     landscapeReload: Int,
     onNavigateToItem: (cardX: Float, cardY: Float, cardWidth: Float) -> Unit,
     appSettings: AppSettings,
@@ -151,6 +151,7 @@ fun WeatherItem2(
     onDeleteItem: (id: Int, picId: Int?) -> Unit,
     onReloadWeatherData: () -> Unit,
     onDownloadAndSaveLandscapes: (picName: String?) -> Unit,
+    onUpdateItemDragged: (state: Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -177,7 +178,7 @@ fun WeatherItem2(
         }
     }
     val positionalThreshold = { distance: Float -> distance * 0.5f }
-    val velocityThreshold = { 100.dp.toPx(density) }
+//    val velocityThreshold = { 100.dp.toPx(density) }
     val animationSpec = tween<Float>()
     val dragState = rememberSaveable(
         saver = AnchoredDraggableState.Saver()
@@ -209,6 +210,9 @@ fun WeatherItem2(
         if (dialogDisplayed)
             dragState.animateTo(targetValue = DragValue.Center)
     }
+    LaunchedEffect(key1 = dragState.currentValue) {
+        onUpdateItemDragged(dragState.currentValue == DragValue.Center)
+    }
     Box(
         modifier = modifier
             .widthIn(
@@ -234,7 +238,7 @@ fun WeatherItem2(
                         .coerceAtLeast(0.dp)
                 )
                 .align(Alignment.BottomCenter)
-                .background(
+                /*.background(
                     color = dragBackgroundColor(
                         try {
                             dragState.requireOffset() / DRAG_MAX_DISPLACE.toPx(density)
@@ -243,8 +247,20 @@ fun WeatherItem2(
                         }
                     ),
                     shape = RoundedCornerShape(dimensionResource(R.dimen.home_card_corner_radius))
-                )
+                )*/
                 .clip(RoundedCornerShape(dimensionResource(R.dimen.home_card_corner_radius)))
+                .graphicsLayer {
+                    colorFilter = ColorFilter.tint(
+                        color = dragBackgroundColor(
+                            try {
+                                dragState.requireOffset() / DRAG_MAX_DISPLACE.toPx(density)
+                            } catch (_: IllegalStateException) {
+                                0f
+                            }
+                        ),
+                        blendMode = BlendMode.Color
+                    )
+                }
                 .clickable {
                     when (dragState.currentValue) {
                         DragValue.Right -> onDeleteIconPressed(
@@ -335,7 +351,7 @@ fun WeatherItem2(
                         Icon(
                             modifier = Modifier.size(48.dp),
                             painter = painterResource(R.drawable.cloud_off),
-                            tint = LoadingData,
+                            tint = MaterialTheme.colorScheme.primary,
                             contentDescription = "Error"
                         )
                         Spacer(modifier = Modifier.height(16.dp))
@@ -343,7 +359,7 @@ fun WeatherItem2(
                             text = "Loading data failed!",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight(500),
-                            color = LoadingData
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(onClick = onReloadWeatherData) {
@@ -384,7 +400,7 @@ fun WeatherItem2(
                             text = loadingText,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight(500),
-                            color = LoadingData
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                     LinearProgressIndicator(
@@ -405,10 +421,12 @@ fun WeatherItem2(
                         "pictures/pic${itemState.lastPicId}/${itemState.picName}.jpeg"
                     )
                     if (picFile.exists()){
-//                        Log.i("download1", "${itemState.locationName}: ${itemState.lastPicId} , ${itemState.picName}")
+                        var imageBitmap = ImageBitmap(width = 1, height = 1, hasAlpha = false)
                         runCatching {
+                            imageBitmap = BitmapFactory.decodeFile(picFile.absolutePath).asImageBitmap()
+                        }.onSuccess {
                             Image(
-                                bitmap = BitmapFactory.decodeFile(picFile.absolutePath).asImageBitmap(),
+                                bitmap = imageBitmap,
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .align(Alignment.Center),
@@ -416,10 +434,10 @@ fun WeatherItem2(
                                 contentScale = ContentScale.FillHeight,
                             )
                         }.onFailure {
-//                            Log.i("download2", "failure ${itemState.locationName}: pictures/pic${itemState.lastPicId}/${itemState.picName}.jpeg")
                             AsyncImage(
                                 model = "${itemState.currentPictureUrl}/${itemState.picName}.jpeg?retry=${landscapeReload}",
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier
+                                    .fillMaxSize()
                                     .align(Alignment.Center),
                                 contentDescription = null,
                                 contentScale = ContentScale.FillHeight,
@@ -439,14 +457,16 @@ fun WeatherItem2(
                         AsyncImage(
                             model = "${itemState.currentPictureUrl}/${itemState.picName}.jpeg?retry=${landscapeReload}",
                             placeholder = placeholderPainter,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .fillMaxSize()
                                 .align(Alignment.Center),
                             contentDescription = null,
                             contentScale = ContentScale.FillHeight,
-                            onError = {
-
+                            onError = { e ->
+                                Log.i("Coil3", "e = ${e}")
                             },
                             onSuccess = {
+                                Log.i("Coil3", "onSuccess")
                                 onDownloadAndSaveLandscapes(null)
                             }
                         )
@@ -494,10 +514,10 @@ fun WeatherItem2(
                                 .align(Alignment.TopStart)
                                 .padding(top = dimensionResource(R.dimen.home_card_top_over_head))
                                 .size(2 * dimensionResource(R.dimen.home_card_clock_round)),
-                            bigHandleRotation = itemState.clockBigHandleRotation,
-                            smallHandleRotation = itemState.clockSmallHandleRotation,
-                            dayClock = itemState.isDay,
-                            am = itemState.am
+                            bigHandleRotationProvider = { itemState.clockBigHandleRotation },
+                            smallHandleRotationProvider = { itemState.clockSmallHandleRotation },
+                            dayClockProvider = { itemState.isDay },
+                            amProvider = { itemState.am }
                         )
                         WeatherData(
                             modifier = Modifier.fillMaxSize(),
@@ -1128,63 +1148,101 @@ fun WeatherTypeData2(
 @Composable
 fun Clock(
     modifier: Modifier = Modifier,
-    bigHandleRotation: Float?,
-    smallHandleRotation: Float?,
-    dayClock: Boolean,
-    am: Boolean?
+    bigHandleRotationProvider: () -> Float?,
+    smallHandleRotationProvider: () -> Float?,
+    dayClockProvider: () -> Boolean,
+    amProvider: () -> Boolean?
 ) {
+    val textMeasurer = rememberTextMeasurer()
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(
-                color = /*if (dayClock) HomeCardDay else HomeCardNight*/Transparent,
+                color = Transparent,
                 shape = CircleShape
             ),
         contentAlignment = Alignment.Center
     ) {
         Image(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    colorFilter =
+                        ColorFilter.tint(if (dayClockProvider()) HomeCardNight else HomeCardDay)
+                },
             painter = painterResource(R.drawable.card_clock_ticks),
             contentDescription = "clock",
-            colorFilter = ColorFilter.tint(if (dayClock) HomeCardNight else HomeCardDay)
+//            colorFilter = ColorFilter.tint(if (dayClock) HomeCardNight else HomeCardDay)
         )
-        am?.let {
-            Text(
-                modifier = Modifier
-                    .padding(top = 0.8f * dimensionResource(R.dimen.home_card_clock_round)),
-                text = if (am) "A" else "P",
-                fontSize = 12.sp,
-                fontFamily = Lato,
-                color = if (dayClock) Color.Black else Color.White,
-                letterSpacing = 0.sp
-            )
-        }
-        smallHandleRotation?.let {
-            Image(
-                painter = painterResource(
-                    if (dayClock) R.drawable.small_handle_day_c else R.drawable.small_handle_night_c
-                ),
-                contentDescription = "clock",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
+
+        Text(
+            modifier = Modifier
+                .padding(top = dimensionResource(R.dimen.home_card_clock_round))
+                .graphicsLayer {
+                    colorFilter =
+                        ColorFilter.tint(if (dayClockProvider()) Color.Black else Color.White)
+                }
+                .drawBehind {
+                    val am = amProvider()
+                    am?.let {
+                        drawText(
+                            textMeasurer = textMeasurer,
+                            text = if (it) "A" else "P",
+                            style = TextStyle(
+                                fontFamily = Lato,
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center,
+                            )
+                        )
+                    }
+                },
+            text = "P",
+            color = Transparent,
+            fontSize = 12.sp,
+            fontFamily = Lato,
+//                color = if (dayClock) Color.Black else Color.White,
+//                letterSpacing = 0.sp
+        )
+
+        Image(
+            painter = painterResource(
+                R.drawable.small_handle_day_c
+                /*if (dayClock) R.drawable.small_handle_day_c else R.drawable.small_handle_night_c*/
+            ),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    colorFilter =
+                        ColorFilter.tint(if (dayClockProvider()) HomeCardNight else HomeCardDay)
+                    val smallHandleRotation = smallHandleRotationProvider()
+                    if (smallHandleRotation != null) {
+                        alpha = 1f
                         rotationZ = smallHandleRotation
-                    }
-            )
-        }
-        bigHandleRotation?.let {
-            Image(
-                painter = painterResource(
-                    if (dayClock) R.drawable.big_handle_day_c else R.drawable.big_handle_night_c
-                ),
-                contentDescription = "clock",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
+                    } else
+                        alpha = 0f
+                },
+        )
+        Image(
+            painter = painterResource(
+                R.drawable.big_handle_day_c
+                /*if (dayClock) R.drawable.big_handle_day_c else R.drawable.big_handle_night_c*/
+            ),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    colorFilter =
+                        ColorFilter.tint(if (dayClockProvider()) HomeCardNight else HomeCardDay)
+                    val bigHandleRotation = bigHandleRotationProvider()
+                    if (bigHandleRotation != null) {
+                        alpha = 1f
                         rotationZ = bigHandleRotation
-                    }
-            )
-        }
+                    } else
+                        alpha = 0f
+                }
+        )
+
     }
 }
 
@@ -1227,12 +1285,13 @@ fun WeatherItemPreview() {
             onEditItem = { _, _ -> },
             dialogDisplayed = false,
             toBeDeletedLocationId = -10,
-            onDeleteItem = {_, _ -> },
+            onDeleteItem = { _, _ -> },
             onReloadWeatherData = {},
 //            picId = 1,
 //            picName = "1_1_1",
 //            picUrl = "https://files.takaapoo.com/iWeather/pictures/pic1",
-            onDownloadAndSaveLandscapes = {}
+            onDownloadAndSaveLandscapes = {},
+            onUpdateItemDragged = {}
         )
     }
 }

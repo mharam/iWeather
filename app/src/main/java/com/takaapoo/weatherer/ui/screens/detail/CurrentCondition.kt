@@ -1,6 +1,12 @@
 package com.takaapoo.weatherer.ui.screens.detail
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.animateValue
+import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -63,7 +69,6 @@ import com.takaapoo.weatherer.domain.WeatherType
 import com.takaapoo.weatherer.domain.WeatherType.Companion.calculateMoonType
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.ui.screens.detail.daily_diagram.daySeconds
-import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.cubicCurveXtoY
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.weatherCurveXtoY
 import com.takaapoo.weatherer.ui.theme.Gray60
 import com.takaapoo.weatherer.ui.theme.WeatherGaugeBackground
@@ -409,14 +414,7 @@ fun WindCurrentCondition(
     val iconSize = dimensionResource(id = R.dimen.current_condition_icon_size)
     val firstPointX = 0f
     val lastPointX = currentDayHourlyWeather.size.toFloat() - 1
-    /*val controlPoints1 = currentDayHourlyWeather.map {
-        if (it.windSpeedControl1X != null && it.windSpeedControl1Y != null)
-            Offset(it.windSpeedControl1X, it.windSpeedControl1Y)
-        else null }
-    val controlPoints2 = currentDayHourlyWeather.map {
-        if (it.windSpeedControl2X != null && it.windSpeedControl2Y != null)
-            Offset(it.windSpeedControl2X, it.windSpeedControl2Y)
-        else null}*/
+
     val windSpeed = weatherCurveXtoY(
         quantity = HourlyWeatherQuantity.WINDSPEED,
         appSettings = appSettings,
@@ -438,7 +436,7 @@ fun WindCurrentCondition(
 
     val windSpeedKmph = windSpeed?.toKmph(appSettings.speedUnit) ?: 10f
     val infiniteTransition = rememberInfiniteTransition(label = "wind")
-    val arrowMovement  = 0f/*by infiniteTransition.animateValue(
+    val arrowMovement  /*= 0f*/by infiniteTransition.animateValue(
         initialValue = 0f,
         targetValue = 1f,
         typeConverter = Float.VectorConverter,
@@ -450,7 +448,7 @@ fun WindCurrentCondition(
             repeatMode = RepeatMode.Restart
         ),
         label = "wind arrow"
-    )*/
+    )
 
     Row(
         modifier = modifier,
@@ -602,22 +600,31 @@ fun UVCurrentCondition(
     val iconSize = dimensionResource(id = R.dimen.current_condition_icon_size)
     val firstPointX = 0f
     val lastPointX = currentDayHourlyWeather.size.toFloat() - 1
-    val controlPoints1 = currentDayHourlyWeather.map {
-        if (it.uvIndexControl1X != null && it.uvIndexControl1Y != null)
-            Offset(it.uvIndexControl1X, it.uvIndexControl1Y)
-        else null }
-    val controlPoints2 = currentDayHourlyWeather.map {
-        if (it.uvIndexControl2X != null && it.uvIndexControl2Y != null)
-            Offset(it.uvIndexControl2X, it.uvIndexControl2Y)
-        else null}
-    val uvIndex = cubicCurveXtoY(
-        data = currentDayHourlyWeather.map { it.uvIndex },
-        controlPoints1 = controlPoints1,
-        controlPoints2 = controlPoints2,
+//    val controlPoints1 = currentDayHourlyWeather.map {
+//        if (it.uvIndexControl1X != null && it.uvIndexControl1Y != null)
+//            Offset(it.uvIndexControl1X, it.uvIndexControl1Y)
+//        else null }
+//    val controlPoints2 = currentDayHourlyWeather.map {
+//        if (it.uvIndexControl2X != null && it.uvIndexControl2Y != null)
+//            Offset(it.uvIndexControl2X, it.uvIndexControl2Y)
+//        else null}
+    val uvIndex = weatherCurveXtoY(
+        quantity = HourlyWeatherQuantity.UVINDEX,
+        appSettings = appSettings,
+        hourlyWeather = currentDayHourlyWeather,
+        hourlyAirQuality = null,
         firstPointX = firstPointX,
         lastPointX = lastPointX,
         targetX = targetX
     )?.coerceAtLeast(0f)
+//    val uvIndex = cubicCurveXtoY(
+//        data = currentDayHourlyWeather.map { it.uvIndex },
+//        controlPoints1 = controlPoints1,
+//        controlPoints2 = controlPoints2,
+//        firstPointX = firstPointX,
+//        lastPointX = lastPointX,
+//        targetX = targetX
+//    )?.coerceAtLeast(0f)
 
     Row(
         modifier = modifier,
@@ -643,7 +650,6 @@ fun UVCurrentCondition(
             )
             .zIndex(1f)
         ){
-            val unit = HourlyWeatherQuantity.UVINDEX.unit(appSettings)
             val size = DailyWeatherQuantity.UVINDEXMAX.brushColors.size
             val colorStops = Array(size) { index ->
                 (0.75f * index / (size - 1) + 0.125f) to DailyWeatherQuantity.UVINDEXMAX.brushColors[index]

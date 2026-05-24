@@ -24,13 +24,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.navigation3.runtime.NavKey
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppSettings
+import com.takaapoo.weatherer.domain.model.AppTheme
 import com.takaapoo.weatherer.domain.model.SettingsPaneContent
+import com.takaapoo.weatherer.domain.model.SettingsState
+import com.takaapoo.weatherer.ui.navigation.SettingsCard
+import com.takaapoo.weatherer.ui.screens.settings.dialogs.ChooseThemeDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +42,7 @@ fun GeneralSettingsScreen(
     modifier: Modifier = Modifier,
     appSettings: AppSettings,
     singlePane: Boolean,
+    settingsState: SettingsState,
 
     onUpdateSilence: (silent: Boolean) -> Unit,
     onUpdateVibration: (vibrate: Boolean) -> Unit,
@@ -47,11 +52,26 @@ fun GeneralSettingsScreen(
     onUpdateClockGaugeVisibility: (visible: Boolean) -> Unit,
 //    onUpdateHomeCardDialogVisibility: (visible: Boolean) -> Unit,
     onUpdatePaneContent: (content: SettingsPaneContent, previousContent: SettingsPaneContent?) -> Unit,
+    onNavigateToScreen: (route: NavKey) -> Unit,
+    onUpdateTheme: (theme: AppTheme) -> Unit,
 
     onNavigateUp: () -> Unit
 ) {
-    val context = LocalContext.current
     val scrollState = rememberScrollState()
+    when {
+        settingsState.themeDialogVisibility -> {
+            ChooseThemeDialog(
+                appTheme = appSettings.theme,
+                onDismiss = {
+                    onUpdateThemeDialogVisibility(false)
+                },
+                onConfirmation = {
+                    onUpdateTheme(it)
+//                    onUpdateThemeDialogVisibility(false)
+                }
+            )
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -184,19 +204,13 @@ fun GeneralSettingsScreen(
                     )
                 }
             )
-//            val cardQuantitiesSubTitle =
-//                appSettings.cardWeatherQuantities.joinToString(separator = ", ") {
-//                    context.getString(it.homeCardNameId!!)
-//                }
-
             SettingsRow1(
                 modifier = Modifier.fillMaxWidth(),
                 icon = R.drawable.card,
                 title = "Cards",
-//                subTitle = cardQuantitiesSubTitle,
                 onClick = {
-//                    onUpdateHomeCardDialogVisibility(true)
-                    onUpdatePaneContent(SettingsPaneContent.CARD_WEATHER_QUANTITY, SettingsPaneContent.GENERAL)
+                    onNavigateToScreen(SettingsCard)
+//                    onUpdatePaneContent(SettingsPaneContent.CARD_WEATHER_QUANTITY, SettingsPaneContent.GENERAL)
                           },
                 content = {}
             )

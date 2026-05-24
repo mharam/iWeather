@@ -23,9 +23,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation3.runtime.NavKey
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.SettingsPaneContent
+import com.takaapoo.weatherer.ui.navigation.SettingsGeneral
+import com.takaapoo.weatherer.ui.navigation.SettingsHourlyDiagram
+import com.takaapoo.weatherer.ui.navigation.SettingsNotification
+import com.takaapoo.weatherer.ui.navigation.SettingsUnit
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,6 +41,7 @@ fun MainSettingsScreen(
 
     onUpdateNotificationVisibility: (Boolean) -> Unit,
     onUpdatePaneContent: (content: SettingsPaneContent, previousContent: SettingsPaneContent?) -> Unit,
+    onNavigateToScreen: (route: NavKey) -> Unit,
     onNavigateUp: () -> Unit
 ) {
     val scrollState = rememberScrollState()
@@ -75,7 +81,7 @@ fun MainSettingsScreen(
                 icon = R.drawable.settings_24px,
                 title = "General",
                 subTitle = "Theme, appearance, sound",
-                onClick = { onUpdatePaneContent(SettingsPaneContent.GENERAL, SettingsPaneContent.MAIN) },
+                onClick = { onNavigateToScreen(SettingsGeneral) },
                 content = {}
             )
             SettingsRow1(
@@ -83,7 +89,7 @@ fun MainSettingsScreen(
                 icon = R.drawable.length_24px,
                 title = "Unit",
                 subTitle = "Length, temperature, pressure, speed",
-                onClick = { onUpdatePaneContent(SettingsPaneContent.UNIT, SettingsPaneContent.MAIN) },
+                onClick = { onNavigateToScreen(SettingsUnit) },
                 content = {}
             )
             SettingsRow1(
@@ -91,9 +97,7 @@ fun MainSettingsScreen(
                 icon = R.drawable.hourly_diagram,
                 title = "Hourly diagram",
                 subTitle = "Curve, frame",
-                onClick = {
-                    onUpdatePaneContent(SettingsPaneContent.HOURLY_DIAGRAM, SettingsPaneContent.MAIN)
-                          },
+                onClick = { onNavigateToScreen(SettingsHourlyDiagram) },
                 content = {}
             )
             SettingsRow1(
@@ -102,7 +106,7 @@ fun MainSettingsScreen(
                 title = "Persistent notification",
                 subTitle = "Notification content",
                 dividerVisible = true,
-                onClick = { onUpdatePaneContent(SettingsPaneContent.NOTIFICATION, SettingsPaneContent.MAIN) },
+                onClick = { onNavigateToScreen(SettingsNotification) },
                 content = {
                     Switch(
                         modifier = Modifier.padding(horizontal = 8.dp),
@@ -134,7 +138,8 @@ fun MainSettingsScreenPreview() {
             appSettings = AppSettings(),
             onUpdateNotificationVisibility = { _ -> },
             onUpdatePaneContent = { _, _ -> },
-            onNavigateUp = {}
+            onNavigateUp = {},
+            onNavigateToScreen = {}
         )
     }
 }

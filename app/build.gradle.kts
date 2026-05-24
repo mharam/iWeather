@@ -1,49 +1,76 @@
 
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.io.FileInputStream
 import java.util.Properties
+import com.android.build.api.dsl.ApplicationExtension
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
-//import org.jetbrains.kotlin.kapt3.base.Kapt.kapt
 
 //@Suppress("DSL_SCOPE_VIOLATION") // TODO: Remove once KTIJ-19369 is fixed
 plugins {
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.kotlinAndroid)
+//    alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.compose.compiler)
-//    kotlin("kapt")
-//    id("org.jetbrains.kotlin.android")
+    alias(libs.plugins.jetbrains.kotlin.serialization)
     id("com.google.dagger.hilt.android")
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.0"
     id("com.google.devtools.ksp")
     id("kotlin-parcelize")
 }
 
-android {
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_11
+    }
+}
+composeCompiler {
+    reportsDestination = layout.buildDirectory.dir("compose_compiler/reports")
+    metricsDestination = layout.buildDirectory.dir("compose_compiler/metrics")
+    stabilityConfigurationFiles = listOf(rootProject.layout.projectDirectory.file("stability_config.conf"))
+}
+/*tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions {
+        freeCompilerArgs.addAll(
+            listOf(
+                "-P",
+                "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=" +
+                        layout.buildDirectory.dir("compose-reports").get().asFile.absolutePath,
+                "-P",
+                "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=" +
+                        layout.buildDirectory.dir("compose-metrics").get().asFile.absolutePath,
+                "plugin:androidx.compose.compiler.plugins.kotlin:stabilityConfigurationPath=${rootProject.projectDir}/stability_config.conf"
+            )
+        )
+    }
+}*/
+
+/*extensions.configure<ApplicationExtension>*/android {
+
     namespace = "com.takaapoo.weatherer"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.takaapoo.weatherer"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 2
         versionName = "0.0"
 
-//        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunner = "com.takaapoo.weatherer.CustomTestRunner"
+
         vectorDrawables {
             useSupportLibrary = true
         }
 
-        // Code for hiding Google maps API key
+        // Load Google Maps API key
         val secureProps = Properties()
         val secretsPropsFile = rootProject.file("secrets.properties")
         if (secretsPropsFile.exists()) secureProps.load(FileInputStream(secretsPropsFile))
-        resValue("string", "maps_api_key", (secureProps.getProperty("MAPS_API_KEY") ?: ""))
-
+        resValue("string", "maps_api_key", secureProps.getProperty("MAPS_API_KEY") ?: "")
     }
 
     buildTypes {
         release {
+            isDebuggable = false
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -51,28 +78,39 @@ android {
             )
             signingConfig = signingConfigs.getByName("debug")
         }
+        debug {
+            isDebuggable = true
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
     }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_19
-        targetCompatibility = JavaVersion.VERSION_19
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "19"
-    }
+
     buildFeatures {
         compose = true
         viewBinding = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.15"
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
     }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
 }
+//android {
+//    buildFeatures { compose = true }
+//}
 
 dependencies {
 
@@ -96,10 +134,7 @@ dependencies {
     implementation(project(":renderscript-toolkit"))
     implementation(libs.androidx.foundation.android)
     implementation(libs.core)
-    implementation(libs.androidx.runner)
-    testImplementation("junit:junit:4.12")
-    testImplementation("junit:junit:4.12")
-    testImplementation("junit:junit:4.12")
+//    implementation(libs.androidx.runner)
     ksp(libs.hilt.compiler)
 
     // Kotlin serialization
@@ -201,15 +236,22 @@ dependencies {
     implementation(libs.androidx.ui.viewbinding)
 
     // Used for getPropertyBySerialName function in UsefulFunc.kt
-    implementation(kotlin("reflect"))
+    implementation(libs.kotlin.reflect)
+//    implementation(kotlin("reflect"))
 
     // Coil
     implementation(libs.bundles.coil)
 
+    // Navigation3
+    implementation(libs.bundles.navigation3)
+    implementation(libs.kotlinx.serialization.core)
 
 
 
     testImplementation(libs.junit)
+    testImplementation(libs.bundles.coroutines)
+    testImplementation(libs.ui.test.junit4)
+
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(platform(libs.compose.bom))
@@ -228,6 +270,15 @@ dependencies {
     androidTestImplementation(libs.hilt.android.testing)
     androidTestImplementation(libs.androidx.rules)
     kspAndroidTest(libs.hilt.android.compiler)
+
+    //Robolectric
+    testImplementation(libs.robolectric)
+
+    //Mockito
+    testImplementation(libs.bundles.mockito)
+
+    //Turbine
+    testImplementation(libs.turbine)
 }
 
 // Allow references to generated code

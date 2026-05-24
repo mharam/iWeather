@@ -5,10 +5,12 @@ import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Stable
 import com.takaapoo.weatherer.domain.MyResult
+import java.time.Clock
 import java.time.LocalDateTime
 
 @Stable
 data class HomeState(
+    val clock: Clock = Clock.systemDefaultZone(),
     val zoom: Boolean = false,
     val topPaddingOffset: Float = 0f,
     val selectedCardX: Float = 0f,
@@ -32,7 +34,7 @@ data class HomeState(
     val clockGaugeRotation: Animatable<Float, AnimationVector1D> = Animatable(initialValue = 0f),
     val clockGaugeNaturalRotation: Float = 0f,
     val dayGaugeIndex: Int = 0,
-    val dayGaugeNaturalIndex: Int = Int.MAX_VALUE / 2 + LocalDateTime.now().dayOfWeek.value - 1,
+    val dayGaugeNaturalIndex: Int = Int.MAX_VALUE / 2 + LocalDateTime.now(clock).dayOfWeek.value - 1,
     val dayListState: LazyListState = LazyListState(
         firstVisibleItemIndex = dayGaugeNaturalIndex,
         firstVisibleItemScrollOffset = -35
@@ -43,4 +45,5 @@ data class HomeState(
     val clockGaugeLock: Boolean = false,
 //    val donateDialogVisible: Boolean = false,
 //    val locationCountDialogVisible: Boolean = false,
+    val itemDragged: Boolean = false,
 )

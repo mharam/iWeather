@@ -23,27 +23,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.drawscope.DrawStyle
-import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextMeasurer
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.toFontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.takaapoo.weatherer.R
@@ -334,11 +323,14 @@ fun DailyChart(
 
 fun dailyTimeToX(date: String?): Long?{
     if (date == null) return null
-    return ChronoUnit.DAYS.between(LocalDate.now(), LocalDate.parse(date))
+    return ChronoUnit.DAYS.between(
+        LocalDate.now(),
+        LocalDate.parse(date)
+    )
 }
 
 
-const val daySeconds = (24 * 60 * 60 - 1).toFloat()
+const val daySeconds = (24 * 60 * 60).toFloat()
 fun dailyQuantityData(
     dailyData: List<LocalDailyWeather?> = emptyList(),
     historicDailyData: List<LocalHistoricDailyWeather?> = emptyList(),
@@ -368,7 +360,7 @@ fun dailyQuantityData(
                 val sunSetIsTomorrow = LocalDateTime.parse(it.sunSet).toLocalDate()
                     .isAfter(LocalDate.parse(it.time))
 
-                val sunRiseHour =(LocalDateTime.parse(it.sunRise).toLocalTime().toSecondOfDay()
+                val sunRiseHour = (LocalDateTime.parse(it.sunRise).toLocalTime().toSecondOfDay()
                         / daySeconds - if (sunRiseIsYesterday) 1 else 0) * 24
                 val sunSetHour =(LocalDateTime.parse(it.sunSet).toLocalTime().toSecondOfDay()
                         / daySeconds + if (sunSetIsTomorrow) 1 else 0) * 24
@@ -428,36 +420,6 @@ fun dailyQuantityData(
     }
 }
 
-
-fun measureText(
-    textMeasurer: TextMeasurer,
-    text: String? = null,
-    annotatedString: AnnotatedString? = null,
-    fontSize: TextUnit = 14.sp,
-    fontFamily: FontFamily = Font(R.font.cmu_serif).toFontFamily(),
-    color: Color = Color.Unspecified,
-    drawStyle: DrawStyle = Fill
-): TextLayoutResult {
-    return if (text != null)
-        textMeasurer.measure(
-            text = text,
-            style = TextStyle(
-                fontFamily = fontFamily,
-                fontSize = fontSize,
-                color = color,
-                drawStyle = drawStyle
-            )
-        ) else
-            textMeasurer.measure(
-                text = annotatedString!!,
-                style = TextStyle(
-                    fontFamily = fontFamily,
-                    fontSize = fontSize,
-                    color = color,
-                    drawStyle = drawStyle
-                )
-            )
-}
 
 suspend fun animateCurve(dailyChartState: DailyChartState){
     if (dailyChartState.curveAnimator.value != 1f) {

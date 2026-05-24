@@ -25,6 +25,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -32,8 +39,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.DrawStyle
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -52,26 +62,26 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.get
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.google.android.gms.maps.model.LatLng
 import com.takaapoo.weatherer.R
-import com.takaapoo.weatherer.data.Screen
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
 import com.takaapoo.weatherer.data.local.LocalHourlyWeather
 import com.takaapoo.weatherer.data.local.LocationType
 import com.takaapoo.weatherer.domain.WeatherType
-import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.unit.Length
 import com.takaapoo.weatherer.domain.unit.Pressure
 import com.takaapoo.weatherer.domain.unit.Speed
 import com.takaapoo.weatherer.domain.unit.Temperature
-import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
-import com.takaapoo.weatherer.ui.screens.detail.daily_diagram.measureText
+import com.takaapoo.weatherer.ui.navigation.Screen
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.indicesOf
 import com.takaapoo.weatherer.ui.theme.DarkColorScheme
 import com.takaapoo.weatherer.ui.theme.LightColorScheme
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.SerialName
 import java.time.Duration
+import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlin.math.PI
 import kotlin.math.abs
@@ -162,7 +172,7 @@ fun Float.mToUnit(unit: Length) = when (unit) {
     Length.IMPERIAL -> this * 3.28084f
 }
 
-fun Float.toAppropriateUnit(quantity: HourlyWeatherQuantity, appSettings: AppSettings): Float = when (quantity){
+/*fun Float.toAppropriateUnit(quantity: HourlyWeatherQuantity, appSettings: AppSettings): Float = when (quantity){
     HourlyWeatherQuantity.TEMPERATURE, HourlyWeatherQuantity.DEWPOINT, HourlyWeatherQuantity.APPARENTTEMP ->
         this.celsiusToUnit(appSettings.temperatureUnit)
     HourlyWeatherQuantity.PRECIPITATION, HourlyWeatherQuantity.RAIN, HourlyWeatherQuantity.SHOWERS ->
@@ -175,7 +185,7 @@ fun Float.toAppropriateUnit(quantity: HourlyWeatherQuantity, appSettings: AppSet
 //    WeatherQuantity.DIRECTRADIATION -> TODO()
 //    WeatherQuantity.DIRECTNORMALIRRADIANCE -> TODO()
     else -> this
-}
+}*/
 
 fun Color.darker(factor: Float): Color {
     require(factor in 0f..1f) { "Lightness factor must be between 0 and 1" }
@@ -315,8 +325,8 @@ fun spToFloat(context: Context, sp: Float): Float {
 }
 
 fun getWindowSize(windowManager: WindowManager): Size {
-    var windowHeight = 0
-    var windowWidth = 0
+    var windowHeight: Int
+    var windowWidth: Int
 
     if (Build.VERSION.SDK_INT > 29) {
         windowHeight = windowManager.currentWindowMetrics.bounds.height()
@@ -417,9 +427,9 @@ fun AnnotatedString.toSpannableWithStyles(context: Context): Spannable {
         }
 
         if (style.baselineShift != BaselineShift.None) {
-            val span = when {
-                style.baselineShift == BaselineShift.Superscript -> SuperscriptSpan()
-                style.baselineShift == BaselineShift.Subscript -> SubscriptSpan()
+            val span = when (style.baselineShift) {
+                BaselineShift.Superscript -> SuperscriptSpan()
+                BaselineShift.Subscript -> SubscriptSpan()
                 else -> null
             }
             if (span != null) {
@@ -527,48 +537,47 @@ fun Bitmap.removeTransparentBorder(n: Int, minHeight: Int): Bitmap {
     var left = 0
     var right = width
 
+    var column: Int
+    var row: Int
+
     // Scan from top to bottom to find the first non-transparent row
     for (y in 0 until height) {
-        for (x in 0 until width) {
-            if (this.getPixel(x, y).and(0xFF000000.toInt()) != 0) { // Check if pixel is not transparent
-                top = y
-                break
-            }
+        column = 0
+        top = y
+        while (column < width && this[column, y].and(0xFF000000.toInt()) == 0) { // Check if pixel is transparent
+            column++
         }
-        if (top != 0) break // Exit the outer loop
+        if (column < width) break // Exit the outer loop
     }
 
     // Scan from bottom to top to find the first non-transparent row
     for (y in height - 1 downTo top) {
-        for (x in 0 until width) {
-            if (this[x, y].and(0xFF000000.toInt()) != 0) { // Check if pixel is not transparent
-                bottom = y + 1 // Add 1 to include this row
-                break
-            }
+        column = 0
+        bottom = y
+        while (column < width && this[column, y].and(0xFF000000.toInt()) == 0) { // Check if pixel is transparent
+            column++
         }
-        if (bottom != height) break // Exit the outer loop
+        if (column < width) break // Exit the outer loop
     }
 
     // Scan from left to right to find the first non-transparent column
     for (x in 0 until width) {
-        for (y in top until bottom) {
-            if (this.getPixel(x, y).and(0xFF000000.toInt()) != 0) { // Check if pixel is not transparent
-                left = x
-                break
-            }
+        row = 0
+        left = x
+        while (row < bottom && this[x, row].and(0xFF000000.toInt()) == 0) { // Check if pixel is transparent
+            row++
         }
-        if (left != 0) break // Exit the outer loop
+        if (row < bottom) break // Exit the outer loop
     }
 
     // Scan from right to left to find the first non-transparent column
     for (x in width - 1 downTo left) {
-        for (y in top until bottom) {
-            if (this.getPixel(x, y).and(0xFF000000.toInt()) != 0) { // Check if pixel is not transparent
-                right = x + 1 // Add 1 to include this column
-                break
-            }
+        row = 0
+        right = x
+        while (row < bottom && this[x, row].and(0xFF000000.toInt()) == 0) { // Check if pixel is transparent
+            row++
         }
-        if (right != width) break // Exit the outer loop
+        if (row < bottom) break // Exit the outer loop
     }
 
     // Adjust bounds to preserve 'n' pixels of transparent border
@@ -599,7 +608,8 @@ fun Color.mostContrastColor(): Color {
     return if (luminance > 0.5f) Color.Black else Color.White
 }
 
-fun String.localToUtcTime(utcOffset: Long?) = LocalDateTime.parse(this).minusMinutes(utcOffset ?: 0).toString()
+fun String.localToUtcTime(utcOffset: Long?) =
+    LocalDateTime.parse(this).minusMinutes(utcOffset ?: 0).toString()
 
 fun <T>List<T>.subList(centerIndex: Int, width: Int) = this.subList(
     fromIndex = (centerIndex - floor(width / 2f).roundToInt()).coerceIn(0, this.size),
@@ -618,7 +628,14 @@ fun <T> List<T>.split(element: T): List<List<T>> {
         outList[i] = subList(index + 1, elementIndices[i+1])
     }
 
-    return outList
+    return outList.filterNot { it.isEmpty() }
+}
+
+fun <T> MutableList<T>.removeAfterFirst(element: T) {
+    val firstOccurrence = this.indexOfFirst { it == element }
+    if (firstOccurrence != -1) {
+        this.subList(fromIndex = firstOccurrence + 1, size).clear()
+    }
 }
 
 fun List<LocalDateTime>.oldest(): LocalDateTime? {
@@ -728,7 +745,7 @@ fun landScapeName(
     todayWeather: LocalDailyWeather?,
     currentWeather: LocalHourlyWeather?,
     utcOffset: Long?,
-    utcTime: LocalDateTime
+    utcTime: LocalDateTime,
 ): String {
     val sunRise = todayWeather?.sunRise?.let { LocalDateTime.parse(it) }
         ?.minusMinutes(utcOffset ?: 0)
@@ -760,7 +777,83 @@ fun landScapeName(
         isDay = true,
         moonType = null
     ).picIndex
-    val groundIndex = if ((currentWeather?.snowDepth ?: 0f) > 0.1f) 3 else 1
+    val groundIndex = if ((currentWeather?.snowDepth ?: 0f) > 0.1f && skyIndex <= 4) 3 else 1
 
     return "${skyIndex}_${groundIndex}_${timeIndex}"
+}
+
+@Composable
+fun <T> StateFlow<T>.collectAsStateWithPermission(permission: Boolean): State<T> {
+    var lastValue by remember { mutableStateOf(this.value) }
+    val collectedState = this.collectAsStateWithLifecycle()
+
+    // Only update lastValue when permission is true
+    LaunchedEffect(permission, collectedState.value) {
+        if (permission) {
+            lastValue = collectedState.value
+        }
+    }
+
+    // Expose lastValue as State<T>
+    return rememberUpdatedState(lastValue)
+}
+
+fun measureText(
+    textMeasurer: TextMeasurer,
+    text: String? = null,
+    annotatedString: AnnotatedString? = null,
+    fontSize: TextUnit = 14.sp,
+    fontFamily: FontFamily = Font(R.font.cmu_serif).toFontFamily(),
+    color: Color = Color.Unspecified,
+    drawStyle: DrawStyle = Fill,
+): TextLayoutResult {
+    return if (text != null)
+        textMeasurer.measure(
+            text = text,
+            style = TextStyle(
+                fontFamily = fontFamily,
+                fontSize = fontSize,
+                color = color,
+                drawStyle = drawStyle
+            )
+        ) else
+            textMeasurer.measure(
+                text = annotatedString!!,
+                style = TextStyle(
+                    fontFamily = fontFamily,
+                    fontSize = fontSize,
+                    color = color,
+                    drawStyle = drawStyle
+                )
+            )
+}
+
+fun String.timeIsBetween(date1: String, date2: String): Boolean {
+    val date = runCatching {
+        LocalDateTime.parse(this).toLocalDate()
+    }.onFailure {
+        LocalDate.parse(this)
+    }.getOrNull()
+    val startDate = LocalDate.parse(date1)
+    val endDate = LocalDate.parse(date2)
+    return (date?.isAfter(startDate) == true || date?.isEqual(startDate) == true) &&
+            (date.isBefore(endDate) || date.isEqual(endDate))
+}
+
+fun String.dateIsBetween(date1: String, date2: String): Boolean {
+    val date = LocalDate.parse(this)
+    val startDate = LocalDate.parse(date1)
+    val endDate = LocalDate.parse(date2)
+    return (date.isAfter(startDate) || date.isEqual(startDate)) &&
+            (date.isBefore(endDate) || date.isEqual(endDate))
+}
+
+fun String.toFloatOrNull(): Float? {
+    if (isNullOrEmpty()) return null
+    return toFloat()
+}
+
+fun String.toIntOrNull(): Int? {
+    if (isNullOrEmpty()) return null
+    return toInt()
 }

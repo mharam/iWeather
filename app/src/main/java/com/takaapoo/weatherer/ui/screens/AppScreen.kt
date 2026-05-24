@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerDefaults.scrimColor
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,7 +33,6 @@ import androidx.compose.material3.PermanentNavigationDrawer
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -67,24 +65,27 @@ import androidx.glance.appwidget.updateAll
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation3.runtime.NavKey
 import androidx.window.core.layout.WindowSizeClass
-import androidx.window.core.layout.WindowWidthSizeClass
 import com.takaapoo.weatherer.MainActivity
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.WEATHER_CHANNEL_ID
 import com.takaapoo.weatherer.WEATHER_NOTIFICATION_ID
-import com.takaapoo.weatherer.data.AboutUs
-import com.takaapoo.weatherer.data.ContactUs
-import com.takaapoo.weatherer.data.Donate
-import com.takaapoo.weatherer.data.HomePane
-import com.takaapoo.weatherer.data.Radar
-import com.takaapoo.weatherer.data.RateUs
-import com.takaapoo.weatherer.data.Screen
-import com.takaapoo.weatherer.data.Settings
-import com.takaapoo.weatherer.data.allScreens
+import com.takaapoo.weatherer.domain.model.AppSettings
+import com.takaapoo.weatherer.domain.model.LocationsState
+import com.takaapoo.weatherer.ui.navigation.AboutUs
+import com.takaapoo.weatherer.ui.navigation.AddLocation
+import com.takaapoo.weatherer.ui.navigation.ContactUs
+import com.takaapoo.weatherer.ui.navigation.Donate
+import com.takaapoo.weatherer.ui.navigation.Home
+import com.takaapoo.weatherer.ui.navigation.Navigator
+import com.takaapoo.weatherer.ui.navigation.Radar
+import com.takaapoo.weatherer.ui.navigation.RateUs
+import com.takaapoo.weatherer.ui.navigation.Settings
+import com.takaapoo.weatherer.ui.navigation.Start
 import com.takaapoo.weatherer.ui.navigation.WeatherNavGraph
+import com.takaapoo.weatherer.ui.navigation.rememberNavigationState
 import com.takaapoo.weatherer.ui.notification.NotificationSender
 import com.takaapoo.weatherer.ui.notification.NotificationSender.Companion.headerPendingIntent
 import com.takaapoo.weatherer.ui.theme.TransparentBlack
@@ -95,8 +96,8 @@ import com.takaapoo.weatherer.ui.viewModels.HomeViewModel
 import com.takaapoo.weatherer.ui.viewModels.PreferenceViewModel
 import com.takaapoo.weatherer.ui.widget.WeatherWidget1
 import com.takaapoo.weatherer.ui.widget.WeatherWidget2
-import com.takaapoo.weatherer.utility.isDestinationInBackStack
 import com.takaapoo.weatherer.utility.toPx
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import kotlin.math.abs
@@ -104,14 +105,14 @@ import kotlin.math.abs
 
 data class DrawerNavigationItem(
     val title: String,
-    val screen: Screen,
+    val screen: NavKey,
     @param:DrawableRes val selectedIcon: Int,
     @param:DrawableRes val unSelectedIcon: Int
 )
 val screenItems = listOf(
     DrawerNavigationItem(
         title = "Home",
-        screen = HomePane,
+        screen = Home,
         selectedIcon = R.drawable.home_filled_24px,
         unSelectedIcon = R.drawable.home_24px
     ),
@@ -157,6 +158,8 @@ val screenItems = listOf(
 @Composable
 fun AppScreen(
     modifier: Modifier = Modifier,
+    appSettings: AppSettings,
+    locationListState: ImmutableList<LocationsState>,
     homeViewModel: HomeViewModel,
     addLocationViewModel: AddLocationViewModel,
     appViewModel: AppViewModel = viewModel(),
@@ -167,19 +170,32 @@ fun AppScreen(
     val density = LocalDensity.current
     val mainActivity = LocalActivity.current as MainActivity
     val drawerWidthPx = dimensionResource(R.dimen.drawer_width).toPx(density)
+    val navigationState = rememberNavigationState(
+        startRoute = Home,
+        topLevelRoutes = setOf(Start, Home, Settings, Donate, AddLocation, Radar)
+    )
+    val navigator = remember { Navigator(navigationState) }
+
+    if (locationListState.isEmpty()) {
+        if (navigationState.topLevelRoute != AddLocation)
+            navigationState.updateStacksInUse(newStartRoute = Start)
+    } else if (navigationState.topLevelRoute == AddLocation && navigationState.startRoute != Home) {
+        navigationState.updateStacksInUse(
+            newStartRoute = Home,
+            newTopLevelRoute = AddLocation
+        )
+    }
 
     val uiState by appViewModel.uiState.collectAsStateWithLifecycle()
     val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+//    val navBackStackEntry by navController.currentBackStackEntryAsState()
+//    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val drawerOffset = remember { Animatable(-drawerWidthPx) }
 
     val scope = rememberCoroutineScope()
-    val appSettings by preferenceViewModel.appSettings.collectAsStateWithLifecycle()
+//    val appSettings by preferenceViewModel.appSettings.collectAsStateWithLifecycle()
     val donateViewModel = hiltViewModel<DonateViewModel>()
     val donateState by donateViewModel.donateState.collectAsStateWithLifecycle()
-
-    val windowWidthSize = windowSizeClass.windowWidthSizeClass
 
     val notificationHourlyChartData by appViewModel.notificationHourlyChartData
         .collectAsStateWithLifecycle()
@@ -187,19 +203,194 @@ fun AppScreen(
         .collectAsStateWithLifecycle()
     val locationsCount by addLocationViewModel.locationsCount.collectAsStateWithLifecycle()
 
-    LaunchedEffect(navBackStackEntry) {
-        val screen = allScreens.find {
-            it::class.simpleName == navController.currentDestination?.route?.substringAfterLast('.')
-        }
-        screen?.let {
-            appViewModel.updateScreen(screen = screen)
+//    LaunchedEffect(navBackStackEntry) {
+//        val screen = allScreens.find {
+//            it::class.simpleName == navController.currentDestination?.route?.substringAfterLast('.')
+//        }
+//        screen?.let {
+//            appViewModel.updateScreen(screen = screen)
+//        }
+//    }
+
+    val locationIDs = locationListState.map { it.locationId }
+    LaunchedEffect(key1 = locationIDs) {
+        if (locationListState.firstOrNull()?.locationId != -2) {
+            if (locationListState.isEmpty()) {
+                preferenceViewModel.updateNotificationLocationId(null)
+                preferenceViewModel.updateNotificationVisibility(false)
+                preferenceViewModel.updateWidgetLocationId(null)
+            } else {
+                if (appSettings.notificationLocationId == null ||
+                    locationListState.find { it.locationId == appSettings.notificationLocationId } == null
+                ) {
+                    preferenceViewModel.updateNotificationLocationId(
+                        locationListState.first().locationId
+                    )
+                }
+                if (appSettings.widgetLocationId == null ||
+                    locationListState.find { it.locationId == appSettings.widgetLocationId } == null
+                ) {
+                    preferenceViewModel.updateWidgetLocationId(
+                        locationListState.first().locationId
+                    )
+                }
+            }
         }
     }
 
-    when (windowWidthSize){
-        WindowWidthSizeClass.COMPACT, WindowWidthSizeClass.MEDIUM -> {
+    when {
+        windowSizeClass.isWidthAtLeastBreakpoint(
+            WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND
+        ) ->  {
+            val modalDrawer by remember { derivedStateOf { mainActivity.windowWidth < 1000.dp.toPx(density) } }
+            if (modalDrawer) {
+                MyNavigationDrawer(
+                    modifier = modifier,
+                    enabled = locationsCount > 0,
+                    drawerOffset = drawerOffset,
+                    drawerWidthPx = drawerWidthPx,
+                    drawerContent = {
+                        WeatherDrawerContent(
+                            modifier = Modifier
+                                .graphicsLayer {
+                                    alpha = if (drawerOffset.value > -drawerWidthPx + 1) 1f
+                                    else 0f
+                                }
+                                .fillMaxSize()
+                            /*.graphicsLayer {
+                                val scale = lerp(1f, 1.1f, abs(drawerOffset.value)/drawerWidthPx)
+                                translationX = drawerOffset.value
+                                transformOrigin = TransformOrigin(1f, 0.5f)
+                                scaleX = scale
+                                scaleY = scale
+                            }
+                            .blur(
+                                radius = lerp(0.dp, 8.dp, abs(drawerOffset.value)/drawerWidthPx)
+                            )*/,
+                            navigationItems = screenItems,
+                            selectedItem = navigationState.topLevelRoute,
+                            onSelectItem = {
+                                navigator.navigate(it)
+                                scope.launch {
+//                            drawerState.close()
+                                    drawerOffset.animateTo(-drawerWidthPx)
+                                }
+                            }
+                        )
+                    },
+                    content = { drawerOpen ->
+
+                        Box(modifier = Modifier.fillMaxSize()
+                            .graphicsLayer {
+                                val scale = lerp(0.8f, 1f, abs(drawerOffset.value)/drawerWidthPx)
+                                transformOrigin = TransformOrigin(0f, 0.5f)
+                                cameraDistance = 30f
+                                scaleX = scale
+                                scaleY = scale
+//                            rotationY = lerp(-20f, 0f, abs(drawerOffset.value)/drawerWidthPx)
+                                translationX = (drawerOffset.value + drawerWidthPx) / 1
+                                clip = true
+                                shape = RoundedCornerShape(if (drawerOffset.value > -drawerWidthPx) 16.dp else 0.dp)
+                                shadowElevation = 4.dp.toPx()
+                            }
+                            .background(MaterialTheme.colorScheme.background)
+//                        .blur(
+//                            radius = lerp(8.dp, 0.dp, abs(drawerOffset.value)/drawerWidthPx)
+//                        )
+                        ) {
+                            WeatherNavGraph(
+//                                navController = navController,
+                                navigator = navigator,
+                                navigationState = navigationState,
+                                appViewModel = appViewModel,
+                                homeViewModel = homeViewModel,
+                                addLocationViewModel = addLocationViewModel,
+                                preferenceViewModel = preferenceViewModel,
+                                donateViewModel = donateViewModel,
+                                donateState = donateState,
+                                appSettings = appSettings,
+                                locationListState = locationListState,
+
+                                singlePane = false,
+                                permanentDrawer = false,
+                                drawerOpen = drawerOpen,
+                                onMenuButtonClick = {
+                                    scope.launch {
+//                                drawerState.open()
+                                        drawerOffset.animateTo(0f)
+                                    }
+                                }
+                            )
+                            if (drawerOffset.value > -drawerWidthPx) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            color = lerp(
+                                                start = TransparentBlack,
+                                                stop = scrimColor,
+                                                fraction = (drawerOffset.value + drawerWidthPx) / drawerWidthPx,
+                                            )
+                                        )
+                                        .clickable(
+                                            interactionSource = null,
+                                            indication = null,
+                                            onClick = {
+                                                scope.launch {
+                                                    drawerOffset.animateTo(-drawerWidthPx)
+                                                }
+                                            }
+                                        )
+                                ) {}
+                            }
+                        }
+                    }
+                )
+            } else {
+                PermanentNavigationDrawer(
+                    modifier = Modifier.width(dimensionResource(R.dimen.drawer_width)),
+                    drawerContent = {
+                        WeatherDrawerContent(
+                            navigationItems = screenItems,
+                            selectedItem = navigationState.topLevelRoute,
+                            onSelectItem = {
+                                if (it !is Settings || locationsCount > 0) {
+                                    navigator.navigate(it)
+                                }
+                            },
+                            modifier = Modifier
+                                .width(dimensionResource(R.dimen.drawer_width))
+                                .fillMaxHeight()
+                        )
+                    }
+                ) {
+                    WeatherNavGraph(
+//                        navController = navController,
+                        navigator = navigator,
+                        navigationState = navigationState,
+                        appViewModel = appViewModel,
+                        homeViewModel = homeViewModel,
+                        addLocationViewModel = addLocationViewModel,
+                        preferenceViewModel = preferenceViewModel,
+                        donateViewModel = donateViewModel,
+                        donateState = donateState,
+                        appSettings = appSettings,
+                        locationListState = locationListState,
+//                        appUiState = uiState,
+                        modifier = modifier.fillMaxSize(),
+                        singlePane = false,
+                        permanentDrawer = true,
+                        drawerOpen = false,
+                    )
+                }
+            }
+
+//            NavigationRail {
+//
+//            }
+        }
+        else -> {
             val singlePane by remember { derivedStateOf { mainActivity.windowWidth < 720.dp.toPx(density) } }
-//            Log.i("loc1", "count = $locationsCount")
             MyNavigationDrawer(
                 modifier = modifier,
                 enabled = locationsCount > 0,
@@ -213,26 +404,20 @@ fun AppScreen(
                                 else 0f
                             }
                             .fillMaxSize()
-                            /*.graphicsLayer {
-                                val scale = lerp(1f, 1.1f, abs(drawerOffset.value)/drawerWidthPx)
-                                translationX = drawerOffset.value
-                                transformOrigin = TransformOrigin(1f, 0.5f)
-                                scaleX = scale
-                                scaleY = scale
-                            }
-                            .blur(
-                                radius = lerp(0.dp, 8.dp, abs(drawerOffset.value)/drawerWidthPx)
-                            )*/,
-                        navigationScreenItems = screenItems,
-                        selectedItem = uiState.currentScreen,
+                        /*.graphicsLayer {
+                            val scale = lerp(1f, 1.1f, abs(drawerOffset.value)/drawerWidthPx)
+                            translationX = drawerOffset.value
+                            transformOrigin = TransformOrigin(1f, 0.5f)
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                        .blur(
+                            radius = lerp(0.dp, 8.dp, abs(drawerOffset.value)/drawerWidthPx)
+                        )*/,
+                        navigationItems = screenItems,
+                        selectedItem = navigationState.topLevelRoute,
                         onSelectItem = {
-                            val screenAlreadyVisited = isDestinationInBackStack(navController, it)
-//                            appViewModel.updateScreen(screen = uiState.currentScreen)
-                            if (screenAlreadyVisited)
-                                navController.popBackStack(route = it, inclusive = false)
-                            else
-                                navController.navigate(route = it)
-
+                            navigator.navigate(it)
                             scope.launch {
 //                            drawerState.close()
                                 drawerOffset.animateTo(-drawerWidthPx)
@@ -260,13 +445,18 @@ fun AppScreen(
 //                        )
                     ) {
                         WeatherNavGraph(
-                            navController = navController,
+//                            navController = navController,
+                            navigator = navigator,
+                            navigationState = navigationState,
                             appViewModel = appViewModel,
                             homeViewModel = homeViewModel,
                             addLocationViewModel = addLocationViewModel,
                             preferenceViewModel = preferenceViewModel,
                             donateViewModel = donateViewModel,
+                            donateState = donateState,
                             appSettings = appSettings,
+                            locationListState = locationListState,
+
                             singlePane = singlePane,
                             permanentDrawer = false,
                             drawerOpen = drawerOpen,
@@ -349,156 +539,6 @@ fun AppScreen(
                     }
                 )
             }*/
-        }
-        else -> {
-            val modalDrawer by remember { derivedStateOf { mainActivity.windowWidth < 1000.dp.toPx(density) } }
-            if (modalDrawer) {
-                MyNavigationDrawer(
-                    modifier = modifier,
-                    enabled = locationsCount > 0,
-                    drawerOffset = drawerOffset,
-                    drawerWidthPx = drawerWidthPx,
-                    drawerContent = {
-                        WeatherDrawerContent(
-                            modifier = Modifier
-                                .graphicsLayer {
-                                    alpha = if (drawerOffset.value > -drawerWidthPx + 1) 1f
-                                    else 0f
-                                }
-                                .fillMaxSize()
-                            /*.graphicsLayer {
-                                val scale = lerp(1f, 1.1f, abs(drawerOffset.value)/drawerWidthPx)
-                                translationX = drawerOffset.value
-                                transformOrigin = TransformOrigin(1f, 0.5f)
-                                scaleX = scale
-                                scaleY = scale
-                            }
-                            .blur(
-                                radius = lerp(0.dp, 8.dp, abs(drawerOffset.value)/drawerWidthPx)
-                            )*/,
-                            navigationScreenItems = screenItems,
-                            selectedItem = uiState.currentScreen,
-                            onSelectItem = {
-                                val screenAlreadyVisited = isDestinationInBackStack(navController, it)
-//                            appViewModel.updateScreen(screen = uiState.currentScreen)
-                                if (screenAlreadyVisited)
-                                    navController.popBackStack(route = it, inclusive = false)
-                                else
-                                    navController.navigate(route = it)
-
-                                scope.launch {
-//                            drawerState.close()
-                                    drawerOffset.animateTo(-drawerWidthPx)
-                                }
-                            }
-                        )
-                    },
-                    content = { drawerOpen ->
-                        Box(modifier = Modifier.fillMaxSize()
-                            .graphicsLayer {
-                                val scale = lerp(0.8f, 1f, abs(drawerOffset.value)/drawerWidthPx)
-                                transformOrigin = TransformOrigin(0f, 0.5f)
-                                cameraDistance = 30f
-                                scaleX = scale
-                                scaleY = scale
-//                            rotationY = lerp(-20f, 0f, abs(drawerOffset.value)/drawerWidthPx)
-                                translationX = (drawerOffset.value + drawerWidthPx) / 1
-                                clip = true
-                                shape = RoundedCornerShape(if (drawerOffset.value > -drawerWidthPx) 16.dp else 0.dp)
-                                shadowElevation = 4.dp.toPx()
-                            }
-                            .background(MaterialTheme.colorScheme.background)
-//                        .blur(
-//                            radius = lerp(8.dp, 0.dp, abs(drawerOffset.value)/drawerWidthPx)
-//                        )
-                        ) {
-                            WeatherNavGraph(
-                                navController = navController,
-                                appViewModel = appViewModel,
-                                homeViewModel = homeViewModel,
-                                addLocationViewModel = addLocationViewModel,
-                                preferenceViewModel = preferenceViewModel,
-                                donateViewModel = donateViewModel,
-                                appSettings = appSettings,
-                                singlePane = false,
-                                permanentDrawer = false,
-                                drawerOpen = drawerOpen,
-                                onMenuButtonClick = {
-                                    scope.launch {
-//                                drawerState.open()
-                                        drawerOffset.animateTo(0f)
-                                    }
-                                }
-                            )
-                            if (drawerOffset.value > -drawerWidthPx) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(
-                                            color = lerp(
-                                                start = TransparentBlack,
-                                                stop = scrimColor,
-                                                fraction = (drawerOffset.value + drawerWidthPx) / drawerWidthPx,
-                                            )
-                                        )
-                                        .clickable(
-                                            interactionSource = null,
-                                            indication = null,
-                                            onClick = {
-                                                scope.launch {
-                                                    drawerOffset.animateTo(-drawerWidthPx)
-                                                }
-                                            }
-                                        )
-                                ) {}
-                            }
-                        }
-                    }
-                )
-            } else {
-                PermanentNavigationDrawer(
-                    modifier = Modifier.width(dimensionResource(R.dimen.drawer_width)),
-                    drawerContent = {
-                        WeatherDrawerContent(
-                            navigationScreenItems = screenItems,
-                            selectedItem = uiState.currentScreen,
-                            onSelectItem = {
-                                if (it !is Settings || locationsCount > 0) {
-                                    val screenAlreadyVisited =
-                                        isDestinationInBackStack(navController, it)
-                                    appViewModel.updateScreen(screen = it)
-                                    if (screenAlreadyVisited)
-                                        navController.popBackStack(route = it, inclusive = false)
-                                    else
-                                        navController.navigate(route = it)
-                                }
-                            },
-                            modifier = Modifier
-                                .width(dimensionResource(R.dimen.drawer_width))
-                                .fillMaxHeight()
-                        )
-                    }
-                ) {
-                    WeatherNavGraph(
-                        navController = navController,
-                        appViewModel = appViewModel,
-                        homeViewModel = homeViewModel,
-                        addLocationViewModel = addLocationViewModel,
-                        preferenceViewModel = preferenceViewModel,
-                        donateViewModel = donateViewModel,
-                        appSettings = appSettings,
-//                        appUiState = uiState,
-                        modifier = modifier.fillMaxSize(),
-                        singlePane = false,
-                        permanentDrawer = true,
-                        drawerOpen = false,
-                    )
-                }
-            }
-
-//            NavigationRail {
-//
-//            }
         }
     }
 
@@ -698,9 +738,9 @@ fun PurchaseSuccessDialog(
 
 @Composable
 fun WeatherDrawerContent(
-    navigationScreenItems: List<DrawerNavigationItem>,
-    selectedItem: Screen,
-    onSelectItem: (Screen) -> Unit,
+    navigationItems: List<DrawerNavigationItem>,
+    selectedItem: NavKey,
+    onSelectItem: (NavKey) -> Unit,
     modifier: Modifier = Modifier
 ) {
     ModalDrawerSheet (
@@ -708,7 +748,7 @@ fun WeatherDrawerContent(
     ) {
         Text("Drawer title", modifier = Modifier.padding(16.dp))
         HorizontalDivider()
-        navigationScreenItems.forEachIndexed { index, navigationItem ->
+        navigationItems.forEachIndexed { index, navigationItem ->
             if (index == 4)
                 HorizontalDivider()
 

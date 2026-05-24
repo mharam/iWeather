@@ -53,4 +53,9 @@ interface RemoteWeatherRepository {
         longitude: Float,
         weatherQuantities: List<String>
     ): MyResult<out List<Float?>>
+
+    suspend fun getYearlyPrecipitationFromServerBatch(
+        latitude: List<Float>,
+        longitude: List<Float>
+    ): MyResult<out List<Float?>>
 }

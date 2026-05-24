@@ -102,7 +102,6 @@ fun HomeItemDetailPane(
 
     var homeScreenWidth by rememberSaveable { mutableFloatStateOf(0f) }
     var homeScreenHeight by rememberSaveable { mutableFloatStateOf(0f) }
-//    var listBoxTopPadding by rememberSaveable { mutableFloatStateOf(0f) }
 
     val cardHeightPx = dimensionResource(R.dimen.home_card_max_height).toPx(density)
     val zoomMax = mainActivity.windowHeight / cardHeightPx
@@ -153,9 +152,7 @@ fun HomeItemDetailPane(
         detailViewModel.updateInitialXAxisBounds(
             detailScreenWidth = if (singlePane) width else width / 2
         )
-        for (pageIndex in detailState.indices) {
-            detailViewModel.initializeXAxisBounds(pageIndex)
-        }
+        detailViewModel.initializeXAxisBounds()
     }
 
     val locationIDs = locationListState.map { it.locationId }
@@ -372,6 +369,7 @@ fun HomeItemDetailPane(
                             },
                             onReloadALocationWeatherData = onReloadALocationWeatherData,
                             onUpdateClockGaugeLock = remember { homeViewModel::updateClockGaugeLock },
+                            onUpdateItemDragged = remember { homeViewModel::updateItemDragged },
                             onDownloadAndSaveLandscapes = remember {
                                 { context, picId, picUrl, picName ->
                                     homeViewModel.downloadAndSaveLandscapes(context, picId, picUrl, picName)
@@ -450,7 +448,8 @@ fun HomeItemDetailPane(
                         }
                     }
                 }
-            } else {
+            }
+            else {
                 Row(
                     modifier = Modifier.fillMaxSize()
                 ) {
@@ -641,6 +640,7 @@ fun HomeItemDetailPane(
                         },
                         onReloadALocationWeatherData = onReloadALocationWeatherData,
                         onUpdateClockGaugeLock = remember { homeViewModel::updateClockGaugeLock },
+                        onUpdateItemDragged = remember { homeViewModel::updateItemDragged },
                         onDownloadAndSaveLandscapes = remember {
                             { context, picId, picUrl, picName ->
                                 homeViewModel.downloadAndSaveLandscapes(context, picId, picUrl, picName)

@@ -1,6 +1,5 @@
 package com.takaapoo.weatherer.ui.screens.donate
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.LinearEasing
@@ -336,9 +335,9 @@ fun PayScreen(
             )
         }
     }
-    BackHandler(enabled = !drawerOpen) {
-        onNavigateUp()
-    }
+//    BackHandler(enabled = !drawerOpen) {
+//        onNavigateUp()
+//    }
 }
 
 @Composable
@@ -429,7 +428,7 @@ fun Connecting(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopCenter),
-            color = LoadingData,
+            color = MaterialTheme.colorScheme.primary,
             strokeCap = StrokeCap.Round
         )
 
@@ -446,7 +445,7 @@ fun Connecting(
                 text = loadingText,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight(500),
-                color = LoadingData
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }

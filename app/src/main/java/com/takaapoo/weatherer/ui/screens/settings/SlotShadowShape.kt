@@ -16,7 +16,8 @@ class SlotShadowShape() : Shape {
     ): Outline {
         val width = size.width
         val height = size.height
-        val slotPath = Path().apply {
+
+        return Outline.Generic(Path().apply {
             moveTo(0f, 0f)
             cubicTo(
                 x1 = width / 10, y1 = 0f,
@@ -29,10 +30,6 @@ class SlotShadowShape() : Shape {
                 x3 = width, y3 = 0f
             )
             close()
-        }
-
-        return Outline.Generic(Path().apply {
-            addPath(slotPath)
         })
     }
 }

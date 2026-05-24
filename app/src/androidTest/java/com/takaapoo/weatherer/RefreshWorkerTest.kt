@@ -1,7 +1,6 @@
 package com.takaapoo.weatherer
 
 import android.content.Context
-import androidx.hilt.work.HiltWorkerFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.work.ListenableWorker
 import androidx.work.testing.TestListenableWorkerBuilder
@@ -34,7 +33,7 @@ class RefreshWorkerTest {
     @Test
     fun refreshWorker_doWork_resultSuccess() {
         val worker = TestListenableWorkerBuilder<RefreshWorker>(context)
-            .setWorkerFactory(HiltWorkerFactory.getDefaultWorkerFactory())
+//            .setWorkerFactory(HiltWorkerFactory.getDefaultWorkerFactory())
             .build()
         runBlocking {
             val result = worker.doWork()

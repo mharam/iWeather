@@ -2,6 +2,7 @@ package com.takaapoo.weatherer.ui.screens.settings
 
 import android.content.Context
 import android.view.View
+import androidx.annotation.VisibleForTesting
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -103,6 +104,7 @@ import androidx.compose.ui.zIndex
 import androidx.core.app.NotificationManagerCompat
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
+import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.databinding.NotificationLarge2Binding
 import com.takaapoo.weatherer.databinding.NotificationSmallBinding
 import com.takaapoo.weatherer.domain.WeatherType
@@ -110,6 +112,7 @@ import com.takaapoo.weatherer.domain.WeatherType.Companion.calculateMoonType
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
+import com.takaapoo.weatherer.domain.model.SettingsState
 import com.takaapoo.weatherer.ui.notification.NotificationSender
 import com.takaapoo.weatherer.ui.notification.custom_views.CurrentIcon
 import com.takaapoo.weatherer.ui.notification.custom_views.CurrentValue
@@ -121,6 +124,10 @@ import com.takaapoo.weatherer.ui.notification.custom_views.StatusBarIcon
 import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.HistoricalState
 import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
+import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartGrids
+import com.takaapoo.weatherer.ui.screens.settings.dialogs.ChooseDiagramGridDialog
+import com.takaapoo.weatherer.ui.screens.settings.dialogs.ChooseLocationDialog
+import com.takaapoo.weatherer.ui.screens.settings.dialogs.ChooseTimeAxisDialog
 import com.takaapoo.weatherer.ui.theme.Gray30
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.utility.getColorScheme
@@ -151,6 +158,8 @@ fun NotificationSettingsScreen(
     singlePane: Boolean,
     notificationHourlyChartData: List<HourlyChartDto>,
     notificationDailyChartData: List<LocalDailyWeather>,
+    settingsState: SettingsState,
+    allLocations: List<Location>,
 
     onUpdateNotificationVisibility: (visible: Boolean) -> Unit,
     onUpdateNotificationCurrentQuantities: (quantity: HourlyWeatherQuantity, addRemove: Boolean) -> Unit,
@@ -168,9 +177,63 @@ fun NotificationSettingsScreen(
     onUpdateLocationDialogVisibility: (visible: Boolean) -> Unit,
     onUpdateNotificationWeatherIconVisibility: (visible: Boolean) -> Unit,
     onUpdateNotificationDateTimeDialogVisibility: (visible: Boolean) -> Unit,
+    onUpdateNotificationTimeAxis: (time: HourlyDiagramTime) -> Unit,
+    onUpdateDailyNotificationChartGrid: (grid: ChartGrids) -> Unit,
+    onUpdateNotificationDateTime: (time: HourlyDiagramTime) -> Unit,
+    onUpdateNotificationLocationDialogVisibility: (visible: Boolean) -> Unit,
+    onUpdateNotificationLocationId: (id: Int) -> Unit,
 
     onNavigateUp: () -> Unit
 ) {
+    when {
+        settingsState.notificationTimeAxisDialogVisibility -> {
+            ChooseTimeAxisDialog(
+                time = appSettings.notificationHourlyDiagramTime,
+                onDismiss = {
+                    onUpdateNotificationTimeAxisDialogVisibility(false)
+                },
+                onConfirmation = {
+                    onUpdateNotificationTimeAxis(it)
+                }
+            )
+        }
+        settingsState.notificationDiagramGridDialogVisibility -> {
+            ChooseDiagramGridDialog(
+                chartGrid = appSettings.notificationDailyChartGrid,
+                onDismiss = {
+                    onUpdateGridDialogVisibility(false)
+                },
+                onConfirmation = {
+                    onUpdateDailyNotificationChartGrid(it)
+                },
+            )
+        }
+        settingsState.notificationDateTimeDialogVisibility -> {
+            ChooseTimeAxisDialog(
+                time = appSettings.notificationDateTime,
+                title = "Date and time",
+                onDismiss = {
+                    onUpdateNotificationDateTimeDialogVisibility(false)
+                },
+                onConfirmation = {
+                    onUpdateNotificationDateTime(it)
+                }
+            )
+        }
+        settingsState.notificationLocationDialogVisibility -> {
+            ChooseLocationDialog(
+                locationList = allLocations,
+                locationId = appSettings.notificationLocationId,
+                onDismiss = {
+                    onUpdateNotificationLocationDialogVisibility(false)
+                },
+                onConfirmation = {
+                    onUpdateNotificationLocationId(it)
+                }
+            )
+        }
+    }
+
     val context = LocalContext.current
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
@@ -220,7 +283,7 @@ fun NotificationSettingsScreen(
     }
     var maxHeight by remember { mutableStateOf(0.dp) }
     var notificationPartHeight by remember { mutableIntStateOf(0) }
-    var settingsVisibility  = appSettings.notificationVisibility &&
+    val settingsVisibility  = appSettings.notificationVisibility &&
             notificationManager.areNotificationsEnabled()
 
     var curvesColor by rememberSaveable { mutableStateOf(appSettings.notificationCurvesColor) }
@@ -459,7 +522,7 @@ fun NotificationSettingsScreen(
                         )
 
                         AndroidViewBinding(
-                            factory = { layoutInflater, viewGroup, _ ->
+                            factory = { layoutInflater, _, _ ->
                                 NotificationSmallBinding.inflate(layoutInflater).apply {
                                     smallLayout(
                                         context = context,
@@ -523,7 +586,7 @@ fun NotificationSettingsScreen(
                             }
 
                             AndroidViewBinding(
-                                factory = { layoutInflater, viewGroup, _ ->
+                                factory = { layoutInflater, _, _ ->
                                     NotificationLarge2Binding.inflate(layoutInflater)
                                         .apply {
                                             header1.setOnClickListener {
@@ -793,7 +856,8 @@ fun NotificationSettingsScreen(
     }
 }
 
-private fun NotificationSmallBinding.smallLayout(
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+internal fun NotificationSmallBinding.smallLayout(
     context: Context,
     hourlyChartData: List<HourlyChartDto>,
     appSettings: AppSettings,

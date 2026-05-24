@@ -1,7 +1,6 @@
 package com.takaapoo.weatherer
 
 import android.Manifest
-import android.app.Activity
 import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -17,8 +16,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.provider.Settings
 import android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS
 import android.provider.Settings.EXTRA_APP_PACKAGE
+import android.util.Log
 import android.view.View
 import android.view.ViewTreeObserver
 import android.widget.Toast
@@ -57,6 +58,7 @@ import com.takaapoo.weatherer.ui.viewModels.PreferenceViewModel
 import com.takaapoo.weatherer.utility.getWindowSize
 import com.takaapoo.weatherer.utility.readMoonPhaseBinFromAssets
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
@@ -150,6 +152,7 @@ class MainActivity : ComponentActivity() {
                         false
                     } else {
                         // The content is ready. Start drawing.
+                        Log.i("delete1", "locationListState 3 = ${homeViewModel.locationsState.value.map { it.locationId }}")
                         content.viewTreeObserver.removeOnPreDrawListener(this)
                         true
                     }
@@ -187,20 +190,25 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val appSettings by preferenceViewModel.appSettings.collectAsStateWithLifecycle()
-            WeathererTheme(
-                appSettings = appSettings
-            ) {
-                // A surface container using the 'background' color from the theme
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+            val locationListState by homeViewModel.locationsState.collectAsStateWithLifecycle()
+            if (locationListState.firstOrNull()?.locationId != -2){
+                WeathererTheme(
+                    appSettings = appSettings
                 ) {
-                    AppScreen(
+                    // A surface container using the 'background' color from the theme
+                    Surface(
                         modifier = Modifier.fillMaxSize(),
-                        homeViewModel = homeViewModel,
-                        addLocationViewModel = addLocationViewModel,
-                        preferenceViewModel = preferenceViewModel
-                    )
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        AppScreen(
+                            modifier = Modifier.fillMaxSize(),
+                            homeViewModel = homeViewModel,
+                            addLocationViewModel = addLocationViewModel,
+                            preferenceViewModel = preferenceViewModel,
+                            appSettings = appSettings,
+                            locationListState = locationListState.toImmutableList(),
+                        )
+                    }
                 }
             }
         }
@@ -258,7 +266,7 @@ class MainActivity : ComponentActivity() {
         val locationSettingsStates = data?.let { LocationSettingsStates.fromIntent(it) }
         when (requestCode){
             REQUEST_CHECK_SETTINGS -> {
-                if (resultCode == Activity.RESULT_OK){
+                if (resultCode == RESULT_OK){
                     lifecycleScope.launch {
                         delay(150)
                         addLocationViewModel.goToMyLocation(this@MainActivity)
@@ -336,7 +344,7 @@ class MainActivity : ComponentActivity() {
 
     fun goToAlarmSettings(){
         goneToAlarmPermissionSettings = true
-        val intent = Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
             data = Uri.parse("package:${packageName}")
             flags = Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }

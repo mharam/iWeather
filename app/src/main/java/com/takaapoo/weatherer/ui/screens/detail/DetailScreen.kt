@@ -1,5 +1,6 @@
 package com.takaapoo.weatherer.ui.screens.detail
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager
@@ -46,6 +47,8 @@ fun DetailScreen(
     historicalChartStateList: List<HourlyChartState>,
     historicalDailyChartStateList: List<DailyChartState>,
     detailViewModel: DetailViewModel,
+    singlePane: Boolean = true,
+//    dataReady: Boolean = true,
 //    sharedTransitionScope: SharedTransitionScope,
 //    animatedContentScope: AnimatedContentScope,
     onUpdateHomeSelectedItemIndex: (index: Int) -> Unit,
@@ -96,6 +99,7 @@ fun DetailScreen(
         state = pagerState,
         beyondViewportPageCount = 0,
         pageSpacing = 8.dp,
+        userScrollEnabled = singlePane
     ) { page ->
         val width = pagerState.layoutInfo.viewportSize.width
         val endOffset = pagerState.endOffsetForPage(page)
@@ -175,8 +179,10 @@ fun DetailScreen(
                 defaultValue = { emptyList() }
             ),
             pageNumber = page,
+            singlePane = singlePane,
             appSettings = appSettings,
             initialLandscape = detailViewModel.initialLandScape,
+//            dataReady = dataReady,
 
             onResetScrollStates = {
                 detailState.filterIndexed { index, _ ->
@@ -195,6 +201,12 @@ fun DetailScreen(
         )
     }
 
+    BackHandler(enabled = singlePane) {
+        detailViewModel.updateNavigateBack(
+            state = true,
+            pageIndex = pagerState.currentPage
+        )
+    }
 //    BackHandler {
 //        detailViewModel.updateNavigateBack(
 //            state = true,

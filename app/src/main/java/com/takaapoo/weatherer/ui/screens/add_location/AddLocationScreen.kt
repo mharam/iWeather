@@ -88,7 +88,8 @@ fun AddLocationScreen(
     onUpdateLocationCountDialogVisibility: (visible: Boolean) -> Unit,
     onUpdateAddLocationHelpVisibility: (visible: Boolean) -> Unit,
     onNavigateToDonateScreen: () -> Unit,
-    onShowPrecipitation: (location: LatLng) -> Unit
+    onShowPrecipitation: (location: LatLng) -> Unit,
+    onReInitialize: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -338,7 +339,9 @@ fun AddLocationScreen(
             )
         }
     }
-
+    LifecycleEventEffect(event = Lifecycle.Event.ON_PAUSE) {
+        onReInitialize()
+    }
 }
 
 

@@ -7,53 +7,6 @@ enum class GraphTypes{
     STEP, LINEAR, CUBIC
 }
 
-/*fun generateCubicGraph2(
-    data: List<Float?>,
-    controlPoints1: List<Offset?>,
-    controlPoints2: List<Offset?>,
-    firstPointX: Float,
-    diagramWidth: Float,
-    diagramHeight: Float,
-    xAxisRange: ClosedFloatingPointRange<Float>,
-    yAxisRange: ClosedFloatingPointRange<Float>,
-    horizontalPadding: Float,
-    verticalPadding: Float
-): List<Path> {
-    val xAxisLength = xAxisRange.endInclusive - xAxisRange.start
-    val yAxisLength = yAxisRange.endInclusive - yAxisRange.start
-
-    val dataList = data.nonNullDataSegments()
-    val allPaths = mutableListOf<Path>()
-    var x: Float
-
-    dataList.forEach {
-        x = firstPointX + it.key
-        val path = Path()
-        val firstPointY = it.value[0]
-        path.moveTo(
-            x = normalizedX(x, xAxisRange.start,xAxisLength, horizontalPadding, diagramWidth),
-            y = normalizedY(firstPointY, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight)
-        )
-        it.value.subList(1, it.value.size).forEachIndexed { i, y ->
-            path.cubicTo(
-                x1 = normalizedX(x + controlPoints1[i+it.key]!!.x, xAxisRange.start,
-                    xAxisLength, horizontalPadding, diagramWidth),
-                y1 = normalizedY(controlPoints1[i+it.key]!!.y, yAxisRange.start, yAxisLength,
-                    verticalPadding, diagramHeight),
-                x2 = normalizedX(x + controlPoints2[i+it.key]!!.x, xAxisRange.start,
-                    xAxisLength, horizontalPadding, diagramWidth),
-                y2 = normalizedY(controlPoints2[i+it.key]!!.y, yAxisRange.start, yAxisLength,
-                    verticalPadding, diagramHeight),
-                x3 = normalizedX(x + 1, xAxisRange.start,xAxisLength, horizontalPadding, diagramWidth),
-                y3 = normalizedY(y, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight)
-            )
-            x++
-        }
-        allPaths.add(path)
-    }
-    return allPaths
-}*/
-
 fun <E> Iterable<E>.indicesOf(e: E) = mapIndexedNotNull{ index, elem -> index.takeIf{ elem == e } }
 fun List<Float?>.nonNullDataSegments(): Map<Int, List<Float>>{
     val firstNonNullDataIndex = indexOfFirst { it != null }

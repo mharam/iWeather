@@ -33,12 +33,12 @@ class AddLocationUseCase @Inject constructor(
 
     suspend fun setLocationTime(location: Location): MyResult<out String>{
         try {
-//            Log.i("await1", "setting ${location.name} time")
+//            Log.i("update1", "setting ${location.name} time")
             val result = timeRepository.getTime(
                 latitude = location.latitude,
                 longitude = location.longitude
             )
-//            Log.i("await1", "set ${location.name} time")
+//            Log.i("update1", "set ${location.name} time")
             return if (result is MyResult.Success){
                 locationRepository.updateLocationUtcOffset(
                     name = location.name,
@@ -59,5 +59,5 @@ class AddLocationUseCase @Inject constructor(
     suspend fun countLocationWithName(locationName: String) =
         locationRepository.countLocationWithName(locationName)
 
-    suspend fun getLocation(text: String) = locationRepository.getLocation(text)
+    suspend fun getLocation(name: String) = locationRepository.getLocation(name)
 }

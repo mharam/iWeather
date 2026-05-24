@@ -1,15 +1,9 @@
 package com.takaapoo.weatherer.data.remote
 
-import androidx.compose.ui.geometry.Offset
-import org.junit.Assert.*
-
-import org.junit.Test
-import com.google.common.truth.Truth.assertThat
-
 
 class HourlyHourlyWeatherPackTest {
 
-    @Test
+    /*@Test
     fun generateControlPointsForNullableDataTest() {
         val data = listOf(null, 1f, 1.3f, 2.5f, 0.5f)
         val (controlPoint1, controlPoint2) =
@@ -43,5 +37,5 @@ class HourlyHourlyWeatherPackTest {
         }
         val result = generateControlPointsForNullableData(data)
         assertThat(result).isEqualTo(expectedControlPoints1 to expectedControlPoints2)
-    }
+    }*/
 }

@@ -67,7 +67,6 @@ fun DrawScope.dailyDiagramLegends(
     onCalculateVerticalBarSeparation:
         (start: Float, end: Float, diagramWidth: Float, textMeasurer: TextMeasurer) -> Pair<Int, Float>
 ) {
-//    Log.i("chart1", "dailyDiagramLegends")
     val diagramRectangle = RoundRect(
         left = horizontalPadding,
         top = verticalPadding,

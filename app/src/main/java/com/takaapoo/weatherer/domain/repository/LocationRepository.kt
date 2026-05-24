@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 interface LocationRepository {
     suspend fun addLocation(location: Location): Int
     fun getAllLocations(): Flow<List<Location>>
-    fun getLocationFlow(locationId: Int): Flow<Location>
+    fun getLocationFlow(locationId: Int): Flow<Location?>
     suspend fun getLocation(locationId: Int): Location?
     suspend fun getAllLocationsList(): List<Location>
     suspend fun deleteLocation(locationName: String)

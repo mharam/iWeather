@@ -19,7 +19,7 @@ interface LocationDao {
     fun getAllLocations(): Flow<List<Location>>
 
     @Query("SELECT * FROM locations WHERE id = :locationId")
-    fun getLocationFlow(locationId: Int): Flow<Location>
+    fun getLocationFlow(locationId: Int): Flow<Location?>
 
     @Query("SELECT * FROM locations WHERE id = :locationId")
     suspend fun getLocation(locationId: Int): Location?

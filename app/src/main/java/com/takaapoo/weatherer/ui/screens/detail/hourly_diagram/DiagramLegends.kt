@@ -281,7 +281,7 @@ fun DrawScope.diagramLegends(
 // Returns true if value is in night time
 fun List<Pair<Float?, Float?>>.contain(value: Float): Boolean{
     this.forEach {
-        if (value >= (it.first?:Float.MAX_VALUE) && value < (it.second?:(-1000000f)))
+        if (value >= (it.first?:Float.MAX_VALUE) && value < (it.second?:(-Float.MAX_VALUE)))
             return false
     }
     return true
@@ -290,7 +290,7 @@ fun List<Pair<Float?, Float?>>.contain(value: Float): Boolean{
 
 fun Float.customToString(separation: Float): String {
     val order = log10(separation)
-    if (abs(this) /separation < 0.01) return "0"
+//    if (abs(this) /separation < 0.01) return "0"
     return when {
         order > 2 -> "%d".format(this.roundToInt())
         order > -0.01f -> {

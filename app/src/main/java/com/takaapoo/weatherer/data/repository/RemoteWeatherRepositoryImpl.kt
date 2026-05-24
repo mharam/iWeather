@@ -149,7 +149,7 @@ class RemoteWeatherRepositoryImpl @Inject constructor(
                 longitude = longitude,
                 startDate = startDate,
                 endDate = endDate,
-                    hourly = weatherQuantities.map { it.serverName!! } + listOf("is_day", "weathercode")
+                hourly = weatherQuantities.map { it.serverName!! } + listOf("is_day", "weathercode")
             )
         } catch (e: Exception){
             return MyResult.Error(exception = e)
@@ -219,5 +219,37 @@ class RemoteWeatherRepositoryImpl @Inject constructor(
             MyResult.Success(wholeQuantity)
         } else
             MyResult.Error(message = "Retrieving data from server failed! Check your internet connection and try again later.")
+    }
+
+    override suspend fun getYearlyPrecipitationFromServerBatch(
+        latitude: List<Float>,
+        longitude: List<Float>,
+    ): MyResult<out List<Float?>> {
+        val startDate = "2006-01-01"
+        val endDate = "2015-12-31"
+        val daysCount = ChronoUnit.DAYS.between(
+            LocalDate.parse(startDate),
+            LocalDate.parse(endDate).plusDays(1)
+        )
+        val response = try {
+            historicWeatherApiService.getHistoricDailyPrecipitationBatch(
+                latitude = latitude,
+                longitude = longitude,
+                startDate = startDate,
+                endDate = endDate,
+            )
+        } catch (e: Exception){
+            return MyResult.Error(exception = e)
+        }
+        return if (response.isSuccessful && response.body() != null) {
+            val result = response.body()!!.map { dailyWeatherPack ->
+                val sum = dailyWeatherPack.dailyWeather.precipitationSum.filterNotNull().sum()
+                val nullDays = dailyWeatherPack.dailyWeather.precipitationSum.count { it == null }
+                365 * sum / (daysCount - nullDays)
+            }
+            MyResult.Success(result)
+        } else
+            MyResult.Error(message = "Retrieving data from server failed! Check your internet connection and try again later.")
+
     }
 }

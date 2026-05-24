@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -132,7 +133,8 @@ fun HomeCardWeatherQuantityScreen(
                         end = dimensionResource(R.dimen.home_card_spacing),
                         top = dimensionResource(R.dimen.home_card_spacing),
                         bottom = dimensionResource(R.dimen.home_card_spacing)
-                    )
+                    ),
+                contentAlignment = Alignment.Center
             ) {
                 WeatherItemFake(
                     itemState = itemState,

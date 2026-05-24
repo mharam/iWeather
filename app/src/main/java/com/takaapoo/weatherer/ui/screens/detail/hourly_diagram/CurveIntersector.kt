@@ -1,5 +1,6 @@
 package com.takaapoo.weatherer.ui.screens.detail.hourly_diagram
 
+import android.util.Log
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.util.lerp
 import com.takaapoo.weatherer.data.local.LocalAirQuality
@@ -7,20 +8,11 @@ import com.takaapoo.weatherer.data.local.LocalHistoricHourlyWeather
 import com.takaapoo.weatherer.data.local.LocalHourlyWeather
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
-import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.acos
-import kotlin.math.acosh
-import kotlin.math.asinh
 import kotlin.math.ceil
-import kotlin.math.cos
-import kotlin.math.cosh
 import kotlin.math.floor
 import kotlin.math.pow
 import kotlin.math.roundToInt
-import kotlin.math.sign
-import kotlin.math.sinh
-import kotlin.math.sqrt
 
 fun cubicCurveXtoY(
     data: List<Float?>,
@@ -30,17 +22,27 @@ fun cubicCurveXtoY(
     lastPointX: Float,
     targetX: Float
 ): Float?{
+    if (controlPoints1.size < data.size - 1 || controlPoints2.size < data.size - 1) return null
     val firstNonNullIndex = data.indexOfFirst { it != null }
     val lastNonNullIndex = data.indexOfLast { it != null }
     if (data.isEmpty() || firstNonNullIndex == -1 || targetX < firstPointX + firstNonNullIndex
         || targetX > lastPointX - (data.size - 1 - lastNonNullIndex)) return null
 
     val distance = targetX - firstPointX
+    if (distance.isNaN()) return Float.NaN
+
     if (distance.isInteger() && data[distance.roundToInt()] != null) return data[distance.roundToInt()]
 
-    val firstDataIndex = floor(distance).roundToInt()
-    val secondDataIndex = ceil(distance).roundToInt()
-    if (data[firstDataIndex] == null || data[secondDataIndex] == null) return null
+    var firstDataIndex = floor(distance).roundToInt()
+    var secondDataIndex = ceil(distance).roundToInt()
+    Log.i("target1", "firstDataIndex = $firstDataIndex , data = ${data[firstDataIndex]}")
+    while (data[firstDataIndex] == null && firstDataIndex > firstPointX)
+        firstDataIndex--
+    while (data[secondDataIndex] == null && secondDataIndex < lastPointX)
+        secondDataIndex++
+
+    if (data[firstDataIndex] == null || data[secondDataIndex] == null ||
+        controlPoints1[firstDataIndex] == null || controlPoints2[firstDataIndex] == null) return null
 
     try {
         val k0 = MyOffset(x = firstPointX.toDouble() + firstDataIndex, y = data[firstDataIndex]!!.toDouble())
@@ -58,29 +60,31 @@ fun cubicCurveXtoY(
         val b = k0*3.0 - k1*6.0 + k2*3.0
         val c = (-k0 + k1)*3.0
         val d = k0 - MyOffset(targetX.toDouble(), 0.0)
+        val targetT = (targetX.toDouble() - firstDataIndex)/(secondDataIndex - firstDataIndex)
 
-        val p = (a*c*3.0 - b*b) / (a*a*3.0)
-        val q = (b*b*b*2.0 - a*b*c*9.0 + a*a*d*27.0) / (a*a*a*27.0)
-        val discriminant = q * q / 4.0 + p * p * p / 27.0
-        var targetT = (k0.x + k3.x)/2
-
-        val param = ((3*q.x) / (2*p.x)) * sqrt(-3 / p.x)
-        when {
-            p.x < 0 -> {
-                if (abs(param) <= 1) {
-                    for (k in 0..2) {
-                        targetT = 2 * sqrt(-p.x / 3) * cos(acos(param) / 3 - (2 * PI * k / 3).toFloat())
-                        if (targetT - b.x / (3*a.x) in 0f..1f) break
-                    }
-                } else if (discriminant.x > 0) {
-                    targetT = -2 * sign(q.x) * sqrt(-p.x / 3) * cosh(acosh(-param * sign(q.x))/3)
-                }
-            }
-            else -> {
-                targetT = -2 * sqrt(p.x / 3) * sinh(asinh(((3*q.x) / (2*p.x)) * sqrt(3 / p.x))/3)
-            }
-        }
-        targetT -= b.x / (3 * a.x)
+//        val p = (a*c*3.0 - b*b) / (a*a*3.0)
+//        val q = (b*b*b*2.0 - a*b*c*9.0 + a*a*d*27.0) / (a*a*a*27.0)
+//        val discriminant = q * q / 4.0 + p * p * p / 27.0
+//        var targetT = (k0.x + k3.x)/2
+//
+//        val param = ((3*q.x) / (2*p.x)) * sqrt(-3 / p.x)
+//        when {
+//            p.x < 0 -> {
+//                if (abs(param) <= 1) {
+//                    for (k in 0..2) {
+//                        targetT = 2 * sqrt(-p.x / 3) * cos(acos(param) / 3 - (2 * PI * k / 3).toFloat())
+//                        if (targetT - b.x / (3*a.x) in 0f..1f) break
+//                    }
+//                } else if (discriminant.x > 0) {
+//                    targetT = -2 * sign(q.x) * sqrt(-p.x / 3) * cosh(acosh(-param * sign(q.x))/3)
+//                }
+//            }
+//            else -> {
+//                targetT = -2 * sqrt(p.x / 3) * sinh(asinh(((3*q.x) / (2*p.x)) * sqrt(3 / p.x))/3)
+//            }
+//        }
+//        targetT -= b.x / (3 * a.x)
+        Log.i("target1", "targetT = $targetT , targetX = $targetX , firstDataIndex = $firstDataIndex")
         val result = a.y * targetT.pow(3) + b.y * targetT.pow(2) + c.y * targetT + d.y
         return result.toFloat()
     } catch (_: Throwable){
@@ -96,13 +100,13 @@ fun linearCurveXtoY(
 ): Float?{
     val firstNonNullIndex = data.indexOfFirst { it != null }
     val lastNonNullIndex = data.indexOfLast { it != null }
-//    Log.i("air1", "firstNonNullIndex = $firstNonNullIndex , targetX = $targetX , firstPointX = $firstPointX , lastPointX = $lastPointX , lastNonNullIndex = $lastNonNullIndex , ${data[lastNonNullIndex]} , data size = ${data.size}")
 
     if (data.isEmpty() || firstNonNullIndex == -1 || targetX < firstPointX + firstNonNullIndex
-        || targetX > lastPointX /*- (data.size - 1 - lastNonNullIndex)*/) return null
+        || targetX > lastPointX - (data.size - 1 - lastNonNullIndex)) return null
 
-//    Log.i("air1", "NOT NULL!")
     val distance = targetX - firstPointX
+    if (distance.isNaN()) return Float.NaN
+
     if (distance.isInteger() && data.getOrNull(distance.roundToInt()) != null) return data[distance.roundToInt()]
 
     return runCatching {
@@ -110,9 +114,6 @@ fun linearCurveXtoY(
         val firstDataIndex = data.subList(0, upperDistanceIndex).indexOfLast { it != null }
         val secondIndex = data.subList(upperDistanceIndex, data.size).indexOfFirst { it != null }
         val secondDataIndex = secondIndex + upperDistanceIndex
-
-//    val firstDataIndex = floor(distance).roundToInt()
-//    val secondDataIndex = ceil(distance).roundToInt()
 
         if (firstDataIndex == -1 || secondIndex == -1 ||
             firstDataIndex < firstNonNullIndex || secondDataIndex > lastNonNullIndex ||
@@ -138,16 +139,13 @@ fun stepCurveXtoY(
 ): Float?{
     val firstNonNullIndex = data.indexOfFirst { it != null }
     val lastNonNullIndex = data.indexOfLast { it != null }
-    if (data.isEmpty() || firstNonNullIndex == -1 || targetX < firstPointX + firstNonNullIndex
+    if (data.isEmpty() || firstNonNullIndex == -1 || targetX < firstPointX + firstNonNullIndex - 1
         || targetX > lastPointX - (data.size - 1 - lastNonNullIndex)) return null
 
     val distance = targetX - firstPointX
-    if (distance.isInteger() && data[distance.roundToInt()] != null) return data[distance.roundToInt()]
+    if (distance.isInteger() && data.getOrNull(distance.roundToInt()) != null) return data[distance.roundToInt()]
 
     val secondDataIndex = ceil(targetX - firstPointX).roundToInt()
-//    while (data[secondDataIndex] == null){
-//        secondDataIndex++
-//    }
     return data.getOrNull(secondDataIndex)
 }
 
@@ -181,11 +179,11 @@ fun weatherCurveXtoY(
                 data = data,
                 controlPoints1 = controlPoints1,
                 controlPoints2 = controlPoints2,
-                firstPointX = firstPointX,
-                lastPointX = lastPointX,
-                targetX = targetX
+                firstPointX = 0f,
+                lastPointX = lastPointX - firstPointX,
+                targetX = targetX - firstPointX
             )
-            if (cubicValue != Float.NaN && cubicValue != null) cubicValue
+            if (cubicValue != null && !cubicValue.isNaN()) cubicValue
             else linearCurveXtoY(
                 data = data,
                 firstPointX = firstPointX,

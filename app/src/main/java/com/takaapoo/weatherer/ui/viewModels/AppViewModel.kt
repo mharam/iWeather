@@ -1,10 +1,7 @@
 package com.takaapoo.weatherer.ui.viewModels
 
-import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.takaapoo.weatherer.data.HomePane
-import com.takaapoo.weatherer.data.Screen
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.repository.LocalWeatherRepository
@@ -39,12 +36,12 @@ class AppViewModel @Inject constructor(
             val locationId = appSettings.notificationLocationId /*?:
             locationRepository.getAllLocationsList().firstOrNull()?.id*/
             if (locationId != null) {
-                    hourlyChartDataUseCase(
-                        locationId = locationId,
-                        startDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1).toString(),
-                        endDate = LocalDate.now(ZoneId.of("UTC")).plusDays(3).toString(),
-                        appSettings = appSettings
-                    )
+                hourlyChartDataUseCase(
+                    locationId = locationId,
+                    startDate = LocalDate.now(ZoneId.of("UTC")).minusDays(1).toString(),
+                    endDate = LocalDate.now(ZoneId.of("UTC")).plusDays(3).toString(),
+                    appSettings = appSettings
+                )
             } else
                 emptyList()
         }.stateIn(
@@ -72,18 +69,18 @@ class AppViewModel @Inject constructor(
         )
 
 
-    fun updateScreen(screen: Screen){
+    /*fun updateScreen(screen: Screen){
         _uiState.update {
             it.copy(currentScreen = screen)
         }
-    }
+    }*/
 
     fun updateNotifChannelDialogVisibility(visible: Boolean){
         _uiState.update {
             it.copy(notifChannelDialogVisibility = visible)
         }
     }
-    fun updateNotificationBitmaps(bitmaps: List<Bitmap?>){
+    /*fun updateNotificationBitmaps(bitmaps: List<Bitmap?>){
         _uiState.update {
             it.copy(notificationBitmaps = bitmaps)
         }
@@ -92,14 +89,14 @@ class AppViewModel @Inject constructor(
         _uiState.update {
             it.copy(notificationHeader = header)
         }
-    }
+    }*/
 
 
 }
 
 data class AppUiState(
-    val currentScreen: Screen = HomePane,
+//    val currentScreen: Screen = HomePane,
     val notifChannelDialogVisibility: Boolean = false,
-    val notificationBitmaps: List<Bitmap?> = emptyList(),
-    val notificationHeader: Int = 1
+//    val notificationBitmaps: List<Bitmap?> = emptyList(),
+//    val notificationHeader: Int = 1
 )

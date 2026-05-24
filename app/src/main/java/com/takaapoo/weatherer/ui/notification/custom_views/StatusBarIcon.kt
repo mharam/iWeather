@@ -73,28 +73,6 @@ class StatusBarIcon(
             lastPointX = lastPointX,
             targetX = indicatorX
         )
-            /*when (graphType){
-            GraphTypes.CUBIC -> cubicCurveXtoY(
-                data = data,
-                controlPoints1 = controlPoints1,
-                controlPoints2 = controlPoints2,
-                firstPointX = firstPointX,
-                lastPointX = lastPointX,
-                targetX = indicatorX
-            )
-            GraphTypes.LINEAR -> linearCurveXtoY(
-                data = data,
-                firstPointX = firstPointX,
-                lastPointX = lastPointX,
-                targetX = indicatorX
-            )
-            GraphTypes.STEP -> stepCurveXtoY(
-                data = data,
-                firstPointX = firstPointX,
-                lastPointX = lastPointX,
-                targetX = indicatorX
-            )
-        }*/
         quantityValue = when (quantity) {
             HourlyWeatherQuantity.HUMIDITY, HourlyWeatherQuantity.PRECIPITATIONPROBABILITY,
             HourlyWeatherQuantity.CLOUDCOVER -> curveValueAtIndicator?.coerceIn(0f, 100f)

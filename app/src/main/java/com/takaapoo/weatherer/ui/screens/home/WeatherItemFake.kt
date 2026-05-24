@@ -60,9 +60,11 @@ fun WeatherItemFake(
     )
     val bitmap = remember(picFile) { BitmapFactory.decodeFile(picFile.absolutePath) }
     LaunchedEffect(bitmap) {
-        onUpdateInitialLandscape(
-            bitmap.copy(Bitmap.Config.ARGB_8888, false)
-        )
+        bitmap?.let {
+            onUpdateInitialLandscape(
+                it.copy(Bitmap.Config.ARGB_8888, false)
+            )
+        }
     }
 
     Box(
@@ -78,7 +80,8 @@ fun WeatherItemFake(
             overHeadDistance = dimensionResource(R.dimen.home_card_overhead_distance).toPx(density)
         )
         Box(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
                 .shadow(
                     elevation = 2.dp,
                     shape = cardShape
@@ -145,10 +148,10 @@ fun WeatherItemFake(
                         .align(Alignment.TopStart)
                         .padding(top = dimensionResource(R.dimen.home_card_top_over_head))
                         .size(2 * dimensionResource(R.dimen.home_card_clock_round)),
-                    bigHandleRotation = itemState.clockBigHandleRotation,
-                    smallHandleRotation = itemState.clockSmallHandleRotation,
-                    dayClock = itemState.isDay,
-                    am = itemState.am
+                    bigHandleRotationProvider = { itemState.clockBigHandleRotation },
+                    smallHandleRotationProvider = { itemState.clockSmallHandleRotation },
+                    dayClockProvider = { itemState.isDay },
+                    amProvider = { itemState.am }
                 )
                 WeatherData(
                     modifier = Modifier.fillMaxSize(),

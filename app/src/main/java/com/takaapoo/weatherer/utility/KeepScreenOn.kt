@@ -1,14 +1,13 @@
 package com.takaapoo.weatherer.utility
 
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun KeepScreenOn(enabled: Boolean = true) {
-    val activity = LocalContext.current as? ComponentActivity
+    val activity = LocalActivity.current
 
     DisposableEffect(activity, enabled) {
         if (enabled) {

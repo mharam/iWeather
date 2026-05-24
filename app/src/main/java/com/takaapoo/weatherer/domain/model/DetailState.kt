@@ -2,8 +2,8 @@ package com.takaapoo.weatherer.domain.model
 
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.material3.TopAppBarState
 import androidx.compose.runtime.Immutable
-import androidx.compose.ui.geometry.Rect
 import com.takaapoo.weatherer.data.local.LocalAirQuality
 import com.takaapoo.weatherer.data.local.LocalHourlyWeather
 import com.takaapoo.weatherer.ui.screens.detail.DetailTabs
@@ -12,6 +12,7 @@ import java.time.ZoneId
 
 @Immutable
 data class DetailState(
+    val locationName: String = "",
     val selectedTab: DetailTabs = DetailTabs.Now,
     val detailPagerIndex: Int? = null,
     val maxTemperature: Float? = null,
@@ -31,10 +32,10 @@ data class DetailState(
     val hourlyDiagramSettingOpen: Boolean = false,
     val dailyDiagramSettingOpen: Boolean = false,
     val chooseDiagramThemeDialogVisible: Boolean = false,
-    val hourlyDiagramSettingRectangle: Rect = Rect(0f, 0f, 0f, 0f),
-    val dailyDiagramSettingRectangle: Rect = Rect(0f, 0f, 0f, 0f),
     val scrollState: ScrollState = ScrollState(initial = 0),
-    val chartsVisibility: Boolean = false,
+    val topBarState: TopAppBarState =
+        TopAppBarState(-Float.MAX_VALUE, 0f, 0f),
+
     val historyHourlyYearListState: LazyListState = LazyListState(firstVisibleItemIndex = 60),
     val historyHourlyMonthListState: LazyListState = LazyListState(),
     val historyHourlyDayListState: LazyListState = LazyListState(),

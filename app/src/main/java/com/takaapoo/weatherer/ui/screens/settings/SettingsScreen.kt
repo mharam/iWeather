@@ -284,26 +284,28 @@ fun SettingsScreen(
                     appSettings = appSettings,
                     onUpdateNotificationVisibility = onUpdateNotificationVisibility,
                     onNavigateUp = onNavigateUp,
-                    onUpdatePaneContent = onUpdatePaneContent
+                    onUpdatePaneContent = onUpdatePaneContent,
+                    onNavigateToScreen = {}
                 )
             }
             SettingsPaneContent.GENERAL -> {
-                GeneralSettingsScreen(
-                    modifier = modifier,
-                    appSettings = appSettings,
-                    singlePane = singlePane,
-                    onUpdateSilence = onUpdateSilence,
-                    onUpdateVibration = onUpdateVibration,
-                    onUpdateScreenOn = onUpdateScreenOn,
-                    onUpdateThemeDialogVisibility = onUpdateThemeDialogVisibility,
-                    onUpdateDynamicTheme = onUpdateDynamicTheme,
-                    onUpdateClockGaugeVisibility = onUpdateClockGaugeVisibility,
-//                    onUpdateHomeCardDialogVisibility = onUpdateHomeCardDialogVisibility,
-                    onUpdatePaneContent = onUpdatePaneContent,
-                    onNavigateUp = {
-                        onUpdatePaneContent(SettingsPaneContent.MAIN, SettingsPaneContent.GENERAL)
-                    },
-                )
+//                GeneralSettingsScreen(
+//                    modifier = modifier,
+//                    appSettings = appSettings,
+//                    singlePane = singlePane,
+//                    onUpdateSilence = onUpdateSilence,
+//                    onUpdateVibration = onUpdateVibration,
+//                    onUpdateScreenOn = onUpdateScreenOn,
+//                    onUpdateThemeDialogVisibility = onUpdateThemeDialogVisibility,
+//                    onUpdateDynamicTheme = onUpdateDynamicTheme,
+//                    onUpdateClockGaugeVisibility = onUpdateClockGaugeVisibility,
+////                    onUpdateHomeCardDialogVisibility = onUpdateHomeCardDialogVisibility,
+//                    onUpdatePaneContent = onUpdatePaneContent,
+//                    onNavigateToScreen = {},
+//                    onNavigateUp = {
+//                        onUpdatePaneContent(SettingsPaneContent.MAIN, SettingsPaneContent.GENERAL)
+//                    },
+//                )
             }
             SettingsPaneContent.UNIT -> {
                 UnitSettingsScreen(
@@ -320,7 +322,7 @@ fun SettingsScreen(
                 )
             }
             SettingsPaneContent.NOTIFICATION -> {
-                NotificationSettingsScreen(
+                /*NotificationSettingsScreen(
                     modifier = modifier,
                     appSettings = appSettings,
                     singlePane = singlePane,
@@ -349,7 +351,7 @@ fun SettingsScreen(
                         )
                     },
 
-                )
+                )*/
             }
             SettingsPaneContent.WIDGET -> {}
             SettingsPaneContent.CARD_WEATHER_QUANTITY -> {
@@ -369,7 +371,7 @@ fun SettingsScreen(
                 )
             }
             SettingsPaneContent.HOURLY_DIAGRAM -> {
-                HourlyDiagramCurvesScreen(
+                /*HourlyDiagramCurvesScreen(
                     modifier = modifier,
                     appSettings = appSettings,
                     singlePane = singlePane,
@@ -402,7 +404,7 @@ fun SettingsScreen(
                             SettingsPaneContent.HOURLY_DIAGRAM
                         )
                     }
-                )
+                )*/
             }
         }
     }

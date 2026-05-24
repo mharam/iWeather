@@ -13,12 +13,45 @@ data class Location(
     val geometry: Geometry,
     val properties: Properties,
     @SerialName(value = "bbox") val boundingBox: DoubleArray? = null
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Location
+
+        if (geometry != other.geometry) return false
+        if (properties != other.properties) return false
+        if (!boundingBox.contentEquals(other.boundingBox)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = geometry.hashCode()
+        result = 31 * result + properties.hashCode()
+        result = 31 * result + (boundingBox?.contentHashCode() ?: 0)
+        return result
+    }
+}
 
 @Serializable
 data class Geometry(
     val coordinates: DoubleArray
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Geometry
+
+        return coordinates.contentEquals(other.coordinates)
+    }
+
+    override fun hashCode(): Int {
+        return coordinates.contentHashCode()
+    }
+}
 
 @Serializable
 data class Properties(

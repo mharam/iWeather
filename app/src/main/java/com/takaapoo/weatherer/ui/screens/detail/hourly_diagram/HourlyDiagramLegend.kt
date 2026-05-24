@@ -71,7 +71,7 @@ fun HourlyDiagramLegend(
                     }
                     text[index] = buildAnnotatedString {
                         append(
-                            if (it.nameId != null) AnnotatedString(stringResource(id = it.nameId!!))
+                            if (it.nameId != null) AnnotatedString(stringResource(id = it.nameId))
                             else it.title!!
                         )
                         when (quantityValue) {
