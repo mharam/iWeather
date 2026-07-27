@@ -32,9 +32,10 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.PermanentNavigationDrawer
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -45,6 +46,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -62,10 +66,9 @@ import androidx.compose.ui.util.lerp
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.NotificationManagerCompat
 import androidx.glance.appwidget.updateAll
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
 import androidx.navigation3.runtime.NavKey
 import androidx.window.core.layout.WindowSizeClass
 import com.takaapoo.weatherer.MainActivity
@@ -91,13 +94,11 @@ import com.takaapoo.weatherer.ui.notification.NotificationSender.Companion.heade
 import com.takaapoo.weatherer.ui.theme.TransparentBlack
 import com.takaapoo.weatherer.ui.viewModels.AddLocationViewModel
 import com.takaapoo.weatherer.ui.viewModels.AppViewModel
-import com.takaapoo.weatherer.ui.viewModels.DonateViewModel
 import com.takaapoo.weatherer.ui.viewModels.HomeViewModel
 import com.takaapoo.weatherer.ui.viewModels.PreferenceViewModel
 import com.takaapoo.weatherer.ui.widget.WeatherWidget1
 import com.takaapoo.weatherer.ui.widget.WeatherWidget2
 import com.takaapoo.weatherer.utility.toPx
-import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import kotlin.math.abs
@@ -159,13 +160,16 @@ val screenItems = listOf(
 fun AppScreen(
     modifier: Modifier = Modifier,
     appSettings: AppSettings,
-    locationListState: ImmutableList<LocationsState>,
+    locationListState: State<List<LocationsState>>,
     homeViewModel: HomeViewModel,
     addLocationViewModel: AddLocationViewModel,
-    appViewModel: AppViewModel = viewModel(),
+    appViewModel: AppViewModel = hiltViewModel<AppViewModel>(
+        viewModelStoreOwner = rememberViewModelStoreOwner()
+    ),
     preferenceViewModel: PreferenceViewModel,
-    windowSizeClass: WindowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+    windowSizeClass: WindowSizeClass = currentWindowAdaptiveInfoV2().windowSizeClass
 ) {
+    val locationsBriefState by homeViewModel.locationsBriefState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val density = LocalDensity.current
     val mainActivity = LocalActivity.current as MainActivity
@@ -176,7 +180,7 @@ fun AppScreen(
     )
     val navigator = remember { Navigator(navigationState) }
 
-    if (locationListState.isEmpty()) {
+    if (locationsBriefState.isEmpty()) {
         if (navigationState.topLevelRoute != AddLocation)
             navigationState.updateStacksInUse(newStartRoute = Start)
     } else if (navigationState.topLevelRoute == AddLocation && navigationState.startRoute != Home) {
@@ -187,51 +191,39 @@ fun AppScreen(
     }
 
     val uiState by appViewModel.uiState.collectAsStateWithLifecycle()
-    val navController = rememberNavController()
-//    val navBackStackEntry by navController.currentBackStackEntryAsState()
-//    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val drawerOffset = remember { Animatable(-drawerWidthPx) }
+    val scrimBoxVisible by remember {
+        derivedStateOf { drawerOffset.value > -drawerWidthPx }
+    }
 
     val scope = rememberCoroutineScope()
-//    val appSettings by preferenceViewModel.appSettings.collectAsStateWithLifecycle()
-    val donateViewModel = hiltViewModel<DonateViewModel>()
-    val donateState by donateViewModel.donateState.collectAsStateWithLifecycle()
+//    val donateViewModel = hiltViewModel<DonateViewModel>()
+//    val donateState by donateViewModel.donateState.collectAsStateWithLifecycle()
 
-    val notificationHourlyChartData by appViewModel.notificationHourlyChartData
-        .collectAsStateWithLifecycle()
-    val notificationDailyChartData by appViewModel.notificationDailyChartData
-        .collectAsStateWithLifecycle()
+    val notificationHourlyChartData by appViewModel.notificationHourlyChartData.collectAsStateWithLifecycle()
+    val notificationDailyChartData by appViewModel.notificationDailyChartData.collectAsStateWithLifecycle()
     val locationsCount by addLocationViewModel.locationsCount.collectAsStateWithLifecycle()
 
-//    LaunchedEffect(navBackStackEntry) {
-//        val screen = allScreens.find {
-//            it::class.simpleName == navController.currentDestination?.route?.substringAfterLast('.')
-//        }
-//        screen?.let {
-//            appViewModel.updateScreen(screen = screen)
-//        }
-//    }
-
-    val locationIDs = locationListState.map { it.locationId }
+    val locationIDs = locationsBriefState.map { it.locationId }
     LaunchedEffect(key1 = locationIDs) {
-        if (locationListState.firstOrNull()?.locationId != -2) {
-            if (locationListState.isEmpty()) {
+        if (locationsBriefState.firstOrNull()?.locationId != -2) {
+            if (locationsBriefState.isEmpty()) {
                 preferenceViewModel.updateNotificationLocationId(null)
                 preferenceViewModel.updateNotificationVisibility(false)
                 preferenceViewModel.updateWidgetLocationId(null)
             } else {
                 if (appSettings.notificationLocationId == null ||
-                    locationListState.find { it.locationId == appSettings.notificationLocationId } == null
+                    locationsBriefState.find { it.locationId == appSettings.notificationLocationId } == null
                 ) {
                     preferenceViewModel.updateNotificationLocationId(
-                        locationListState.first().locationId
+                        locationsBriefState.first().locationId
                     )
                 }
                 if (appSettings.widgetLocationId == null ||
-                    locationListState.find { it.locationId == appSettings.widgetLocationId } == null
+                    locationsBriefState.find { it.locationId == appSettings.widgetLocationId } == null
                 ) {
                     preferenceViewModel.updateWidgetLocationId(
-                        locationListState.first().locationId
+                        locationsBriefState.first().locationId
                     )
                 }
             }
@@ -306,8 +298,8 @@ fun AppScreen(
                                 homeViewModel = homeViewModel,
                                 addLocationViewModel = addLocationViewModel,
                                 preferenceViewModel = preferenceViewModel,
-                                donateViewModel = donateViewModel,
-                                donateState = donateState,
+//                                donateViewModel = donateViewModel,
+//                                donateState = donateState,
                                 appSettings = appSettings,
                                 locationListState = locationListState,
 
@@ -321,17 +313,22 @@ fun AppScreen(
                                     }
                                 }
                             )
-                            if (drawerOffset.value > -drawerWidthPx) {
+                            if (scrimBoxVisible) {
+                                val finalScrimColor = scrimColor
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .background(
-                                            color = lerp(
-                                                start = TransparentBlack,
-                                                stop = scrimColor,
-                                                fraction = (drawerOffset.value + drawerWidthPx) / drawerWidthPx,
+                                        .graphicsLayer {
+                                            colorFilter = ColorFilter.tint(
+                                                color = lerp(
+                                                    start = TransparentBlack,
+                                                    stop = finalScrimColor,
+                                                    fraction = (drawerOffset.value + drawerWidthPx) / drawerWidthPx,
+                                                ),
+                                                blendMode = BlendMode.Src
                                             )
-                                        )
+                                        }
+                                        .background(Color.White)
                                         .clickable(
                                             interactionSource = null,
                                             indication = null,
@@ -372,8 +369,8 @@ fun AppScreen(
                         homeViewModel = homeViewModel,
                         addLocationViewModel = addLocationViewModel,
                         preferenceViewModel = preferenceViewModel,
-                        donateViewModel = donateViewModel,
-                        donateState = donateState,
+//                        donateViewModel = donateViewModel,
+//                        donateState = donateState,
                         appSettings = appSettings,
                         locationListState = locationListState,
 //                        appUiState = uiState,
@@ -452,8 +449,8 @@ fun AppScreen(
                             homeViewModel = homeViewModel,
                             addLocationViewModel = addLocationViewModel,
                             preferenceViewModel = preferenceViewModel,
-                            donateViewModel = donateViewModel,
-                            donateState = donateState,
+//                            donateViewModel = donateViewModel,
+//                            donateState = donateState,
                             appSettings = appSettings,
                             locationListState = locationListState,
 
@@ -467,17 +464,22 @@ fun AppScreen(
                                 }
                             }
                         )
-                        if (drawerOffset.value > -drawerWidthPx) {
+                        if (scrimBoxVisible) {
+                            val finalScrimColor = scrimColor
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(
-                                        color = lerp(
-                                            start = TransparentBlack,
-                                            stop = scrimColor,
-                                            fraction = (drawerOffset.value + drawerWidthPx) / drawerWidthPx,
+                                    .graphicsLayer {
+                                        colorFilter = ColorFilter.tint(
+                                            color = lerp(
+                                                start = TransparentBlack,
+                                                stop = finalScrimColor,
+                                                fraction = (drawerOffset.value + drawerWidthPx) / drawerWidthPx,
+                                            ),
+                                            blendMode = BlendMode.Src
                                         )
-                                    )
+                                    }
+                                    .background(Color.White)
                                     .clickable(
                                         interactionSource = null,
                                         indication = null,
@@ -596,14 +598,6 @@ fun AppScreen(
             }
         )
     }
-
-    if (donateState.purchaseSuccessDialogVisibility){
-        PurchaseSuccessDialog(
-            onDismiss = {
-                donateViewModel.updatePurchaseSuccessDialogVisibility(false)
-            }
-        )
-    }
 }
 
 
@@ -693,44 +687,6 @@ fun ExactAlarmDialog(
         properties = DialogProperties(
             dismissOnBackPress = false,
             dismissOnClickOutside = false
-        )
-    )
-}
-
-@Composable
-fun PurchaseSuccessDialog(
-    modifier: Modifier = Modifier,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        modifier = modifier,
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = onDismiss){
-                Text(
-                    text = "Ok",
-                    fontFamily = FontFamily.Default
-                )
-            }
-        },
-        icon = {
-            Icon(
-                painter = painterResource(R.drawable.donate),
-                contentDescription = null
-            )
-        },
-        title = {
-            Text(text = stringResource(R.string.donate_success_dialog_title))
-        },
-        text = {
-            Text(
-                text = stringResource(R.string.donate_success_dialog_text),
-                fontFamily = FontFamily.Default
-            )
-        },
-        properties = DialogProperties(
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true
         )
     )
 }

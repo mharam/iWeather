@@ -1,5 +1,6 @@
 package com.takaapoo.weatherer.domain.model
 
+import androidx.compose.runtime.Immutable
 import com.takaapoo.weatherer.data.local.LocalAirQuality
 import com.takaapoo.weatherer.data.local.LocalHistoricDailyWeather
 import com.takaapoo.weatherer.data.local.LocalHistoricHourlyWeather
@@ -32,6 +33,7 @@ data class HourlyChartDto(
     val sunSet: String?,
 )
 
+@Immutable
 data class HistoricHourlyChartDto(
     val hourlyWeather: LocalHistoricHourlyWeather? = LocalHistoricHourlyWeather(locationId = 0, time = ""),
     val locationName: String,

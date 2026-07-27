@@ -59,4 +59,6 @@ data object SettingsCard: NavKey
 @Serializable
 data object Donate: NavKey
 
-val allScreens = listOf(HomePane, AddLocation, Radar, ContactUs, AboutUs, RateUs, Settings, Donate)
+
+@Serializable
+data object Login: NavKey

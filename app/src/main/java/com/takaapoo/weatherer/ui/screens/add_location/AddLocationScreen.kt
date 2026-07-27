@@ -60,6 +60,7 @@ import com.takaapoo.weatherer.ui.screens.add_location.dialogs.DonateDialog
 import com.takaapoo.weatherer.ui.screens.add_location.dialogs.HelpDialog
 import com.takaapoo.weatherer.utility.calculateLocationSurroundingPoints
 import com.takaapoo.weatherer.utility.toPx
+import kotlinx.coroutines.delay
 
 val indicatingCircleDiameter = 200.dp
 
@@ -288,6 +289,12 @@ fun AddLocationScreen(
                             )
                     )
                 }
+            }
+        }
+        LaunchedEffect(mapState.addLocationDialogVisible) {
+            if (!mapState.addLocationDialogVisible) {
+                delay(1000)
+                onUpdateSelectedLocationName("")
             }
         }
         AnimatedVisibility (visible = mapState.addLocationDialogVisible){

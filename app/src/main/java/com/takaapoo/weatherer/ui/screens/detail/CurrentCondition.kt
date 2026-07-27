@@ -47,7 +47,7 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
@@ -436,13 +436,13 @@ fun WindCurrentCondition(
 
     val windSpeedKmph = windSpeed?.toKmph(appSettings.speedUnit) ?: 10f
     val infiniteTransition = rememberInfiniteTransition(label = "wind")
-    val arrowMovement  /*= 0f*/by infiniteTransition.animateValue(
+    val arrowMovement = infiniteTransition.animateValue(
         initialValue = 0f,
-        targetValue = 1f,
+        targetValue = 1/7f,
         typeConverter = Float.VectorConverter,
         animationSpec = infiniteRepeatable(
             animation = tween(
-                durationMillis = (1000 * 50 / windSpeedKmph).coerceAtLeast(1000f).toInt(),
+                durationMillis = (1000 * 7 / windSpeedKmph).coerceAtLeast(150f).toInt(),
                 easing = LinearEasing
             ),
             repeatMode = RepeatMode.Restart
@@ -468,39 +468,43 @@ fun WindCurrentCondition(
         }
         Box(modifier = Modifier
             .size(dimensionResource(id = R.dimen.current_condition_gauge_width))
-//            .background(
-//                color = MaterialTheme.colorScheme.secondaryContainer/*.copy(alpha = valueContainerAlpha)*/,
-//                shape = CircleShape
-//            )
             .zIndex(1f)
         ){
             val circleColor = MaterialTheme.colorScheme.secondaryContainer
             val size = dimensionResource(id = R.dimen.current_condition_gauge_width).toPx(density)
             val arrowWidth = size / 5.2f
-            val path = windArrowPath(size, size, arrowWidth)
+            val path = remember { windArrowPath(size, size, arrowWidth) }
+            val paint = remember { Paint() }
+            val rect = remember { Rect(0f, 0f, size, size) }
+
             Canvas(
                 modifier = Modifier.fillMaxSize()
                     .graphicsLayer {
                         rotationZ = (windDirection ?: 0f) + 180
                     }
-//                    .clip(CircleShape)
             ) {
                 drawIntoCanvas {
-                    it.saveLayer(
-                        Rect(0f, 0f, this.size.width, this.size.height),
-                        Paint()
-                    )
+                    it.saveLayer(rect, paint)
                     drawCircle(color = circleColor)
                     if (windSpeed != null) {
-                        for (i in 0..6) {
-                            translate(top = -1.2f * ((i / 7f + arrowMovement) % 1) * size) {
+//                        for (i in 0..6) {
+                            withTransform({
+                                translate(top = -1.2f * arrowMovement.value * size)
+                            }){
                                 drawPath(
                                     path = path,
-                                    color = Color.Yellow,
+                                    color = Color.White,
                                     blendMode = BlendMode.Clear
                                 )
                             }
-                        }
+                            /*translate(top = -1.2f * ((i / 7f + arrowMovement) % 1) * size) {
+                                drawPath(
+                                    path = path,
+                                    color = Color.White,
+                                    blendMode = BlendMode.Clear
+                                )
+                            }*/
+//                        }
                     }
                 }
             }
@@ -579,7 +583,7 @@ fun windArrowPath(
     val halfArrowWidth = arrowWidth/2
     val yal = 0.4375f * arrowWidth
 
-    return Path().apply {
+    val singleArrow =  Path().apply {
         moveTo(x = xCenter, y = height)
         lineTo(x = xCenter + halfArrowWidth, y = height + halfArrowWidth)
         relativeLineTo(dx = 0f, dy = yal)
@@ -587,6 +591,15 @@ fun windArrowPath(
         lineTo(x = xCenter - halfArrowWidth, y = height + halfArrowWidth + yal)
         relativeLineTo(dx = 0f, dy = -yal)
         close()
+    }
+
+    return Path().apply {
+        for (i in 0..6) {
+            addPath(
+                path = singleArrow,
+                offset = Offset(x = 0f, y = -1.2f * (i / 7f) * width)
+            )
+        }
     }
 }
 

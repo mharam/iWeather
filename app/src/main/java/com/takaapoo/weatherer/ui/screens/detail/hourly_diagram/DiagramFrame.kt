@@ -1,5 +1,7 @@
 package com.takaapoo.weatherer.ui.screens.detail.hourly_diagram
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,10 +45,10 @@ fun DiagramFrameCanvas(
     modifier: Modifier = Modifier,
     sunRiseSetX: ImmutableList<Pair<Float?, Float?>>,
     isDayList: ImmutableList<Boolean>,
-    xAxisStart: Float,
-    xAxisEnd: Float,
-    yAxesStarts: ImmutableList<Float>,
-    yAxesEnds: ImmutableList<Float>,
+    xAxisStart: Animatable<Float, AnimationVector1D>,
+    xAxisEnd: Animatable<Float, AnimationVector1D>,
+    yAxesStarts: List<Animatable<Float, AnimationVector1D>>,
+    yAxesEnds: List<Animatable<Float, AnimationVector1D>>,
     minorBarVisible: Boolean,
     majorBarVisible: Boolean,
     cornerRadius: Dp,
@@ -53,8 +56,8 @@ fun DiagramFrameCanvas(
     diagramVertPadding: Float,
     hourlyChartTheme: ChartTheme,
     textMeasurer: TextMeasurer,
-    verticalDashLinePhase: Float,
-    horizontalDashLinePhase: Float,
+    verticalDashLinePhase: State<Float>,
+    horizontalDashLinePhase: State<Float>,
     isLoading: Boolean = false,
 
     onCalculateHorizontalBarSeparation:
@@ -74,9 +77,9 @@ fun DiagramFrameCanvas(
             diagramFrame(
                 sunRiseSetX = sunRiseSetX,
                 isDayList = isDayList,
-                xAxisRange = xAxisStart .. xAxisEnd,
+                xAxisRange = xAxisStart.value .. xAxisEnd.value,
                 yAxesRanges = List(size = yAxesStarts.size){
-                    yAxesStarts[it] .. yAxesEnds[it]
+                    yAxesStarts[it].value .. yAxesEnds[it].value
                 },
                 cornerRadius = cornerRadius.toPx(),
                 horizontalPadding = diagramHorPadding,
@@ -88,8 +91,8 @@ fun DiagramFrameCanvas(
                 theme = hourlyChartTheme,
                 appSurfaceColor = appThemeDiagramSurfaceColor,
                 textMeasurer = textMeasurer,
-                verticalDashLinePhase = verticalDashLinePhase,
-                horizontalDashLinePhase = horizontalDashLinePhase,
+                verticalDashLinePhase = verticalDashLinePhase.value,
+                horizontalDashLinePhase = horizontalDashLinePhase.value,
                 onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
                 onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation
             )
@@ -181,7 +184,7 @@ fun DrawScope.diagramFrame(
             )
         }
         ChartTheme.DAYNIGHT -> {
-            val colorStops = sunRiseSetX.map { (sunRise, sunSet) ->
+            val colorStops = sunRiseSetX.flatMap { (sunRise, sunSet) ->
                 (if (sunRise != null) {
                     listOf(
                         (sunRise - xAxisRange.start) / xAxisLength to DiagramDarkTheme,
@@ -198,7 +201,7 @@ fun DrawScope.diagramFrame(
                         } else
                             emptyList()
                     )
-            }.flatten().toMutableList()
+            }.toMutableList()
 
             if (colorStops.isNotEmpty()) {
                 drawRoundRect(

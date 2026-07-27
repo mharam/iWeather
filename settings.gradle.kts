@@ -18,4 +18,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Weatherer"
 include(":app")
-include(":renderscript-toolkit")
+//include(":renderscript-toolkit")

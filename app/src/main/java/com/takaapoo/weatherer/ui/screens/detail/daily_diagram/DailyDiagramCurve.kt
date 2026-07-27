@@ -1,5 +1,7 @@
 package com.takaapoo.weatherer.ui.screens.detail.daily_diagram
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -37,6 +39,7 @@ import com.takaapoo.weatherer.ui.theme.OnDiagramLightTheme
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.utility.drawThickText
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 
 @Composable
@@ -45,13 +48,13 @@ fun DailyDiagramCurve(
     dataMax: Float,
     dataMin: Float,
     firstPointX: Float?,
-    curveAnimatorProgress: Float,
+    curveAnimator: Animatable<Float, AnimationVector1D>,
     weatherQuantity: DailyWeatherQuantity,
     modifier: Modifier = Modifier,
-    xAxisRange: ClosedFloatingPointRange<Float>,
-    yAxisRange: ClosedFloatingPointRange<Float>,
-    curveValueMinAtIndicator: Float?,
-    curveValueMaxAtIndicator: Float?,
+    xAxisStart: Animatable<Float, AnimationVector1D>,
+    xAxisEnd: Animatable<Float, AnimationVector1D>,
+    yAxisStart: Animatable<Float, AnimationVector1D>,
+    yAxisEnd: Animatable<Float, AnimationVector1D>,
     chartTheme: ChartTheme,
     onAppSurfaceColor: Color,
     cornerRadius: Float,
@@ -60,7 +63,7 @@ fun DailyDiagramCurve(
     textMeasurer: TextMeasurer,
     shadowVisible: Boolean,
     barOrCurveGraph: Boolean,
-    sliderPosition: Float,
+    sliderPosition: Animatable<Float, AnimationVector1D>,
 ) {
     firstPointX ?: return
     val curveValueColor = when (chartTheme){
@@ -85,10 +88,12 @@ fun DailyDiagramCurve(
                         addRoundRect(
                             RoundRect(
                                 left = horizontalPadding,
-                                top = (if (barOrCurveGraph) (size.height - 2*verticalPadding) * (1 - curveAnimatorProgress)
-                                        else 0f) + verticalPadding,
+                                top = (if (barOrCurveGraph)
+                                        (size.height - 2*verticalPadding) * (1 - curveAnimator.value)
+                                        else 0f
+                                        ) + verticalPadding,
                                 right = horizontalPadding + (size.width - 2 * horizontalPadding) *
-                                        (if (barOrCurveGraph) 1f else curveAnimatorProgress),
+                                        (if (barOrCurveGraph) 1f else curveAnimator.value),
                                 bottom = size.height - verticalPadding,
                                 cornerRadius = CornerRadius(cornerRadius)
                             )
@@ -110,8 +115,8 @@ fun DailyDiagramCurve(
                                 diagramWidth = diagramWidth,
                                 diagramHeight = diagramHeight,
                                 textMeasurer = textMeasurer,
-                                xAxisRange = xAxisRange,
-                                yAxisRange = yAxisRange,
+                                xAxisRange = xAxisStart.value..xAxisEnd.value,
+                                yAxisRange = yAxisStart.value..yAxisEnd.value,
                                 horizontalPadding = horizontalPadding,
                                 verticalPadding = verticalPadding
                             )
@@ -124,8 +129,8 @@ fun DailyDiagramCurve(
                                 firstPointX = firstPointX,
                                 diagramWidth = diagramWidth,
                                 diagramHeight = diagramHeight,
-                                xAxisRange = xAxisRange,
-                                yAxisRange = yAxisRange,
+                                xAxisRange = xAxisStart.value..xAxisEnd.value,
+                                yAxisRange = yAxisStart.value..yAxisEnd.value,
                                 horizontalPadding = horizontalPadding,
                                 verticalPadding = verticalPadding,
                                 curveWidth = curveWidthPx,
@@ -133,6 +138,14 @@ fun DailyDiagramCurve(
                             )
                         }
                         if (!barOrCurveGraph) {
+                            var curveValueMinAtIndicator: Float? = null
+                            var curveValueMaxAtIndicator: Float? = null
+                            val indicatorX = xAxisStart.value + sliderPosition.value *
+                                    (xAxisEnd.value - xAxisStart.value)
+                            data.getOrNull((indicatorX - firstPointX).roundToInt())?.let {
+                                curveValueMinAtIndicator = it.start
+                                curveValueMaxAtIndicator = it.endInclusive
+                            }
                             val curveMaxColor = weatherQuantity.color(
                                 if (weatherQuantity == DailyWeatherQuantity.UVINDEXMAX)
                                         (curveValueMaxAtIndicator ?: 0f)/11
@@ -144,9 +157,9 @@ fun DailyDiagramCurve(
                             drawIndicatorPoint(
                                 curveValueMaxAtIndicator,
                                 curveMaxColor,
-                                sliderPosition,
-                                yAxisRange.start,
-                                yAxisRange.endInclusive,
+                                sliderPosition.value,
+                                yAxisStart.value,
+                                yAxisEnd.value,
                                 horizontalPadding,
                                 verticalPadding,
                                 diagramWidth,
@@ -163,9 +176,9 @@ fun DailyDiagramCurve(
                                 drawIndicatorPoint(
                                     curveValueMinAtIndicator,
                                     curveMinColor,
-                                    sliderPosition,
-                                    yAxisRange.start,
-                                    yAxisRange.endInclusive,
+                                    sliderPosition.value,
+                                    yAxisStart.value,
+                                    yAxisEnd.value,
                                     horizontalPadding,
                                     verticalPadding,
                                     diagramWidth,

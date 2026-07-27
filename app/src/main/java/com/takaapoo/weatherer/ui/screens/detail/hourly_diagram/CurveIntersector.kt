@@ -35,7 +35,6 @@ fun cubicCurveXtoY(
 
     var firstDataIndex = floor(distance).roundToInt()
     var secondDataIndex = ceil(distance).roundToInt()
-    Log.i("target1", "firstDataIndex = $firstDataIndex , data = ${data[firstDataIndex]}")
     while (data[firstDataIndex] == null && firstDataIndex > firstPointX)
         firstDataIndex--
     while (data[secondDataIndex] == null && secondDataIndex < lastPointX)
@@ -84,7 +83,6 @@ fun cubicCurveXtoY(
 //            }
 //        }
 //        targetT -= b.x / (3 * a.x)
-        Log.i("target1", "targetT = $targetT , targetX = $targetX , firstDataIndex = $firstDataIndex")
         val result = a.y * targetT.pow(3) + b.y * targetT.pow(2) + c.y * targetT + d.y
         return result.toFloat()
     } catch (_: Throwable){

@@ -2,6 +2,8 @@ package com.takaapoo.weatherer.ui.screens.home
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -13,6 +15,7 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
 import com.takaapoo.weatherer.R
+import com.takaapoo.weatherer.domain.model.HomeState
 import com.takaapoo.weatherer.utility.toPx
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -64,6 +67,7 @@ class ClockManipulatorTest {
             ClockManipulator(
                 gaugeSize = 300.dp,
                 dayGaugeResource = R.drawable.day_gauge_light,
+                homeState = remember { mutableStateOf(HomeState()) },
                 clockGaugeRotation = 0f,
                 clockGaugeNaturalRotation = 0f,
                 clockGaugeRotationCoefficient = clockGaugeRotationCoefficient,

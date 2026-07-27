@@ -357,7 +357,6 @@ class UpdateWeatherUseCase @Inject constructor (
     @Throws(Throwable::class)
     suspend fun updateAllLocationsWeatherBatch(){
 //        locationRepository.deleteFaultyLocations()
-        Log.i("update1", "updateAllLocationsWeatherBatch")
         val timeNow = LocalDateTime.now(ZoneId.of("UTC"))
         val allLocations = locationRepository.getAllLocationsList()
         if (allLocations.isEmpty()) return
@@ -443,13 +442,10 @@ class UpdateWeatherUseCase @Inject constructor (
                         }
                     }
                 }
-                Log.i("update1", "setTimeDeferred")
                 setTimeDeferred.awaitAll()
-                Log.i("update1", "َAfter setTimeDeferred")
             }
 
             launch {
-                Log.i("update1", "precipitations = ${allLocations.map { it.yearlyPrecipitation }}")
                 val nullPrecipitationLocations = allLocations.filter { it.yearlyPrecipitation == null }
                 if (nullPrecipitationLocations.isNotEmpty()) {
                     val yearlyPrecipitationResult = remoteWeatherRepository.getYearlyPrecipitationFromServerBatch(
@@ -468,7 +464,7 @@ class UpdateWeatherUseCase @Inject constructor (
             }
 
             allLocations.filter { it.currentPictureUrl.isEmpty() }.forEach { location ->
-                Log.i("update1", "location pic: ${location.name}")
+//                Log.i("update1", "location pic: ${location.name}")
                 val picturesResult = landScapeRepository.getLandScapeList(
                     latitude = location.latitude,
                     elevation = location.elevation,
@@ -477,7 +473,7 @@ class UpdateWeatherUseCase @Inject constructor (
                 )
                 if (picturesResult is MyResult.Success) {
                     val landscapes = picturesResult.data
-                    Log.i("update1", "landscapes = ${landscapes.map { it.id }}")
+//                    Log.i("update1", "landscapes = ${landscapes.map { it.id }}")
                     val allPreviousPicIds = locationRepository.getAllLocationsList().flatMap {
                         it.picIdsList
                     }

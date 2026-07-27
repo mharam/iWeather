@@ -22,7 +22,8 @@ import kotlinx.parcelize.Parcelize
             entity = Location::class,
             parentColumns = ["id"],
             childColumns = ["location_id"],
-            onDelete = CASCADE
+            onDelete = CASCADE,
+            deferred = true
         )
     ],
     primaryKeys = ["location_id", "time"]

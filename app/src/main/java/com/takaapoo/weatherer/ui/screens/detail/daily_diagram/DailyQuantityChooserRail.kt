@@ -1,6 +1,5 @@
 package com.takaapoo.weatherer.ui.screens.detail.daily_diagram
 
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -41,17 +40,17 @@ import com.takaapoo.weatherer.ui.theme.DiagramShadow
 import com.takaapoo.weatherer.ui.theme.Gray20
 import com.takaapoo.weatherer.ui.theme.customColorScheme
 import com.takaapoo.weatherer.utility.toPx
+import kotlinx.collections.immutable.ImmutableList
 
 @Composable
 fun DailyQuantityChooserRail(
     modifier: Modifier = Modifier,
-    allQuantities: List<DailyWeatherQuantity>,
+    allQuantities: ImmutableList<DailyWeatherQuantity>,
     selectedQuantity: DailyWeatherQuantity,
     onUpdateChartQuantity: (DailyWeatherQuantity) -> Unit
 ) {
     val density = LocalDensity.current
     val scrollState = rememberScrollState()
-    @DrawableRes val displayingIconId  = selectedQuantity.iconId
     val railBackgroundColor = MaterialTheme.customColorScheme.railBackground
     Box(
         modifier = modifier.fillMaxWidth()
@@ -70,7 +69,7 @@ fun DailyQuantityChooserRail(
                     )
                 )
                 .padding(12.dp),
-            painter = painterResource(displayingIconId),
+            painter = painterResource(selectedQuantity.iconId),
             contentDescription = "weather related curves",
             tint = MaterialTheme.colorScheme.onPrimary
         )
@@ -108,24 +107,12 @@ fun DailyQuantityChooserRail(
                 Spacer(modifier = Modifier.width(56.dp))
                 allQuantities.forEach { dailyWeatherQuantity ->
                     val isSelected = selectedQuantity  == dailyWeatherQuantity
-//                        val chipColor = curveColors
-//                            .getOrNull(quantities.indexOf(dailyWeatherQuantity))
-//                            ?.copy(alpha = 0.5f) ?: Color.Unspecified
                     FilterChip(
-                        modifier = Modifier
-                            .height(32.dp)
-                            /*.onGloballyPositioned {
-                                if (it.positionInRoot().x < 80.dp.toPx(density)) {
-                                    displayingIconId = dailyWeatherQuantity.iconId
-                                }
-                            }*/,
+                        modifier = Modifier.height(32.dp),
                         selected = isSelected,
                         onClick = {
                             if (!isSelected) onUpdateChartQuantity(dailyWeatherQuantity)
                         },
-//                            colors = FilterChipDefaults.filterChipColors(
-//                                selectedContainerColor = chipColor
-//                            ),
                         leadingIcon = {
                             if (isSelected) {
                                 Icon(

@@ -1,64 +1,6 @@
 package com.takaapoo.weatherer.ui.screens.home
 
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.LocalActivity
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.updateTransition
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.input.pointer.pointerInteropFilter
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.dimensionResource
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.takaapoo.weatherer.MainActivity
-import com.takaapoo.weatherer.R
-import com.takaapoo.weatherer.data.local.LocalDailyWeather
-import com.takaapoo.weatherer.data.local.Location
-import com.takaapoo.weatherer.domain.MyResult
-import com.takaapoo.weatherer.domain.model.AppSettings
-import com.takaapoo.weatherer.domain.model.DailyChartState
-import com.takaapoo.weatherer.domain.model.DetailState
-import com.takaapoo.weatherer.domain.model.HistoricDailyChartDto
-import com.takaapoo.weatherer.domain.model.HistoricHourlyChartDto
-import com.takaapoo.weatherer.domain.model.HomePaneContent
-import com.takaapoo.weatherer.domain.model.HourlyChartDto
-import com.takaapoo.weatherer.domain.model.HourlyChartState
-import com.takaapoo.weatherer.ui.screens.detail.DetailPagerScreen
-import com.takaapoo.weatherer.ui.screens.detail.DetailScreen
-import com.takaapoo.weatherer.ui.screens.detail.aq_detail.AirQualityDetailScreen
-import com.takaapoo.weatherer.ui.theme.customColorScheme
-import com.takaapoo.weatherer.ui.viewModels.DetailViewModel
-import com.takaapoo.weatherer.ui.viewModels.HomeViewModel
-import com.takaapoo.weatherer.utility.toDp
-import com.takaapoo.weatherer.utility.toPx
-import kotlinx.collections.immutable.toImmutableList
-
+/*
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -137,7 +79,9 @@ fun HomeItemDetailPane(
         transitionSpec = { translationTransitionSpec },
         label = "TranslationY",
         targetValueByState = { state ->
-            if (state) (mainActivity.windowHeight - cardHeightPx)/2 - (homeState.selectedCardY /*+ listBoxTopPadding*/)
+            if (state) (mainActivity.windowHeight - cardHeightPx)/2 - (homeState.selectedCardY */
+/*+ listBoxTopPadding*//*
+)
             else -homeState.verticalOffsetDifference
         }
     )
@@ -270,14 +214,16 @@ fun HomeItemDetailPane(
                                     homeViewModel.updateDayGaugeIndex(newVisibleDay = it)
                                 }
                             },
-                            /*onHandleClickSound = remember {
+                            */
+/*onHandleClickSound = remember {
                                 { currentRotation, previousRotation ->
                                     homeViewModel.handleClickSound(
                                         currentRotation,
                                         previousRotation
                                     )
                                 }
-                            },*/
+                            },*//*
+
                             onUpdateDialogVisibility = remember {
                                 { dialogType, visible ->
                                     homeViewModel.updateDialogVisibility(dialogType, visible)
@@ -529,11 +475,13 @@ fun HomeItemDetailPane(
                                 homeViewModel.updateDayGaugeIndex(newVisibleDay = it)
                             }
                         },
-                        /*onHandleClickSound = remember {
+                        */
+/*onHandleClickSound = remember {
                             { currentRotation, previousRotation ->
                                 homeViewModel.handleClickSound(currentRotation, previousRotation)
                             }
-                        },*/
+                        },*//*
+
                         onUpdateDialogVisibility = remember {
                             { dialogType, visible ->
                                 homeViewModel.updateDialogVisibility(dialogType, visible)
@@ -769,4 +717,4 @@ fun HomeItemDetailPane(
     }
 
 
-}
+}*/

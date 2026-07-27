@@ -1,6 +1,8 @@
 package com.takaapoo.weatherer.ui.screens.detail.hourly_diagram
 
 import androidx.annotation.StringRes
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -33,10 +35,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.takaapoo.weatherer.R
@@ -47,13 +47,11 @@ import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.HistoricHourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
-import com.takaapoo.weatherer.domain.model.HourlyChartState
 import com.takaapoo.weatherer.domain.model.HourlyDiagramTime
 import com.takaapoo.weatherer.domain.unit.Temperature
 import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.theme.customColorScheme
 import com.takaapoo.weatherer.ui.theme.timeFontFamily
-import com.takaapoo.weatherer.ui.viewModels.DetailViewModel
 import com.takaapoo.weatherer.utility.cmToUnit
 import com.takaapoo.weatherer.utility.kmphToUnit
 import com.takaapoo.weatherer.utility.localToUtcTime
@@ -101,7 +99,26 @@ fun HourlyChart(
     diagramVertPadding: Float = 24f,
     hourlyChartData: ImmutableList<HourlyChartDto> = persistentListOf(),
     historicalHourlyData: ImmutableList<HistoricHourlyChartDto> = persistentListOf(),
-    hourlyChartState: HourlyChartState = HourlyChartState(),
+
+    curveAnimator: List<Animatable<Float, AnimationVector1D>>,
+    chartQuantities: List<HourlyWeatherQuantity>,
+    settingsUpdated: Boolean,
+    xAxisAnimationTrigger: Boolean,
+    xAxisStart: Animatable<Float, AnimationVector1D>,
+    xAxisEnd: Animatable<Float, AnimationVector1D>,
+    yAxesStarts: List<Animatable<Float, AnimationVector1D>>,
+    yAxesEnds: List<Animatable<Float, AnimationVector1D>>,
+    chartGrid: ChartGrids,
+    chartTheme: ChartTheme,
+    dataLoadingStatus: MyResult<*>,
+    curvesSmoothness: Map<HourlyWeatherQuantity, Float>,
+    curvesColor: List<Int>,
+    dotsOnCurveVisible: Boolean,
+    curveShadowVisible: Boolean,
+    sliderThumbPosition: Animatable<Float, AnimationVector1D>,
+    sunRiseSetIconsVisible: Boolean,
+    weatherConditionIconsVisible: Boolean,
+
     appSettings: AppSettings,
     initialXAxisRange: ClosedFloatingPointRange<Float>,
 
@@ -120,14 +137,14 @@ fun HourlyChart(
     val cornerRadius = dimensionResource(id = R.dimen.diagram_corner_radius)
 
     val textMeasurer: TextMeasurer = rememberTextMeasurer()
-    var verticalDashLinePhase by remember{ mutableFloatStateOf(0f) }
-    var horizontalDashLinePhase by remember{ mutableFloatStateOf(0f) }
+    val verticalDashLinePhase = remember { mutableFloatStateOf(0f) }
+    val horizontalDashLinePhase = remember { mutableFloatStateOf(0f) }
     val timeData = hourlyChartData.map { it.hourlyWeather?.time }
         .takeIf { it.isNotEmpty() } ?: historicalHourlyData.map { it.hourlyWeather?.time }
     var firstTimeAddingCurve by rememberSaveable { mutableStateOf(true) }
 
-    LaunchedEffect(key1 = hourlyChartState.curveAnimator.size) {
-        hourlyChartState.curveAnimator.forEach {
+    LaunchedEffect(key1 = curveAnimator.size) {
+        curveAnimator.forEach {
             if (it.value < 1f){
                 launch(Dispatchers.Default){
                     it.animateTo(
@@ -145,18 +162,19 @@ fun HourlyChart(
 
     val frameHeight = dimensionResource(R.dimen.diagram_height).toPx(density) - 2*diagramVertPadding
     LaunchedEffect(
-        hourlyChartState.chartQuantities.size,
+        chartQuantities.size,
         hourlyChartData,
-        hourlyChartState.settingsUpdated,
-        hourlyChartState.xAxisAnimationTrigger,
+        settingsUpdated,
+        xAxisAnimationTrigger,
         historicalHourlyData.getOrNull(0)?.weatherQuantities,
     ) {
-        if (!hourlyChartState.xAxisAnimationTrigger)
+        if (!xAxisAnimationTrigger)
             firstTimeAddingCurve = true
         else {
-            if (hourlyChartState.settingsUpdated) {
+            if (settingsUpdated) {
                 prepareAddCurve(
-                    hourlyChartState = hourlyChartState,
+                    chartQuantities = chartQuantities,
+                    yAxesStarts = yAxesStarts,
                     hourlyChartData = hourlyChartData,
                     historicHourlyChartData = historicalHourlyData,
                     appSettings = appSettings,
@@ -193,8 +211,8 @@ fun HourlyChart(
                         do {
                             val event = awaitPointerEvent()
                             val pan = event.calculatePan()
-                            verticalDashLinePhase -= pan.y
-                            horizontalDashLinePhase -= pan.x
+                            verticalDashLinePhase.floatValue -= pan.y
+                            horizontalDashLinePhase.floatValue -= pan.x
                             onMoveAxis(
                                 Offset(
                                     x = pan.x / (size.width - 2 * diagramHorPadding),
@@ -258,78 +276,81 @@ fun HourlyChart(
 
         DiagramFrameCanvas(
             modifier = Modifier.fillMaxSize(),
-            sunRiseSetX = sunRiseSetX.toImmutableList(),
+            sunRiseSetX = sunRiseSetX,
             isDayList = isDayList.toImmutableList(),
-            xAxisStart = hourlyChartState.xAxisStart.value,
-            xAxisEnd = hourlyChartState.xAxisEnd.value,
-            yAxesStarts = hourlyChartState.yAxesStarts.map { it.value }.toImmutableList(),
-            yAxesEnds = hourlyChartState.yAxesEnds.map { it.value }.toImmutableList(),
-            minorBarVisible = hourlyChartState.chartGrid == ChartGrids.All,
-            majorBarVisible = hourlyChartState.chartGrid != ChartGrids.NON,
+            xAxisStart = xAxisStart,
+            xAxisEnd = xAxisEnd,
+            yAxesStarts = yAxesStarts,
+            yAxesEnds = yAxesEnds,
+            minorBarVisible = chartGrid == ChartGrids.All,
+            majorBarVisible = chartGrid != ChartGrids.NON,
             cornerRadius = cornerRadius,
             diagramHorPadding = diagramHorPadding,
             diagramVertPadding = diagramVertPadding,
-            hourlyChartTheme = hourlyChartState.chartTheme,
+            hourlyChartTheme = chartTheme,
             textMeasurer = textMeasurer,
             verticalDashLinePhase = verticalDashLinePhase,
             horizontalDashLinePhase = horizontalDashLinePhase,
-            isLoading = hourlyChartState.dataLoadingStatus is MyResult.Loading,
+            isLoading = dataLoadingStatus is MyResult.Loading,
             onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
             onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation
         )
 
         if (timeData.isNotEmpty()) {
-            val time = timeData
-                .map { LocalDateTime.parse(it) }
-                .map { it.dayOfMonth * 24 + it.hour }
+            val time = remember(timeData) {
+                timeData
+                    .map { LocalDateTime.parse(it) }
+                    .map { it.dayOfMonth * 24 + it.hour }.toImmutableList()
+            }
 
-            hourlyChartState.chartQuantities.forEachIndexed { curveNumber, weatherQuantity ->
-                hourlyChartState.yAxesStarts.getOrNull(curveNumber)?.let {
+            chartQuantities.forEachIndexed { curveNumber, weatherQuantity ->
+                yAxesStarts.getOrNull(curveNumber)?.let {
                     DiagramCurve(
                         hourlyData = hourlyChartData,
                         historicalHourlyData = historicalHourlyData,
-                        curveAnimatorProgress = hourlyChartState.curveAnimator.getOrNull(curveNumber)?.value
-                            ?: 0f,
+                        curveAnimatorProgress = curveAnimator.getOrNull(curveNumber),
                         timeData = time,
                         weatherQuantity = weatherQuantity,
                         initialXAxisRange = initialXAxisRange,
-                        xAxisRange = hourlyChartState.xAxisStart.value..hourlyChartState.xAxisEnd.value,
-                        yAxisRange = it.value..hourlyChartState.yAxesEnds[curveNumber].value,
+                        xAxisStart = xAxisStart,
+                        xAxisEnd = xAxisEnd,
+                        yAxisStart = it,
+                        yAxisEnd = yAxesEnds[curveNumber],
                         cornerRadius = cornerRadius.toPx(density),
                         horizontalPadding = diagramHorPadding,
                         verticalPadding = diagramVertPadding,
                         appSettings = appSettings,
-                        smoothnessFactor = hourlyChartState.curvesSmoothness.getOrElse(weatherQuantity) { 0f },
-                        curveColor = Color(hourlyChartState.curvesColor[curveNumber]),
-                        dotsVisible = hourlyChartState.dotsOnCurveVisible,
-                        shadowVisible = hourlyChartState.curveShadowVisible,
+                        smoothnessFactor = curvesSmoothness.getOrElse(weatherQuantity) { 0f },
+                        curveColor = Color(curvesColor[curveNumber]),
+                        dotsVisible = dotsOnCurveVisible,
+                        shadowVisible = curveShadowVisible,
                         dotType = DotType.entries[curveNumber],
-                        sliderPosition = hourlyChartState.sliderThumbPosition,
-                        onUpdateCurveValueAtIndicator = { value ->
+                        sliderPosition = sliderThumbPosition,
+                        onUpdateCurveValueAtIndicator = remember(curveNumber) {{ value ->
                             onUpdateCurveValueAtIndicator(curveNumber, value)
-                        }
+                        }}
                     )
                 }
             }
         }
         DiagramIconsAndLegends(
             modifier = Modifier.fillMaxSize(),
-            sunRiseSetIconsVisible = hourlyChartState.sunRiseSetIconsVisible,
-            weatherConditionIconsVisible = hourlyChartState.weatherConditionIconsVisible,
+            sunRiseSetIconsVisible = sunRiseSetIconsVisible,
+            weatherConditionIconsVisible = weatherConditionIconsVisible,
             sunRiseSetX = sunRiseSetX,
-            xAxisStart = hourlyChartState.xAxisStart.value,
-            xAxisEnd = hourlyChartState.xAxisEnd.value,
-            yAxesStarts = hourlyChartState.yAxesStarts.map { it.value }.toImmutableList(),
-            yAxesEnds = hourlyChartState.yAxesEnds.map { it.value }.toImmutableList(),
+            xAxisStart = xAxisStart,
+            xAxisEnd = xAxisEnd,
+            yAxesStarts = yAxesStarts.toImmutableList(),
+            yAxesEnds = yAxesEnds.toImmutableList(),
             cornerRadius = cornerRadius,
             diagramHorPadding = diagramHorPadding,
             diagramVertPadding = diagramVertPadding,
             hourlyChartData = hourlyChartData,
             historicalHourlyData = historicalHourlyData,
-            sliderThumbPosition = hourlyChartState.sliderThumbPosition,
-            hourlyChartTheme = hourlyChartState.chartTheme,
+            sliderThumbPosition = sliderThumbPosition,
+            hourlyChartTheme = chartTheme,
             textMeasurer = textMeasurer,
-            curveColors = hourlyChartState.curvesColor.map { Color(it) },
+            curveColors = curvesColor.map { Color(it) },
             timeClock = appSettings.hourlyDiagramTime,
             onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
             onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation
@@ -343,17 +364,17 @@ fun DiagramIconsAndLegends(
     sunRiseSetIconsVisible: Boolean,
     weatherConditionIconsVisible: Boolean,
     sunRiseSetX: ImmutableList<Pair<Float?, Float?>>,
-    xAxisStart: Float,
-    xAxisEnd: Float,
-    yAxesStarts: ImmutableList<Float>,
-    yAxesEnds: ImmutableList<Float>,
+    xAxisStart: Animatable<Float, AnimationVector1D>,
+    xAxisEnd: Animatable<Float, AnimationVector1D>,
+    yAxesStarts: ImmutableList<Animatable<Float, AnimationVector1D>>,
+    yAxesEnds: ImmutableList<Animatable<Float, AnimationVector1D>>,
     cornerRadius: Dp,
     diagramHorPadding: Float,
     diagramVertPadding: Float,
     hourlyChartData: ImmutableList<HourlyChartDto>,
     historicalHourlyData: ImmutableList<HistoricHourlyChartDto>,
     hourlyChartTheme: ChartTheme,
-    sliderThumbPosition: Float,
+    sliderThumbPosition: Animatable<Float, AnimationVector1D>,
     textMeasurer: TextMeasurer,
     curveColors: List<Color>,
     timeClock: HourlyDiagramTime,
@@ -375,7 +396,7 @@ fun DiagramIconsAndLegends(
             diagramSunRiseSetIcon(
                 context = context,
                 sunRiseSetX = sunRiseSetX,
-                xAxisRange = xAxisStart .. xAxisEnd,
+                xAxisRange = xAxisStart.value .. xAxisEnd.value,
                 cornerRadius = cornerRadius.toPx(),
                 horizontalPadding = diagramHorPadding,
                 verticalPadding = diagramVertPadding
@@ -386,7 +407,7 @@ fun DiagramIconsAndLegends(
                 context = context,
                 hourlyChartData = hourlyChartData,
                 historicalHourlyData = historicalHourlyData,
-                xAxisRange = xAxisStart .. xAxisEnd,
+                xAxisRange = xAxisStart.value .. xAxisEnd.value,
                 cornerRadius = cornerRadius.toPx(),
                 horizontalPadding = diagramHorPadding,
                 verticalPadding = diagramVertPadding,
@@ -400,15 +421,15 @@ fun DiagramIconsAndLegends(
             )
         }
         diagramLegends(
-            xAxisRange = xAxisStart .. xAxisEnd,
+            xAxisRange = xAxisStart.value .. xAxisEnd.value,
             yAxesRanges = List(size = yAxesStarts.size){
-                yAxesStarts[it] .. yAxesEnds[it]
+                yAxesStarts[it].value .. yAxesEnds[it].value
             },
             yAxesColors = curveColors,
             chartTheme = hourlyChartTheme,
             sunRiseSetX = sunRiseSetX,
             cornerRadius = cornerRadius.toPx(),
-            indicatorPosition = sliderThumbPosition,
+            indicatorPosition = sliderThumbPosition.value,
             horizontalPadding = diagramHorPadding,
             verticalPadding = diagramVertPadding,
             onAppSurfaceColor = appThemeDiagramOnSurfaceColor,
@@ -916,7 +937,8 @@ fun quantityMinMaxModifier(
 }
 
 private fun prepareAddCurve(
-    hourlyChartState: HourlyChartState,
+    chartQuantities: List<HourlyWeatherQuantity>,
+    yAxesStarts: List<Animatable<Float, AnimationVector1D>>,
     hourlyChartData: List<HourlyChartDto?>,
     historicHourlyChartData: List<HistoricHourlyChartDto>,
     appSettings: AppSettings,
@@ -926,15 +948,15 @@ private fun prepareAddCurve(
     onAddYAxis: (Float, Float, Float, TextMeasurer, Int?, Float) -> Unit
 ){
     if (historicHourlyChartData.isNotEmpty() &&
-        hourlyChartState.chartQuantities != historicHourlyChartData[0].weatherQuantities
+        chartQuantities != historicHourlyChartData[0].weatherQuantities
     ) return
 
-    hourlyChartState.chartQuantities.forEachIndexed { curveNumber, weatherQuantity ->
-        if (hourlyChartState.yAxesStarts.getOrNull(curveNumber) == null) {
+    chartQuantities.forEachIndexed { curveNumber, weatherQuantity ->
+        if (yAxesStarts.getOrNull(curveNumber) == null) {
             val apparentTempIndex =
-                hourlyChartState.chartQuantities.indexOf(HourlyWeatherQuantity.APPARENTTEMP)
+                chartQuantities.indexOf(HourlyWeatherQuantity.APPARENTTEMP)
             val tempIndex =
-                hourlyChartState.chartQuantities.indexOf(HourlyWeatherQuantity.TEMPERATURE)
+                chartQuantities.indexOf(HourlyWeatherQuantity.TEMPERATURE)
             when {
                 weatherQuantity == HourlyWeatherQuantity.TEMPERATURE && -1 < apparentTempIndex &&
                         apparentTempIndex < curveNumber ->
@@ -993,13 +1015,12 @@ fun timeToX(
                 HourlyDiagramTime.DEVICE -> deviceUtcOffset
                 HourlyDiagramTime.LOCATION -> utcOffset / 60f
             }
-
-
 }
 
 
 
 
+/*
 @Preview(showBackground = true)
 @Composable
 fun LinearChartPreview(
@@ -1013,4 +1034,4 @@ fun LinearChartPreview(
         onCalculateVerticalBarSeparation = detailViewModel::calculateVerticalBarSeparation,
         onUpdateCurveValueAtIndicator = { _, _ -> }
     )
-}
+}*/

@@ -33,14 +33,13 @@ import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.utility.BorderedText
-import kotlinx.collections.immutable.ImmutableList
 
 @Composable
 fun HourlyDiagramLegend(
     modifier: Modifier = Modifier,
-    chartQuantities: ImmutableList<HourlyWeatherQuantity>,
+    chartQuantities: List<HourlyWeatherQuantity>,
     dotsOnCurveVisible: Boolean,
-    curveValueAtIndicator: ImmutableList<Float?>,
+    curveValueAtIndicator: List<Float?>,
     appSettings: AppSettings,
     onRemoveChartQuantity: (quantity: HourlyWeatherQuantity) -> Unit
 ) {
@@ -181,7 +180,48 @@ fun LegendLineIcon(
                     )
                 }
             }
-
         }
     }
 }
+
+
+/*
+@Composable
+fun HourlyDiagramLegendRow2(
+    modifier: Modifier = Modifier,
+    hourlyWeatherQuantity: HourlyWeatherQuantity,
+    curveIndex: Int,
+    color: Color,
+    showDot: Boolean,
+    onRemoveQuantity: () -> Unit
+) {
+    Row(
+        modifier = modifier.padding(vertical = 4.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        LegendLineIconAndText(
+            modifier = Modifier.size(32.dp, 24.dp),
+            curveIndex = curveIndex,
+            showDot = showDot,
+            color = color
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        BorderedText(
+            modifier = Modifier.weight(1f),
+            text = text,
+            strokeColor = color,
+            fillColor = color,
+            fontSize = 16.sp
+        )
+//        Spacer(modifier = Modifier.width(8.dp))
+        IconButton(
+            modifier = Modifier.padding(horizontal = 12.dp).size(24.dp),
+            onClick = { onRemoveQuantity() }
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.close_24px),
+                contentDescription = "Remove"
+            )
+        }
+    }
+}*/

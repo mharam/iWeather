@@ -65,4 +65,24 @@ data class LocationsState(
         HourlyWeatherQuantity.AQI -> currentAirQuality?.toFloat()
         else -> null
     }
+
+    fun summarize() = LocationsBriefState(
+        locationId = locationId,
+        locationName = locationName,
+        latitude = latitude,
+        longitude = longitude,
+        currentPictureUrl = currentPictureUrl,
+        lastPicId = lastPicId,
+        picName = picName
+    )
 }
+
+data class LocationsBriefState(
+    val locationId: Int = 0,
+    val locationName: String = "",
+    val latitude: Float = 0f,
+    val longitude: Float = 0f,
+    val currentPictureUrl: String = "",
+    val lastPicId: Int? = null,
+    val picName: String = "1_1_1",
+)

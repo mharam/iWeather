@@ -33,12 +33,10 @@ class AddLocationUseCase @Inject constructor(
 
     suspend fun setLocationTime(location: Location): MyResult<out String>{
         try {
-//            Log.i("update1", "setting ${location.name} time")
             val result = timeRepository.getTime(
                 latitude = location.latitude,
                 longitude = location.longitude
             )
-//            Log.i("update1", "set ${location.name} time")
             return if (result is MyResult.Success){
                 locationRepository.updateLocationUtcOffset(
                     name = location.name,

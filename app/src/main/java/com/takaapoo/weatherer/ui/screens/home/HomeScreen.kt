@@ -3,7 +3,6 @@ package com.takaapoo.weatherer.ui.screens.home
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.widget.Toast
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
@@ -11,6 +10,9 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.AnchoredDraggableState
+import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -30,6 +32,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -37,7 +40,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -55,6 +57,8 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -85,8 +89,8 @@ import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.AppTheme
-import com.takaapoo.weatherer.domain.model.HomePaneContent
 import com.takaapoo.weatherer.domain.model.HomeState
+import com.takaapoo.weatherer.domain.model.LocationsBriefState
 import com.takaapoo.weatherer.domain.model.LocationsState
 import com.takaapoo.weatherer.ui.screens.add_location.SearchBarAdam
 import com.takaapoo.weatherer.ui.screens.home.dialogs.DeleteAlertDialog
@@ -97,11 +101,12 @@ import com.takaapoo.weatherer.ui.viewModels.DialogType
 import com.takaapoo.weatherer.utility.swap
 import com.takaapoo.weatherer.utility.toDp
 import com.takaapoo.weatherer.utility.toPx
-import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -123,20 +128,20 @@ val CardBackIconSize = 60.dp
 fun HomeScreen(
     // temporary parameter
     modifier: Modifier = Modifier,
-    locations: List<Location> = emptyList(),
-    homeState: HomeState,
-    locationListState: ImmutableList<LocationsState>,
+    locationsBriefStates: List<LocationsBriefState> = emptyList(),
+    homeRealState: State<HomeState>,
+    locationListState: State<List<LocationsState>>,
     appSettings: AppSettings,
     weatherDataLoadStatus: Map<Int, MyResult<*>>,
     isZooming: Boolean,
     homeScreenWidth: Float,
     homeScreenHeight: Float,
 //    listBoxTopPadding: Float,
-    zoom: Float,
+    zoom: State<Float>,
     zoomMax: Float,
-    itemTranslationX: Float,
-    itemTranslationY: Float,
-    windowRotation: Float,
+    itemTranslationX: State<Float>,
+    itemTranslationY: State<Float>,
+    windowRotation: State<Float>,
     initialFirstItemIndex: Int?,
     singlePane: Boolean = true,
     permanentDrawer: Boolean,
@@ -155,15 +160,15 @@ fun HomeScreen(
     onUpdateDayGaugeIndex: (newVisibleDay: Int) -> Unit,
     onUpdateDialogVisibility: (dialogType: DialogType, visible: Boolean) -> Unit,
     onUpdateToBeDeletedLocationId: () -> Unit,
-    onUpdateHomePaneContent: (content: HomePaneContent) -> Unit,
+//    onUpdateHomePaneContent: (content: HomePaneContent) -> Unit,
     onModifyInitialPage: (deletedPage: Int) -> Unit,
     onUpdateLocation: (id: Int, newName: String) -> Unit,
     onUpdateEditDialogLocationName: (locationName: String) -> Unit,
     onUpdateSelectedItemIndexOffset: (index: Int?, offset: Int?) -> Unit,
-    onNavigateToItem: (locationId: Int, cardX: Float, cardY: Float, cardWidth: Float) -> Unit,
+    onNavigateToItem: (locationId: Int, itemIndex: Int) -> Unit,
     onUpdateSelectedLocationId: (locationId: Int) -> Unit,
     onUpdateDialogData: (dialogType: DialogType, id: Int, locationName: String) -> Unit,
-    onDeleteLocation: (id: Int) -> Unit,
+    onDeleteLocation: suspend (id: Int) -> Unit,
     onUpdateFilterText: (text: String) -> Unit,
 
     onSwapLocations: (id1: Int, id2: Int) -> Unit,
@@ -174,25 +179,29 @@ fun HomeScreen(
     onPrepareDeleteLocation: (locationId: Int) -> Unit,
     onReloadALocationWeatherData: (location: Location) -> Unit,
     onUpdateClockGaugeLock: (lock: Boolean) -> Unit,
-    onUpdateItemDragged: (state: Boolean) -> Unit,
+//    onUpdateItemDragged: (state: Boolean) -> Unit,
 
     onDownloadAndSaveLandscapes: (context: Context, picId: Int, picUrl: String, picName: String?) -> Unit,
     onUpdateInitialLandscape: (bitmap: Bitmap) -> Unit,
-    onReInitialize: () -> Unit = {},
+//    onReInitialize: () -> Unit = {},
     onAdjustSettings: () -> Unit = {},
+
+    onUpdateHomeCardX: (cardX: Float, itemIndex: Int) -> Unit,
+    onUpdateHomeCardY: (cardY: Float, itemIndex: Int) -> Unit,
+    onUpdateHomeCardWidth: (cardWidth: Float, itemIndex: Int) -> Unit,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val hapticFeedback = LocalHapticFeedback.current
+    val homeState = homeRealState.value
 
-    var sortedLocationListState by remember { mutableStateOf(locationListState) }
+    var sortedLocationListState by remember { mutableStateOf(locationsBriefStates) }
     val displayedLocationListState = sortedLocationListState.filter {
         it.locationName.contains(
             other = homeState.filterText.trim(),
             ignoreCase = true
         )
     }
-//    val updatedDisplayedLocationList by rememberUpdatedState(displayedLocationListState)
     val listState = rememberLazyListState(
         initialFirstVisibleItemIndex = (initialFirstItemIndex?.plus(1) ?: homeState.selectedItemIndex),
         initialFirstVisibleItemScrollOffset = -homeState.selectedItemOffset
@@ -267,18 +276,16 @@ fun HomeScreen(
     }
     val clockGaugeRotationCoefficient = 360 / (PI.toFloat() * clockGaugeWidth.toPx(density))
 
-    var cardAlpha by rememberSaveable { mutableStateOf(zoom > 1f) }
-//    var selectedItemIndex by remember { mutableIntStateOf(0) }
-    var selectedItem by remember {
-        mutableStateOf(sortedLocationListState.getOrElse(
-            index = homeState.selectedItemIndex,
-            defaultValue = { LocationsState() }
-        ))
-    }
+    var cardAlpha by rememberSaveable { mutableStateOf(zoom.value > 1f) }
+    var selectedItemIndex by remember { mutableIntStateOf(homeState.selectedItemIndex) }
+//    var selectedItem by remember {
+//        mutableStateOf(sortedLocationListState.getOrElse(
+//            index = homeState.selectedItemIndex,
+//            defaultValue = { LocationsState() }
+//        ))
+//    }
     var selectedPage by remember {
-        mutableIntStateOf(sortedLocationListState.indexOfFirst { locationState ->
-            selectedItem.locationId == locationState.locationId
-        })
+        mutableIntStateOf(selectedItemIndex)
     }
     val cardScale by animateFloatAsState(
         targetValue = if (sortedLocationListUpdatePermission) 1f else 1.04f,
@@ -286,20 +293,20 @@ fun HomeScreen(
         animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing)
     )
 
-    LaunchedEffect(key1 = locationListState, key2 = sortedLocationListUpdatePermission) {
+    LaunchedEffect(key1 = locationsBriefStates, key2 = sortedLocationListUpdatePermission) {
         if (sortedLocationListUpdatePermission)
-            sortedLocationListState = locationListState
+            sortedLocationListState = locationsBriefStates
     }
 
     LaunchedEffect(key1 = isZooming) {
-        if (zoom == zoomMax && !homeState.navigatedToDetailScreen) {
+        if (zoom.value == zoomMax && !homeState.navigatedToDetailScreen) {
 //            val selectedLocationPageNumber = locationListState.indexOfFirst {
 //                it.locationId == homeState.selectedLocationId
 //            }
 //            homeViewModel.updateTopPaddingOffset(topAppBarState.heightOffset)
-            onNavigateToDetailScreen(locationListState.size, selectedPage)
+            onNavigateToDetailScreen(locationListState.value.size, selectedPage)
             onUpdateNavigatedToDetailScreen(true)
-        } else if (zoom == 1f && homeState.navigatedToDetailScreen) {
+        } else if (zoom.value == 1f && homeState.navigatedToDetailScreen) {
             onUpdateNavigatedToDetailScreen(false)
             onUpdateVerticalOffsetDifference(0f)
         }
@@ -321,17 +328,41 @@ fun HomeScreen(
             else -> {}
         }
     }
-    LaunchedEffect(key1 = true) {
+    /*LaunchedEffect(key1 = initialFirstItemIndex) {
         initialFirstItemIndex?.let { index ->
-            locationListState.getOrNull(index)?.locationId?.let { id ->
+            listState.scrollToItem(index + 1, -homeState.selectedItemOffset)
+            locationListState.value.getOrNull(index)?.locationId?.let { id ->
                 onUpdateSelectedLocationId(id)
                 val offset = listState.layoutInfo.visibleItemsInfo.find {
-                    it.key == locationListState[index].locationId
+                    it.key == id
                 }?.offset
                 offset?.let {
                     onUpdateVerticalOffsetDifference(homeState.selectedItemOffset - it.toFloat())
                 }
             }
+        }
+        onResetZoom()
+    }*/
+    LaunchedEffect(initialFirstItemIndex) {
+        initialFirstItemIndex?.let { index ->
+            val id = locationListState.value.getOrNull(index)?.locationId ?: return@let
+            onUpdateSelectedLocationId(id)
+
+            // 1. Explicitly scroll to the item (overriding the restored saveable state)
+            // We use index + 1 because of the Spacer at index 0
+            listState.scrollToItem(index + 1, -homeState.selectedItemOffset)
+
+            // 2. Use snapshotFlow to wait until the layout pass is complete
+            // and the item is actually visible/measured
+            snapshotFlow { listState.layoutInfo.visibleItemsInfo }
+                .mapNotNull { visibleItems ->
+                    visibleItems.find { it.key == id }
+                }
+                .first() // Stops the flow as soon as the item is found
+                .let { item ->
+                    // Now item.offset is guaranteed to be available
+                    onUpdateVerticalOffsetDifference(homeState.selectedItemOffset - item.offset.toFloat())
+                }
         }
         onResetZoom()
     }
@@ -359,588 +390,762 @@ fun HomeScreen(
             )
         }
     ) {
-            Scaffold(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .imePadding()
-                    .nestedScroll(scrollBehavior.nestedScrollConnection),
-                snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-                topBar = {
-                    CenterAlignedTopAppBar(
-                        modifier = Modifier
-//                        .onSizeChanged { size -> topAppBarHeight = size.height.toDp(density) }
-                        ,
-                        title = {
-                            SearchBarAdam(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 4.dp, end = 16.dp),
-                                query = homeState.filterText,
-                                onQueryChange = onUpdateFilterText,
-                                onSearch = {},
-                                active = false,
-                                hasResultTable = false,
-                                permanentDrawer = permanentDrawer,
-                                onBackPressed = {
-                                    focusManager.clearFocus()
-                                    keyboardController?.hide()
-                                },
-                                placeholder = {
-                                    Text(
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = MaterialTheme.customColorScheme.lowEmphasisText,
-                                        text = "Filter here!"
-                                    )
-                                },
-                                leadingIcon = if (!permanentDrawer) {
-                                    {
-                                        IconButton(
-                                            onClick = {
-                                                if (searchbarIsFocused) {
-                                                    focusManager.clearFocus()
-                                                    keyboardController?.hide()
-                                                    onUpdateFilterText("")
-                                                } else onMenuButtonClick()
-                                            }
-                                        ) {
-                                            if (searchbarIsFocused)
-                                                Icon(
-                                                    imageVector = Icons.Default.Close,
-                                                    contentDescription = "Close"
-                                                )
-                                            else
-                                                Icon(
-                                                    imageVector = Icons.Default.Menu,
-                                                    contentDescription = "Drawer"
-                                                )
+        val topBarScrimColor = MaterialTheme.customColorScheme.statusBarScrimColor
+        val topBarColor by remember {
+            derivedStateOf {
+                if (listState.canScrollBackward) topBarScrimColor
+                else Transparent
+            }
+        }
+        val topInsetsPadding = TopAppBarDefaults.windowInsets.getTop(density)
+        // This is needed to draw searchbar and card list simultaneously
+//        if (topInsetsPadding > 0) {
+//            (context as MainActivity).topInsetsPaddingCalculated = true
+//        }
 
-                                        }
+        Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+                .nestedScroll(scrollBehavior.nestedScrollConnection),
+            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+            topBar = {
+                val standardHeight = 48.dp
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                        .background(color = topBarColor),
+                    contentAlignment = Alignment.Center
+                ){
+                    SearchBarAdam(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(
+                                WindowInsets(
+                                    left = 0,
+                                    top = topInsetsPadding,
+                                    right = 0,
+                                    bottom = 0
+                                )
+                            )
+                            .padding(start = 8.dp, end = 8.dp, top = 8.dp)
+//                                    .padding(top = 4.dp, end = 16.dp)
+                        ,
+                        query = homeState.filterText,
+                        onQueryChange = onUpdateFilterText,
+                        onSearch = {},
+                        active = false,
+                        hasResultTable = false,
+                        permanentDrawer = permanentDrawer,
+                        onBackPressed = {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                        },
+                        placeholder = {
+                            Text(
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.customColorScheme.lowEmphasisText,
+                                text = "Filter here!"
+                            )
+                        },
+                        leadingIcon = if (!permanentDrawer) {
+                            {
+                                IconButton(
+                                    onClick = {
+                                        if (searchbarIsFocused) {
+                                            focusManager.clearFocus()
+                                            keyboardController?.hide()
+                                            onUpdateFilterText("")
+                                        } else onMenuButtonClick()
                                     }
-                                } else if (searchbarIsFocused) {
-                                    {
-                                        IconButton(
-                                            onClick = {
-                                                focusManager.clearFocus()
-                                                keyboardController?.hide()
-                                                onUpdateFilterText("")
-                                            }
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Close"
-                                            )
-                                        }
+                                ) {
+                                    if (searchbarIsFocused)
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Close"
+                                        )
+                                    else
+                                        Icon(
+                                            imageVector = Icons.Default.Menu,
+                                            contentDescription = "Drawer"
+                                        )
+
+                                }
+                            }
+                        } else if (searchbarIsFocused) {
+                            {
+                                IconButton(
+                                    onClick = {
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                        onUpdateFilterText("")
                                     }
-                                } else null,
-                                trailingIcon = {
-                                    Row(
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Close"
+                                    )
+                                }
+                            }
+                        } else null,
+                        trailingIcon = {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
 //                                        with(sharedTransitionScope){
-                                        SmallFloatingActionButton(
-                                            onClick = {
-                                                onNavigateToAddLocationScreen()
-                                            },
+                                SmallFloatingActionButton(
+                                    onClick = {
+                                        onNavigateToAddLocationScreen()
+                                    },
 //                                                modifier = Modifier.sharedBounds(
 //                                                    sharedContentState = rememberSharedContentState(
 //                                                        key = FAB_EXPLODE_KEY
 //                                                    ),
 //                                                    animatedVisibilityScope = animatedVisibilityScope
 //                                                ),
-                                            shape = CircleShape,
-                                            content = {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.add_location_24px),
-                                                    contentDescription = "Add Location"
-                                                )
-                                            }
+                                    shape = CircleShape,
+                                    content = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.add_location_24px),
+                                            contentDescription = "Add Location"
                                         )
-//                                        }
                                     }
-                                },
-                                standardHeight = 48.dp,
-                                interactionSource = searchbarInteractionSource,
-                                content = { }
-                            )
+                                )
+//                                        }
+                            }
                         },
-                        scrollBehavior = scrollBehavior,
-                        windowInsets = WindowInsets(
-                            left = 0,
-                            top = TopAppBarDefaults.windowInsets.getTop(density),
-                            right = 0,
-                            bottom = 0
-                        ),
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = Transparent,
-                            scrolledContainerColor = MaterialTheme.customColorScheme.statusBarScrimColor
-                        )
+                        standardHeight = standardHeight,
+                        interactionSource = searchbarInteractionSource,
+                        content = { }
                     )
-                },
-                bottomBar = {
-                    if (appSettings.clockGaugeVisibility) {
-                        Column(
+                }
+                /*TopAppBar(
+                    modifier = Modifier
+//                        .onSizeChanged { size -> topAppBarHeight = size.height.toDp(density) }
+                    ,
+                    title = {
+                        SearchBarAdam(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .graphicsLayer { translationY = clockGaugeYAnimatable.value }
-                                .padding(bottom = 8.dp)
-                        ) {
-                            val dayGaugeResource = when (appSettings.theme) {
-                                AppTheme.LIGHT -> R.drawable.day_gauge_light
-                                AppTheme.DARK -> R.drawable.day_gauge_dark
-                                AppTheme.SYSTEM -> {
-                                    if (isSystemInDarkTheme()) R.drawable.day_gauge_dark
-                                    else R.drawable.day_gauge_light
-                                }
-                            }
-                            ClockManipulator(
-                                gaugeSize = clockGaugeWidth,
-                                dayGaugeResource = dayGaugeResource,
-                                clockGaugeRotation = homeState.clockGaugeRotation.value,
-                                clockGaugeNaturalRotation = homeState.clockGaugeNaturalRotation,
-                                clockGaugeRotationCoefficient = clockGaugeRotationCoefficient,
-                                dayListState = homeState.dayListState,
-                                dayGaugeIndex = homeState.dayGaugeIndex,
-                                dayGaugeNaturalIndex = homeState.dayGaugeNaturalIndex,
-                                visibleDayIndex = homeState.visibleDayIndex,
-                                clockGaugeLock = homeState.clockGaugeLock,
-                                silent = appSettings.silent,
-                                vibration = appSettings.vibration,
-
-                                onUpdateVisibleDayIndex = remember { onUpdateVisibleDayIndex },
-                                onUpdateDayGaugeIndex = remember { onUpdateDayGaugeIndex },
-//                                onHandleClickSound = remember { onHandleClickSound },
-                                onUpdateClockGaugeRotation = remember { onUpdateClockGaugeRotation },
-                                onStopRotation = remember {
-                                    { coroutineScope.launch { homeState.clockGaugeRotation.stop() } }
-                                },
-                                onDecayRotation = { velocity ->
-                                    coroutineScope.launch(Dispatchers.Default) {
-                                        homeState.clockGaugeRotation.animateDecay(
-                                            initialVelocity = (velocity * clockGaugeRotationCoefficient)
-                                                .coerceIn(-360f, 360f),
-                                            animationSpec = exponentialDecay(frictionMultiplier = 0.25f)
-                                        )
-                                    }
-                                },
-                                onUpdateClockGaugeLock = onUpdateClockGaugeLock,
-                                onUndoButtonPressed = {
-                                    onBalanceClockGaugeValues()
-                                    coroutineScope.launch {
-                                        homeState.clockGaugeRotation.animateTo(
-                                            targetValue = 0f,
-                                            animationSpec = tween(durationMillis = 700)
-                                        )
-                                    }
-                                    onResetDayGauge()
-                                }
-                            )
-                            Spacer(
-                                Modifier.windowInsetsBottomHeight(
-                                    WindowInsets.systemBars
+//                                    .padding(top = 4.dp, end = 16.dp)
+                            ,
+                            query = homeState.filterText,
+                            onQueryChange = onUpdateFilterText,
+                            onSearch = {},
+                            active = false,
+                            hasResultTable = false,
+                            permanentDrawer = permanentDrawer,
+                            onBackPressed = {
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            },
+                            placeholder = {
+                                Text(
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.customColorScheme.lowEmphasisText,
+                                    text = "Filter here!"
                                 )
-                            )
-                        }
-                    }
-                }
-            ) { paddingValues ->
-                when {
-                    homeState.deleteDialogVisible -> {
-                        DeleteAlertDialog(
-                            onDismiss = {
-                                onUpdateDialogVisibility(DialogType.DELETE, false)
                             },
-                            onConfirmation = {
-                                onUpdateToBeDeletedLocationId()
-                                onUpdateDialogVisibility(DialogType.DELETE, false)
-                                if (homeState.selectedLocationId == homeState.deleteDialogLocationId) {
-//                                    onUpdateHomePaneContent(HomePaneContent.LOCATIONLIST)
-                                    onNavigateUp()
-                                }
-                                onPrepareDeleteLocation(homeState.deleteDialogLocationId)
-                                val deletedPage = sortedLocationListState.indexOfFirst {
-                                    it.locationId == homeState.deleteDialogLocationId
-                                }
-                                if (deletedPage >= 0)
-                                    onModifyInitialPage(deletedPage)
-                            },
-                            locationName = homeState.deleteDialogLocationName
-                        )
-                    }
+                            leadingIcon = if (!permanentDrawer) {
+                                {
+                                    IconButton(
+                                        onClick = {
+                                            if (searchbarIsFocused) {
+                                                focusManager.clearFocus()
+                                                keyboardController?.hide()
+                                                onUpdateFilterText("")
+                                            } else onMenuButtonClick()
+                                        }
+                                    ) {
+                                        if (searchbarIsFocused)
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Close"
+                                            )
+                                        else
+                                            Icon(
+                                                imageVector = Icons.Default.Menu,
+                                                contentDescription = "Drawer"
+                                            )
 
-                    homeState.editDialogVisible -> {
-                        EditDialog(
-                            onDismiss = {
-                                onUpdateDialogVisibility(DialogType.EDIT, false)
+                                    }
+                                }
+                            } else if (searchbarIsFocused) {
+                                {
+                                    IconButton(
+                                        onClick = {
+                                            focusManager.clearFocus()
+                                            keyboardController?.hide()
+                                            onUpdateFilterText("")
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Close"
+                                        )
+                                    }
+                                }
+                            } else null,
+                            trailingIcon = {
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+//                                        with(sharedTransitionScope){
+                                    SmallFloatingActionButton(
+                                        onClick = {
+                                            onNavigateToAddLocationScreen()
+                                        },
+//                                                modifier = Modifier.sharedBounds(
+//                                                    sharedContentState = rememberSharedContentState(
+//                                                        key = FAB_EXPLODE_KEY
+//                                                    ),
+//                                                    animatedVisibilityScope = animatedVisibilityScope
+//                                                ),
+                                        shape = CircleShape,
+                                        content = {
+                                            Icon(
+                                                painter = painterResource(R.drawable.add_location_24px),
+                                                contentDescription = "Add Location"
+                                            )
+                                        }
+                                    )
+//                                        }
+                                }
                             },
-                            onConfirmation = {
-                                if (homeState.editDialogOldLocationName != homeState.editDialogNewLocationName) {
-                                    onUpdateLocation(
-                                        homeState.editDialogLocationId,
-                                        homeState.editDialogNewLocationName
+                            standardHeight = 48.dp,
+                            interactionSource = searchbarInteractionSource,
+                            content = { }
+                        )
+                    },
+                    scrollBehavior = scrollBehavior,
+                    windowInsets = WindowInsets(
+                        left = 0,
+                        top = TopAppBarDefaults.windowInsets.getTop(density),
+                        right = 0,
+                        bottom = 0
+                    ),
+                    contentPadding = PaddingValues(horizontal = 0.dp),
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Transparent,
+                        scrolledContainerColor = MaterialTheme.customColorScheme.statusBarScrimColor
+                    )
+                )*/
+            },
+            bottomBar = {
+                if (appSettings.clockGaugeVisibility) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer { translationY = clockGaugeYAnimatable.value }
+                            .padding(bottom = 8.dp)
+                    ) {
+                        val dayGauge = when (appSettings.theme) {
+                            AppTheme.LIGHT -> true
+                            AppTheme.DARK -> false
+                            AppTheme.SYSTEM -> !isSystemInDarkTheme()
+                        }
+//                            val dayGaugeImage = ImageBitmap.imageResource(dayGaugeResource)
+                        ClockManipulator(
+                            gaugeSize = clockGaugeWidth,
+//                                dayGaugeResource = dayGaugeResource,
+                            dayGaugeProvider = { dayGauge },
+                            homeState = homeRealState,
+//                                clockGaugeRotation = homeState.clockGaugeRotation.value,
+//                                clockGaugeNaturalRotation = homeState.clockGaugeNaturalRotation,
+                            clockGaugeRotationCoefficient = clockGaugeRotationCoefficient,
+//                                dayListState = homeState.dayListState,
+//                                dayGaugeIndex = homeState.dayGaugeIndex,
+//                                dayGaugeNaturalIndex = homeState.dayGaugeNaturalIndex,
+//                                visibleDayIndex = homeState.visibleDayIndex,
+//                                clockGaugeLock = homeState.clockGaugeLock,
+                            silent = appSettings.silent,
+                            vibration = appSettings.vibration,
+
+                            onUpdateVisibleDayIndex = remember { onUpdateVisibleDayIndex },
+                            onUpdateDayGaugeIndex = remember { onUpdateDayGaugeIndex },
+//                                onHandleClickSound = remember { onHandleClickSound },
+                            onUpdateClockGaugeRotation = remember { onUpdateClockGaugeRotation },
+                            onStopRotation = remember {
+                                { coroutineScope.launch { homeState.clockGaugeRotation.stop() } }
+                            },
+                            onDecayRotation = { velocity ->
+                                coroutineScope.launch(Dispatchers.Default) {
+                                    homeState.clockGaugeRotation.animateDecay(
+                                        initialVelocity = (velocity * clockGaugeRotationCoefficient)
+                                            .coerceIn(-90f, 90f),
+                                        animationSpec = exponentialDecay(frictionMultiplier = 0.25f)
                                     )
                                 }
-                                onUpdateDialogVisibility(DialogType.EDIT, false)
                             },
-                            nameAlreadyExists = homeState.nameAlreadyExists and
-                                    (homeState.editDialogOldLocationName != homeState.editDialogNewLocationName),
-                            locationName = homeState.editDialogNewLocationName,
-                            onLocationNameChange = {
-                                onUpdateEditDialogLocationName(it)
+                            onUpdateClockGaugeLock = remember { onUpdateClockGaugeLock },
+                            onUndoButtonPressed = {
+                                onBalanceClockGaugeValues()
+                                coroutineScope.launch {
+                                    homeRealState.value.clockGaugeRotation.animateTo(
+                                        targetValue = 0f,
+                                        animationSpec = tween(durationMillis = 700)
+                                    )
+                                }
+                                onResetDayGauge()
                             }
+                        )
+                        Spacer(
+                            Modifier.windowInsetsBottomHeight(
+                                WindowInsets.systemBars
+                            )
                         )
                     }
                 }
-                Box(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    if (displayedLocationListState.isNotEmpty() &&
-                        displayedLocationListState.first().locationId != -2) {
-                        val cardSpacing = dimensionResource(R.dimen.home_card_spacing)
-                        val topSpacerHeight = paddingValues.calculateTopPadding()
-                        val lazyColumnHeight by rememberUpdatedState( homeScreenHeight -
-                                (topSpacerHeight + paddingValues.calculateBottomPadding() + cardSpacing)
-                                    .toPx(density)
-                        )
-                        var longPressedItemId by remember { mutableIntStateOf(0) }
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                start = cardSpacing,
-                                end = cardSpacing,
+            }
+        ) { paddingValues ->
+            when {
+                homeState.deleteDialogVisible -> {
+                    DeleteAlertDialog(
+                        onDismiss = {
+                            onUpdateDialogVisibility(DialogType.DELETE, false)
+                        },
+                        onConfirmation = {
+                            onUpdateToBeDeletedLocationId()
+                            onUpdateDialogVisibility(DialogType.DELETE, false)
+                            if (homeState.selectedLocationId == homeState.deleteDialogLocationId) {
+//                                    onUpdateHomePaneContent(HomePaneContent.LOCATIONLIST)
+                                onNavigateUp()
+                            }
+                            onPrepareDeleteLocation(homeState.deleteDialogLocationId)
+                            val deletedPage = sortedLocationListState.indexOfFirst {
+                                it.locationId == homeState.deleteDialogLocationId
+                            }
+                            if (deletedPage >= 0)
+                                onModifyInitialPage(deletedPage)
+                        },
+                        locationName = homeState.deleteDialogLocationName
+                    )
+                }
+                homeState.editDialogVisible -> {
+                    EditDialog(
+                        onDismiss = {
+                            onUpdateDialogVisibility(DialogType.EDIT, false)
+                        },
+                        onConfirmation = {
+                            if (homeState.editDialogOldLocationName != homeState.editDialogNewLocationName) {
+                                onUpdateLocation(
+                                    homeState.editDialogLocationId,
+                                    homeState.editDialogNewLocationName
+                                )
+                            }
+                            onUpdateDialogVisibility(DialogType.EDIT, false)
+                        },
+                        nameAlreadyExists = homeState.nameAlreadyExists and
+                                (homeState.editDialogOldLocationName != homeState.editDialogNewLocationName),
+                        locationName = homeState.editDialogNewLocationName,
+                        onLocationNameChange = {
+                            onUpdateEditDialogLocationName(it)
+                        }
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (displayedLocationListState.isNotEmpty() &&
+                    displayedLocationListState.first().locationId != -2) {
+                    val cardSpacing = dimensionResource(R.dimen.home_card_spacing)
+                    val topSpacerHeight = paddingValues.calculateTopPadding()
+                    val lazyColumnHeight by rememberUpdatedState( homeScreenHeight -
+                            (topSpacerHeight + paddingValues.calculateBottomPadding() + cardSpacing)
+                                .toPx(density)
+                    )
+                    var longPressedItemId by remember { mutableIntStateOf(0) }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = cardSpacing,
+                            end = cardSpacing,
 //                            top = cardSpacing,
-                                bottom = cardSpacing + paddingValues.calculateBottomPadding()
-                            ),
-                            state = listState,
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(cardSpacing)
-                        ) {
-                                item {
-                                    Spacer(modifier = Modifier.height(topSpacerHeight))
+                            bottom = cardSpacing + paddingValues.calculateBottomPadding()
+                        ),
+                        state = listState,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(cardSpacing)
+                    ) {
+                        item {
+                            Spacer(modifier = Modifier.height(topSpacerHeight))
+                        }
+                        itemsIndexed(
+                            items = displayedLocationListState,
+                            key = { _, item -> item.locationId }
+                        ) { index, item ->
+                            val indexInMainList = locationsBriefStates.indexOfFirst {
+                                it.locationId == item.locationId
+                            }
+                            ReorderableItem(
+                                state = reorderableLazyListState,
+                                key = item.locationId,
+                            )
+                            { _ ->
+                                val anchors = remember {
+                                    DraggableAnchors {
+                                        DragValue.Left at -DRAG_MAX_DISPLACE.toPx(density)
+                                        DragValue.Center at 0f
+                                        DragValue.Right at DRAG_MAX_DISPLACE.toPx(density)
+                                    }
                                 }
-                                itemsIndexed(
-                                    items = displayedLocationListState,
-                                    key = { _, item -> item.locationId }
-                                ) { index, item ->
-                                    ReorderableItem(
-                                        state = reorderableLazyListState,
-                                        key = item.locationId,
-                                    ) { isDragging ->
-                                        val itemModifier = if (cardAlpha) {
-                                            Modifier.graphicsLayer {
+                                val dragState = rememberSaveable(saver = AnchoredDraggableState.Saver()) {
+                                    AnchoredDraggableState(initialValue = DragValue.Center)
+                                }.apply { updateAnchors(anchors) }
+
+                                val longPressEnabled by remember {
+                                    derivedStateOf { dragState.currentValue == DragValue.Center }
+                                }
+
+                                val itemModifier = if (cardAlpha) {
+                                    Modifier.graphicsLayer {
+                                        alpha =
+                                            if (homeState.selectedLocationId == item.locationId)
+                                                0f else 1f
+                                    }
+                                } else {
+                                    remember(longPressEnabled) {
+                                        Modifier
+                                            .longPressDraggableHandle(
+                                                enabled = longPressEnabled,
+                                                onDragStarted = {
+                                                    longPressedItemId = item.locationId
+                                                    hapticFeedback.performHapticFeedback(
+                                                        HapticFeedbackType.LongPress
+                                                    )
+//                                                    Toast.makeText(
+//                                                        context,
+//                                                        locations[index].lastModifiedTime
+//                                                            ?: ":)",
+//                                                        Toast.LENGTH_LONG
+//                                                    ).show()
+                                                    sortedLocationListUpdatePermission = false
+                                                },
+                                                onDragStopped = {
+                                                    sortedLocationListUpdatePermission = true
+                                                }
+                                            )
+                                            .graphicsLayer {
                                                 alpha =
-                                                    if (homeState.selectedLocationId == item.locationId)
+                                                    if (homeState.toBeDeletedLocationId == item.locationId)
                                                         0f else 1f
+                                                scaleX =
+                                                    if (longPressedItemId == item.locationId) cardScale else 1f
+                                                scaleY =
+                                                    if (longPressedItemId == item.locationId) cardScale else 1f
                                             }
-                                        } else {
-                                            Modifier
-                                                .longPressDraggableHandle(
-                                                    enabled = homeState.itemDragged,
-                                                    onDragStarted = {
-                                                        longPressedItemId = item.locationId
-                                                        hapticFeedback.performHapticFeedback(
-                                                            HapticFeedbackType.LongPress
+                                    }
+                                }
+                                WeatherItem(
+//                                            cardMaxHeight = cardMaxHeight,
+                                    modifier = itemModifier,
+                                    dragState = dragState,
+//                                            itemState = item,
+                                    locationsState = locationListState,
+                                    itemIndex = indexInMainList,
+                                    currentPictureUrl = item.currentPictureUrl,
+                                    lastPicId = item.lastPicId,
+                                    picName = item.picName,
+
+                                    landscapeReload = landscapeReload,
+                                    onNavigateToItem = {
+                                        val itemOffset =
+                                            listState.layoutInfo.visibleItemsInfo.find {
+                                                it.key == item.locationId
+                                            }?.offset ?: 0
+
+                                        val scrollAmount = when {
+                                            itemOffset < topSpacerHeight.toPx(density) ->
+                                                itemOffset - (topSpacerHeight + cardSpacing).toPx(
+                                                    density
+                                                )
+
+                                            itemOffset + (cardMaxHeight - topSpacerHeight).toPx(
+                                                density
+                                            ) > lazyColumnHeight ->
+                                                itemOffset + (cardMaxHeight - topSpacerHeight).toPx(
+                                                    density
+                                                ) - lazyColumnHeight
+
+                                            else -> 0f
+                                        }
+                                        navigateToHomeScreenItem(
+                                            coroutineScope = coroutineScope,
+                                            singlePane = singlePane,
+//                                                    sortedLocationListState = sortedLocationListState,
+                                            homeState = homeState,
+                                            itemBriefState = item,
+                                            itemMainIndex = indexInMainList,
+                                            file = context.filesDir,
+
+                                            onAnimateScrollList = {
+                                                listState.animateScrollBy(
+                                                    value = scrollAmount,
+                                                    animationSpec = tween(
+                                                        durationMillis = 300,
+                                                        easing = CubicBezierEasing(
+                                                            0.5f,
+                                                            0f,
+                                                            0.9f,
+                                                            0.3f
                                                         )
-                                                        Toast.makeText(
-                                                            context,
-                                                            locations[index].lastModifiedTime,
-                                                            Toast.LENGTH_LONG
-                                                        ).show()
-                                                        sortedLocationListUpdatePermission = false
-                                                    },
-                                                    onDragStopped = {
-                                                        sortedLocationListUpdatePermission = true
+                                                    )
+                                                )
+                                                selectedItemIndex =
+                                                    sortedLocationListState.indexOfFirst {
+                                                        it.locationId == item.locationId
+                                                    }
+                                                val selectedItemOffset =
+                                                    listState.layoutInfo.visibleItemsInfo.find {
+                                                        it.key == item.locationId
+                                                    }?.offset ?: 0
+                                                onUpdateSelectedItemIndexOffset(
+                                                    selectedItemIndex,
+                                                    selectedItemOffset
+                                                )
+                                            },
+                                            onUpdateAnimateScrolling = {
+                                                animateScrolling.value = it
+                                            },
+                                            onBalanceClockGaugeValues = onBalanceClockGaugeValues,
+                                            onResetDayGauge = onResetDayGauge,
+                                            onUpdateSelectedItemIndex = {
+                                                selectedItemIndex = it
+                                            },
+                                            onUpdateSelectedPage = {
+                                                selectedPage = it
+                                            },
+                                            onNavigateToItem = {
+                                                onNavigateToItem(
+                                                    item.locationId,
+                                                    index
+                                                )
+                                            },
+                                            onUpdateSelectedLocationId = {
+                                                onUpdateSelectedLocationId(item.locationId)
+                                            },
+                                            onUpdateInitialLandscape = onUpdateInitialLandscape,
+                                            onNavigateToDetailScreen = {
+                                                onNavigateToDetailScreen(
+                                                    locationListState.value.size,
+                                                    locationListState.value.indexOfFirst {
+                                                        it.locationId == item.locationId
                                                     }
                                                 )
-                                                .graphicsLayer {
-                                                    alpha =
-                                                        if (homeState.toBeDeletedLocationId == item.locationId)
-                                                            0f else 1f
-                                                    scaleX =
-                                                        if (longPressedItemId == item.locationId) cardScale else 1f
-                                                    scaleY =
-                                                        if (longPressedItemId == item.locationId) cardScale else 1f
-                                                }
-                                        }
-                                        WeatherItem2(
-                                            cardMaxHeight = cardMaxHeight,
-                                            modifier = itemModifier,
-                                            itemState = item,
-                                            landscapeReload = landscapeReload,
-                                            onNavigateToItem = remember(
-//                                                listState.layoutInfo.visibleItemsInfo,
+                                            }
+                                        )
 
-                                            ) {
-                                                { cardX, cardY, cardWidth ->
-                                                    val itemOffset =
+
+                                        /*if (singlePane) {
+                                            coroutineScope.launch {
+                                                val scrollJob = launch {
+                                                    animateScrolling.value = true
+                                                    listState.animateScrollBy(
+                                                        value = scrollAmount,
+                                                        animationSpec = tween(
+                                                            durationMillis = 300,
+                                                            easing = CubicBezierEasing(
+                                                                0.5f,
+                                                                0f,
+                                                                0.9f,
+                                                                0.3f
+                                                            )
+                                                        )
+                                                    )
+                                                    val selectedItemIndex =
+                                                        sortedLocationListState.indexOfFirst {
+                                                            it.locationId == item.locationId
+                                                        }
+                                                    val selectedItemOffset =
                                                         listState.layoutInfo.visibleItemsInfo.find {
                                                             it.key == item.locationId
                                                         }?.offset ?: 0
+                                                    onUpdateSelectedItemIndexOffset(
+                                                        selectedItemIndex,
+                                                        selectedItemOffset
+                                                    )
 
-                                                    val scrollAmount = when {
-                                                        itemOffset < topSpacerHeight.toPx(density) ->
-                                                            itemOffset - (topSpacerHeight + cardSpacing).toPx(
-                                                                density
-                                                            )
+                                                }
+                                                val gaugeRotateJob = launch {
+                                                    onBalanceClockGaugeValues()
+                                                    homeState.clockGaugeRotation.animateTo(
+                                                        targetValue = 0f,
+                                                        animationSpec = tween(durationMillis = 700)
+                                                    )
+                                                    onResetDayGauge()
+                                                    delay(200)
+                                                }
 
-                                                        itemOffset + (cardMaxHeight - topSpacerHeight).toPx(
-                                                            density
-                                                        ) > lazyColumnHeight ->
-                                                            itemOffset + (cardMaxHeight - topSpacerHeight).toPx(
-                                                                density
-                                                            ) - lazyColumnHeight
-
-                                                        else -> 0f
+                                                joinAll(scrollJob, gaugeRotateJob)
+                                                selectedItem = displayedLocationListState[index]
+                                                selectedPage =
+                                                    sortedLocationListState.indexOfFirst { locationState ->
+                                                        selectedItem.locationId == locationState.locationId
                                                     }
-                                                    navigateToHomeScreenItem(
-                                                        coroutineScope = coroutineScope,
-                                                        singlePane = singlePane,
-                                                        sortedLocationListState = sortedLocationListState,
-                                                        homeState = homeState,
-                                                        itemState = displayedLocationListState[index],
-                                                        file = context.filesDir,
-
-                                                        onAnimateScrollList = {
-                                                            listState.animateScrollBy(
-                                                                value = scrollAmount,
-                                                                animationSpec = tween(
-                                                                    durationMillis = 300,
-                                                                    easing = CubicBezierEasing(0.5f, 0f, 0.9f, 0.3f)
-                                                                )
-                                                            )
-                                                            val selectedItemIndex =
-                                                                sortedLocationListState.indexOfFirst {
-                                                                    it.locationId == item.locationId
-                                                                }
-                                                            val selectedItemOffset =
-                                                                listState.layoutInfo.visibleItemsInfo.find {
-                                                                    it.key == item.locationId
-                                                                }?.offset ?: 0
-                                                            onUpdateSelectedItemIndexOffset(
-                                                                selectedItemIndex,
-                                                                selectedItemOffset
-                                                            )
-                                                        },
-                                                        onUpdateAnimateScrolling = {
-                                                            animateScrolling.value = it
-                                                        },
-                                                        onBalanceClockGaugeValues = onBalanceClockGaugeValues,
-                                                        onResetDayGauge = onResetDayGauge,
-                                                        onUpdateSelectedItem = {
-                                                            selectedItem = it
-                                                        },
-                                                        onUpdateSelectedPage = {
-                                                            selectedPage = it
-                                                        },
-                                                        onNavigateToItem = {
-                                                            onNavigateToItem(
-                                                                item.locationId,
-                                                                cardX,
-                                                                cardY - scrollAmount,
-                                                                cardWidth
-                                                            )
-                                                        },
-                                                        onUpdateSelectedLocationId = {
-                                                            onUpdateSelectedLocationId(item.locationId)
-                                                        },
-                                                        onUpdateInitialLandscape = onUpdateInitialLandscape,
-                                                        onNavigateToDetailScreen = {
-                                                            onNavigateToDetailScreen(
-                                                                locationListState.size,
-                                                                locationListState.indexOfFirst {
-                                                                    it.locationId == item.locationId
-                                                                }
-                                                            )
-                                                        }
-                                                    )
-
-
-                                                    /*if (singlePane) {
-                                                        coroutineScope.launch {
-                                                            val scrollJob = launch {
-                                                                animateScrolling.value = true
-                                                                listState.animateScrollBy(
-                                                                    value = scrollAmount,
-                                                                    animationSpec = tween(
-                                                                        durationMillis = 300,
-                                                                        easing = CubicBezierEasing(
-                                                                            0.5f,
-                                                                            0f,
-                                                                            0.9f,
-                                                                            0.3f
-                                                                        )
-                                                                    )
-                                                                )
-                                                                val selectedItemIndex =
-                                                                    sortedLocationListState.indexOfFirst {
-                                                                        it.locationId == item.locationId
-                                                                    }
-                                                                val selectedItemOffset =
-                                                                    listState.layoutInfo.visibleItemsInfo.find {
-                                                                        it.key == item.locationId
-                                                                    }?.offset ?: 0
-                                                                onUpdateSelectedItemIndexOffset(
-                                                                    selectedItemIndex,
-                                                                    selectedItemOffset
-                                                                )
-
-                                                            }
-                                                            val gaugeRotateJob = launch {
-                                                                onBalanceClockGaugeValues()
-                                                                homeState.clockGaugeRotation.animateTo(
-                                                                    targetValue = 0f,
-                                                                    animationSpec = tween(durationMillis = 700)
-                                                                )
-                                                                onResetDayGauge()
-                                                                delay(200)
-                                                            }
-
-                                                            joinAll(scrollJob, gaugeRotateJob)
-                                                            selectedItem = displayedLocationListState[index]
-                                                            selectedPage =
-                                                                sortedLocationListState.indexOfFirst { locationState ->
-                                                                    selectedItem.locationId == locationState.locationId
-                                                                }
-                                                            onNavigateToItem(
-                                                                item.locationId,
-                                                                cardX,
-                                                                cardY - scrollAmount,
-                                                                cardWidth
-                                                            )
-                                                        }
-                                                    }
-                                                    else {
-                                                        // Does this branch need onUpdateSelectedItemIndexOffset
-                                                        onUpdateSelectedLocationId(item.locationId)
-                                                        val selectedLocationPageNumber =
-                                                            locationListState.indexOfFirst {
-                                                                it.locationId == item.locationId
-                                                            }
-                                                        coroutineScope.launch {
-                                                            onBalanceClockGaugeValues()
-                                                            homeState.clockGaugeRotation.animateTo(
-                                                                targetValue = 0f,
-                                                                animationSpec = tween(durationMillis = 700)
-                                                            )
-                                                            onResetDayGauge()
-
-                                                            val itemState = displayedLocationListState[index]
-                                                            val picFile = File(
-                                                                context.filesDir,
-                                                                "pictures/pic${itemState.lastPicId}/${itemState.picName}.jpeg"
-                                                            )
-                                                            if (picFile.exists()) {
-                                                                val bitmap =
-                                                                    BitmapFactory.decodeFile(picFile.absolutePath)
-                                                                onUpdateInitialLandscape(
-                                                                    bitmap.copy(Bitmap.Config.ARGB_8888, false)
-                                                                )
-                                                            }
-                                                            onNavigateToDetailScreen(
-                                                                locationListState.size,
-                                                                selectedLocationPageNumber
-                                                            )
-                                                        }
-                                                    }*/
-                                                }
-                                            }
-                                            ,
-                                            appSettings = appSettings,
-                                            dataLoadingStatus = weatherDataLoadStatus.getOrElse(
-                                                key = item.locationId,
-                                                defaultValue = { MyResult.Success(Unit) }
-                                            ),
-                                            onDeleteIconPressed = remember {
-                                                { id, locationName ->
-                                                    onUpdateDialogData(
-                                                        DialogType.DELETE,
-                                                        id,
-                                                        locationName
-                                                    )
-                                                    onUpdateDialogVisibility(
-                                                        DialogType.DELETE,
-                                                        true
-                                                    )
-                                                }
-                                            },
-                                            onEditItem = remember {
-                                                { id, locationName ->
-                                                    onUpdateDialogData(
-                                                        DialogType.EDIT,
-                                                        id,
-                                                        locationName
-                                                    )
-                                                    onUpdateEditDialogLocationName(locationName)
-                                                    onUpdateDialogVisibility(DialogType.EDIT, true)
-                                                }
-                                            },
-                                            dialogDisplayed = homeState.deleteDialogVisible || homeState.editDialogVisible,
-                                            toBeDeletedLocationId = homeState.toBeDeletedLocationId,
-                                            onDeleteItem = remember {
-                                                { locationId, picId ->
-                                                    onDeleteLocation(locationId)
-                                                    File(context.filesDir, "pictures/pic${picId}").deleteRecursively()
-                                                }
-                                            },
-                                            onReloadWeatherData = {
-                                                onReloadALocationWeatherData(
-                                                    Location(
-                                                        id = item.locationId,
-                                                        name = item.locationName,
-                                                        latitude = item.latitude,
-                                                        longitude = item.longitude
-                                                    )
+                                                onNavigateToItem(
+                                                    item.locationId,
+                                                    cardX,
+                                                    cardY - scrollAmount,
+                                                    cardWidth
                                                 )
-                                            },
-                                            onDownloadAndSaveLandscapes = { picName ->
-                                                item.lastPicId?.let { picId ->
-                                                    onDownloadAndSaveLandscapes(
-                                                        context,
-                                                        picId,
-                                                        item.currentPictureUrl,
-                                                        picName
+                                            }
+                                        }
+                                        else {
+                                            // Does this branch need onUpdateSelectedItemIndexOffset
+                                            onUpdateSelectedLocationId(item.locationId)
+                                            val selectedLocationPageNumber =
+                                                locationListState.indexOfFirst {
+                                                    it.locationId == item.locationId
+                                                }
+                                            coroutineScope.launch {
+                                                onBalanceClockGaugeValues()
+                                                homeState.clockGaugeRotation.animateTo(
+                                                    targetValue = 0f,
+                                                    animationSpec = tween(durationMillis = 700)
+                                                )
+                                                onResetDayGauge()
+
+                                                val itemState = displayedLocationListState[index]
+                                                val picFile = File(
+                                                    context.filesDir,
+                                                    "pictures/pic${itemState.lastPicId}/${itemState.picName}.jpeg"
+                                                )
+                                                if (picFile.exists()) {
+                                                    val bitmap =
+                                                        BitmapFactory.decodeFile(picFile.absolutePath)
+                                                    onUpdateInitialLandscape(
+                                                        bitmap.copy(Bitmap.Config.ARGB_8888, false)
                                                     )
                                                 }
-                                            },
-                                            onUpdateItemDragged = onUpdateItemDragged
-                                        )
-                                    }
-                                }
+                                                onNavigateToDetailScreen(
+                                                    locationListState.size,
+                                                    selectedLocationPageNumber
+                                                )
+                                            }
+                                        }*/
+                                        },
+                                    appSettings = appSettings,
+                                    dataLoadingStatus = weatherDataLoadStatus.getOrElse(
+                                        key = item.locationId,
+                                        defaultValue = { MyResult.Success(Unit) }
+                                    ),
+                                    onDeleteIconPressed = remember {
+                                        { id, locationName ->
+                                            onUpdateDialogData(
+                                                DialogType.DELETE,
+                                                id,
+                                                locationName
+                                            )
+                                            onUpdateDialogVisibility(
+                                                DialogType.DELETE,
+                                                true
+                                            )
+                                        }
+                                    },
+                                    onEditItem = remember {
+                                        { id, locationName ->
+                                            onUpdateDialogData(
+                                                DialogType.EDIT,
+                                                id,
+                                                locationName
+                                            )
+                                            onUpdateEditDialogLocationName(locationName)
+                                            onUpdateDialogVisibility(DialogType.EDIT, true)
+                                        }
+                                    },
+                                    dialogDisplayed = homeState.deleteDialogVisible || homeState.editDialogVisible,
+                                    toBeDeletedLocationId = homeState.toBeDeletedLocationId,
+                                    onDeleteItem = remember {
+                                        { locationId, picId ->
+                                            coroutineScope.launch(Dispatchers.IO) {
+                                                onDeleteLocation(locationId)
+                                                delay(2000)
+                                                val success = File(
+                                                    context.filesDir,
+                                                    "pictures/pic${picId}"
+                                                ).deleteRecursively()
+                                            }
+                                        }
+                                    },
+                                    onReloadWeatherData = remember(item.locationName) {
+                                        {
+                                            onReloadALocationWeatherData(
+                                                Location(
+                                                    id = item.locationId,
+                                                    name = item.locationName,
+                                                    latitude = item.latitude,
+                                                    longitude = item.longitude
+                                                )
+                                            )
+                                        }
+                                    },
+                                    onDownloadAndSaveLandscapes = remember(item.lastPicId) {
+                                        { picName ->
+                                            item.lastPicId?.let { picId ->
+                                                onDownloadAndSaveLandscapes(
+                                                    context,
+                                                    picId,
+                                                    item.currentPictureUrl,
+                                                    picName
+                                                )
+                                            }
+                                        }
+                                    },
+//                                    onUpdateItemDragged = onUpdateItemDragged,
+                                    onUpdateHomeCardX = remember(index) {
+                                        { cardX ->
+                                            onUpdateHomeCardX(cardX, index)
+                                        }
+                                    },
+                                    onUpdateHomeCardY = remember(index) {
+                                        { cardY ->
+                                            onUpdateHomeCardY(cardY, index)
+                                        }
+                                    },
+                                    onUpdateHomeCardWidth = remember(index) {
+                                        { cardWidth ->
+                                            onUpdateHomeCardWidth(cardWidth, index)
+                                        }
+                                    },
+                                )
                             }
-
+                        }
                     }
                 }
             }
-            if (zoom > 1f && displayedLocationListState.indexOfFirst {
-                    it.locationName == selectedItem.locationName } > -1)
-            {
-                cardAlpha = true
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .size(width = homeState.cardWidth.toDp(density), height = cardMaxHeight)
-                        .graphicsLayer {
-                            scaleX = zoom
-                            scaleY = zoom
-                            translationX = itemTranslationX + homeState.selectedCardX
-                            translationY =
-                                itemTranslationY + homeState.selectedCardY/* + listBoxTopPadding*/
-                        }
-                ) {
-                    WeatherItemFake(
-                        windowRotation = windowRotation,
-                        modifier = Modifier.fillMaxSize(),
-                        itemState = selectedItem,
-                        appSettings = appSettings,
-                        onUpdateInitialLandscape = onUpdateInitialLandscape
-                    )
-                }
-            } else {
-                cardAlpha = false
+        }
+
+        val isZoomed by remember { derivedStateOf { zoom.value > 1f } }
+        if (isZoomed && displayedLocationListState.indexOfFirst {
+                it.locationName == locationsBriefStates[selectedItemIndex].locationName } > -1)
+        {
+            cardAlpha = true
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .size(width = homeState.cardWidth.toDp(density), height = cardMaxHeight)
+                    .graphicsLayer {
+                        scaleX = zoom.value
+                        scaleY = zoom.value
+                        translationX = itemTranslationX.value + homeState.selectedCardX
+                        translationY = itemTranslationY.value + homeState.selectedCardY
+                    }
+            ) {
+                WeatherItemFake(
+                    windowRotation = windowRotation,
+                    modifier = Modifier.fillMaxSize(),
+                    itemState = locationListState.value[selectedItemIndex],
+                    appSettings = appSettings,
+                    onUpdateInitialLandscape = onUpdateInitialLandscape
+                )
             }
-            /*PullToRefreshContainer(
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter),
-            )*/
+        } else {
+            cardAlpha = false
+        }
+        /*PullToRefreshContainer(
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter),
+        )*/
     }
 
     LifecycleEventEffect(event = Lifecycle.Event.ON_RESUME) {
@@ -983,16 +1188,17 @@ fun LazyListState.clockGaugeVisibility(itemSize: Float, animateScrolling: Mutabl
 fun navigateToHomeScreenItem(
     coroutineScope: CoroutineScope,
     singlePane: Boolean,
-    sortedLocationListState: ImmutableList<LocationsState>,
+//    sortedLocationListState: List<LocationsBriefState>,
     homeState: HomeState,
-    itemState: LocationsState,
+    itemBriefState: LocationsBriefState,
+    itemMainIndex: Int,
     file: File,
 
     onAnimateScrollList: suspend (() -> Unit),
     onUpdateAnimateScrolling: (Boolean) -> Unit,
     onBalanceClockGaugeValues: () -> Unit,
     onResetDayGauge: () -> Unit,
-    onUpdateSelectedItem: (LocationsState) -> Unit,
+    onUpdateSelectedItemIndex: (Int) -> Unit,
     onUpdateSelectedPage: (page: Int) -> Unit,
     onNavigateToItem: () -> Unit,
     onUpdateSelectedLocationId: () -> Unit,
@@ -1016,12 +1222,8 @@ fun navigateToHomeScreenItem(
             }
 
             joinAll(scrollJob, gaugeRotateJob)
-            onUpdateSelectedItem(itemState)
-            onUpdateSelectedPage(
-                sortedLocationListState.indexOfFirst { locationState ->
-                    itemState.locationId == locationState.locationId
-                }
-            )
+            onUpdateSelectedItemIndex(itemMainIndex)
+            onUpdateSelectedPage(itemMainIndex)
             onNavigateToItem()
         }
     }
@@ -1038,7 +1240,7 @@ fun navigateToHomeScreenItem(
 
             val picFile = File(
                 file,
-                "pictures/pic${itemState.lastPicId}/${itemState.picName}.jpeg"
+                "pictures/pic${itemBriefState.lastPicId}/${itemBriefState.picName}.jpeg"
             )
             if (picFile.exists()) {
                 val bitmap = BitmapFactory.decodeFile(picFile.absolutePath)

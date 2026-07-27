@@ -19,8 +19,13 @@ import kotlinx.parcelize.Parcelize
 @Entity(
     tableName = "hourly_weather",
     foreignKeys = [
-        ForeignKey(entity = Location::class, parentColumns = ["id"], childColumns = ["location_id"],
-            onDelete = CASCADE)
+        ForeignKey(
+            entity = Location::class,
+            parentColumns = ["id"],
+            childColumns = ["location_id"],
+            onDelete = CASCADE,
+            deferred = true
+        )
     ],
     primaryKeys = ["location_id", "time"]
 )

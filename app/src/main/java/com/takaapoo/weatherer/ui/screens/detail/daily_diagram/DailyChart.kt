@@ -1,5 +1,7 @@
 package com.takaapoo.weatherer.ui.screens.detail.daily_diagram
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -23,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
@@ -32,6 +35,7 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -56,7 +60,6 @@ import java.time.temporal.ChronoUnit
 import kotlin.math.absoluteValue
 import kotlin.math.atan2
 import kotlin.math.cos
-import kotlin.math.roundToInt
 import kotlin.math.sin
 
 
@@ -82,15 +85,14 @@ fun DailyChart(
         (start: Float, end: Float, diagramHeight: Float, textMeasurer: TextMeasurer) -> Pair<Float, Float>,
     onCalculateVerticalBarSeparation:
         (start: Float, end: Float, diagramWidth: Float, textMeasurer: TextMeasurer) -> Pair<Int, Float>,
-    onUpdateCurveValueAtIndicator: (valueMin: Float, valueMax: Float) -> Unit
+//    onUpdateCurveValueAtIndicator: (valueMin: Float, valueMax: Float) -> Unit
 ) {
-    val context = LocalContext.current
     val density = LocalDensity.current
     val cornerRadius = dimensionResource(id = R.dimen.diagram_corner_radius)
 
     val textMeasurer: TextMeasurer = rememberTextMeasurer()
-    var verticalDashLinePhase by remember{ mutableFloatStateOf(0f) }
-    var horizontalDashLinePhase by remember{ mutableFloatStateOf(0f) }
+    val verticalDashLinePhase = remember { mutableFloatStateOf(0f) }
+    val horizontalDashLinePhase = remember { mutableFloatStateOf(0f) }
     var firstTimeAddingCurve by rememberSaveable { mutableStateOf(true) }
 
 
@@ -149,17 +151,17 @@ fun DailyChart(
     val firstPointX = dailyTimeToX(
         date = dailyChartData.getOrNull(0)?.time ?: historicDailyChartData.getOrNull(0)?.dailyWeather?.time
     )?.toFloat()
-    var curveValueMinAtIndicator: Float? = null
-    var curveValueMaxAtIndicator: Float? = null
-    if (/*!barOrCurveGraph && */firstPointX != null) {
-        val indicatorX = dailyChartState.xAxisStart.value + dailyChartState.sliderThumbPosition *
-                (dailyChartState.xAxisEnd.value - dailyChartState.xAxisStart.value)
-        data.getOrNull((indicatorX - firstPointX).roundToInt())?.let {
-            curveValueMinAtIndicator = it.start
-            curveValueMaxAtIndicator = it.endInclusive
-            onUpdateCurveValueAtIndicator(curveValueMinAtIndicator, curveValueMaxAtIndicator)
-        }
-    }
+//    var curveValueMinAtIndicator: Float? = null
+//    var curveValueMaxAtIndicator: Float? = null
+//    if (/*!barOrCurveGraph && */firstPointX != null) {
+//        val indicatorX = dailyChartState.xAxisStart.value + dailyChartState.sliderThumbPosition *
+//                (dailyChartState.xAxisEnd.value - dailyChartState.xAxisStart.value)
+//        data.getOrNull((indicatorX - firstPointX).roundToInt())?.let {
+//            curveValueMinAtIndicator = it.start
+//            curveValueMaxAtIndicator = it.endInclusive
+//            onUpdateCurveValueAtIndicator(curveValueMinAtIndicator, curveValueMaxAtIndicator)
+//        }
+//    }
 
     Box(
         modifier = modifier
@@ -179,8 +181,8 @@ fun DailyChart(
                         do {
                             val event = awaitPointerEvent()
                             val pan = event.calculatePan()
-                            verticalDashLinePhase -= pan.y
-                            horizontalDashLinePhase -= pan.x
+                            verticalDashLinePhase.floatValue -= pan.y
+                            horizontalDashLinePhase.floatValue -= pan.x
                             onMoveAxis(
                                 Offset(
                                     x = pan.x / (size.width - 2 * diagramHorPadding),
@@ -221,14 +223,14 @@ fun DailyChart(
             }
     ) {
         val appThemeDiagramOnSurfaceColor = MaterialTheme.customColorScheme.appThemeDiagramOnSurfaceColor
-        val appThemeDiagramSurfaceColor = MaterialTheme.customColorScheme.appThemeDiagramSurfaceColor
+//        val appThemeDiagramSurfaceColor = MaterialTheme.customColorScheme.appThemeDiagramSurfaceColor
 
         DailyDiagramFrameCanvas(
             modifier = Modifier.fillMaxSize(),
-            xAxisStart = dailyChartState.xAxisStart.value,
-            xAxisEnd = dailyChartState.xAxisEnd.value,
-            yAxesStarts = dailyChartState.yAxesStarts.value,
-            yAxesEnds = dailyChartState.yAxesEnds.value,
+            xAxisStart = dailyChartState.xAxisStart,
+            xAxisEnd = dailyChartState.xAxisEnd,
+            yAxesStarts = dailyChartState.yAxesStarts,
+            yAxesEnds = dailyChartState.yAxesEnds,
             minorBarVisible = chartGrid == ChartGrids.All,
             majorBarVisible = chartGrid != ChartGrids.NON,
             cornerRadius = cornerRadius,
@@ -250,12 +252,12 @@ fun DailyChart(
                 dataMax = dataMax,
                 dataMin = dataMin,
                 firstPointX = firstPointX,
-                curveAnimatorProgress = dailyChartState.curveAnimator.value,
+                curveAnimator = dailyChartState.curveAnimator,
                 weatherQuantity = dailyChartState.chartQuantity,
-                xAxisRange = dailyChartState.xAxisStart.value..dailyChartState.xAxisEnd.value,
-                yAxisRange = dailyChartState.yAxesStarts.value..dailyChartState.yAxesEnds.value,
-                curveValueMinAtIndicator = curveValueMinAtIndicator,
-                curveValueMaxAtIndicator = curveValueMaxAtIndicator,
+                xAxisStart = dailyChartState.xAxisStart,
+                xAxisEnd = dailyChartState.xAxisEnd,
+                yAxisStart = dailyChartState.yAxesStarts,
+                yAxisEnd = dailyChartState.yAxesEnds,
                 chartTheme = chartTheme,
                 onAppSurfaceColor = appThemeDiagramOnSurfaceColor,
                 cornerRadius = cornerRadius.toPx(density),
@@ -267,57 +269,117 @@ fun DailyChart(
                 sliderPosition = dailyChartState.sliderThumbPosition,
             )
         }
+        DailyDiagramIconsAndLegends(
+            modifier = Modifier,
+            data = data,
+            firstPointX = firstPointX,
+            dataMax = dataMax,
+            dataMin = dataMin,
+            weatherConditionIconsVisible = dailyChartState.weatherConditionIconsVisible,
+            xAxisStart = dailyChartState.xAxisStart,
+            xAxisEnd = dailyChartState.xAxisEnd,
+            yAxesStarts = dailyChartState.yAxesStarts,
+            yAxesEnds = dailyChartState.yAxesEnds,
+            cornerRadius = cornerRadius,
+            diagramHorPadding = diagramHorPadding,
+            diagramVertPadding = diagramVertPadding,
+            chartQuantity = dailyChartState.chartQuantity,
+            appSettings = appSettings,
+            dailyChartData = dailyChartData,
+            historicDailyChartData = historicDailyChartData,
+            chartTheme = chartTheme,
+            sliderThumbPosition = dailyChartState.sliderThumbPosition,
+            textMeasurer = textMeasurer,
+            onAppSurfaceColor = appThemeDiagramOnSurfaceColor,
+            onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
+            onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation,
+            onUpdateBarOrCurveGraph = { barOrCurve -> barOrCurveGraph = barOrCurve },
+        )
 
-        val chartUnit = dailyChartState.chartQuantity.unit(appSettings).trim('°', ' ')
-        val chartTitle = stringResource(id = dailyChartState.chartQuantity.nameId) +
-                if (chartUnit.isNotEmpty()) " [${chartUnit}]" else ""
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RectangleShape)   // This is to prevent DrawScope call unnecessarily
-        ) {
-            val diagramWidth = size.width - 2 * diagramHorPadding
-            val xAxisLength = dailyChartState.xAxisEnd.value - dailyChartState.xAxisStart.value
-            barOrCurveGraph = (diagramWidth / xAxisLength).toDp() > 30.dp
+    }
+}
 
-            if (dailyChartState.weatherConditionIconsVisible && firstPointX != null) {
-                val weatherCodes = dailyChartData.map { it.weatherCode }.takeIf { it.isNotEmpty() }
-                    ?: historicDailyChartData.map { it.dailyWeather?.weatherCode }
-                dailyDiagramWeatherIcon(
-                    context = context,
+@Composable
+fun DailyDiagramIconsAndLegends(
+    modifier: Modifier = Modifier,
+    data: List<ClosedFloatingPointRange<Float>?>,
+    firstPointX: Float?,
+    dataMax: Float,
+    dataMin: Float,
+    weatherConditionIconsVisible: Boolean,
+    xAxisStart: Animatable<Float, AnimationVector1D>,
+    xAxisEnd: Animatable<Float, AnimationVector1D>,
+    yAxesStarts: Animatable<Float, AnimationVector1D>,
+    yAxesEnds: Animatable<Float, AnimationVector1D>,
+    cornerRadius: Dp,
+    diagramHorPadding: Float,
+    diagramVertPadding: Float,
+    chartQuantity: DailyWeatherQuantity,
+    appSettings: AppSettings,
+    dailyChartData: ImmutableList<LocalDailyWeather>,
+    historicDailyChartData: ImmutableList<HistoricDailyChartDto>,
+    chartTheme: ChartTheme,
+    sliderThumbPosition: Animatable<Float, AnimationVector1D>,
+    textMeasurer: TextMeasurer,
+    onAppSurfaceColor: Color,
+    onCalculateHorizontalBarSeparation:
+        (start: Float, end: Float, diagramHeight: Float, textMeasurer: TextMeasurer) -> Pair<Float, Float>,
+    onCalculateVerticalBarSeparation:
+        (start: Float, end: Float, diagramWidth: Float, textMeasurer: TextMeasurer) -> Pair<Int, Float>,
+    onUpdateBarOrCurveGraph: (barOrCurve: Boolean) -> Unit,
+) {
+    val context = LocalContext.current
+    val chartUnit = chartQuantity.unit(appSettings).trim('°', ' ')
+    val chartTitle = stringResource(id = chartQuantity.nameId) +
+            if (chartUnit.isNotEmpty()) " [${chartUnit}]" else ""
+    Canvas(
+        modifier = modifier
+            .fillMaxSize()
+            .clip(RectangleShape)   // This is to prevent DrawScope call unnecessarily
+    ) {
+        val diagramWidth = size.width - 2 * diagramHorPadding
+        val xAxisLength = xAxisEnd.value - xAxisStart.value
+        val barOrCurveGraph = (diagramWidth / xAxisLength).toDp() > 30.dp
+        onUpdateBarOrCurveGraph(barOrCurveGraph)
+
+        if (weatherConditionIconsVisible && firstPointX != null) {
+            val weatherCodes = dailyChartData.map { it.weatherCode }.takeIf { it.isNotEmpty() }
+                ?: historicDailyChartData.map { it.dailyWeather?.weatherCode }
+            dailyDiagramWeatherIcon(
+                context = context,
 //                    dailyChartData = dailyChartData
-                    weatherCodes = weatherCodes,
-                    firstPointX = firstPointX,
-                    xAxisRange = dailyChartState.xAxisStart.value..dailyChartState.xAxisEnd.value,
-                    cornerRadius = cornerRadius.toPx(density),
-                    horizontalPadding = diagramHorPadding,
-                    verticalPadding = diagramVertPadding
-                )
-            }
-            dailyDiagramLegends(
-//                data = data,
-                xAxisRange = dailyChartState.xAxisStart.value .. dailyChartState.xAxisEnd.value,
-                yAxesRanges = dailyChartState.yAxesStarts.value .. dailyChartState.yAxesEnds.value,
-                chartTheme = chartTheme,
-                chartQuantity = dailyChartState.chartQuantity,
-                chartTitle = chartTitle,
+                weatherCodes = weatherCodes,
+                firstPointX = firstPointX,
+                xAxisRange = xAxisStart.value..xAxisEnd.value,
                 cornerRadius = cornerRadius.toPx(),
-                dataMax = dataMax,
-                dataMin = dataMin,
-                curveValueMinAtIndicator = curveValueMinAtIndicator,
-                curveValueMaxAtIndicator = curveValueMaxAtIndicator,
-                barOrCurveGraph = barOrCurveGraph,
-                indicatorPosition = dailyChartState.sliderThumbPosition,
                 horizontalPadding = diagramHorPadding,
-                verticalPadding = diagramVertPadding,
-                onAppSurfaceColor = appThemeDiagramOnSurfaceColor,
-//                appSurfaceColor = appThemeDiagramSurfaceColor,
-                textMeasurer = textMeasurer,
-                timeFontFamily = timeFontFamily,
-                onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
-                onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation
+                verticalPadding = diagramVertPadding
             )
         }
+        dailyDiagramLegends(
+            data = data,
+            firstPointX = firstPointX,
+            xAxisStart = xAxisStart,
+            xAxisEnd = xAxisEnd,
+            yAxisStart = yAxesStarts,
+            yAxisEnd = yAxesEnds,
+            chartTheme = chartTheme,
+            chartQuantity = chartQuantity,
+            chartTitle = chartTitle,
+            cornerRadius = cornerRadius.toPx(),
+            dataMax = dataMax,
+            dataMin = dataMin,
+            barOrCurveGraph = barOrCurveGraph,
+            indicatorPosition = sliderThumbPosition.value,
+            horizontalPadding = diagramHorPadding,
+            verticalPadding = diagramVertPadding,
+            onAppSurfaceColor = onAppSurfaceColor,
+//                appSurfaceColor = appThemeDiagramSurfaceColor,
+            textMeasurer = textMeasurer,
+            timeFontFamily = timeFontFamily,
+            onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
+            onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation,
+        )
     }
 }
 

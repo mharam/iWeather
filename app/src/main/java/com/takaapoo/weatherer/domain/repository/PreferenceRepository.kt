@@ -64,6 +64,9 @@ interface PreferenceRepository {
     suspend fun setWidgetDateTime(time: HourlyDiagramTime)
     suspend fun setWidgetHourlyDiagramQuantities(quantities: List<HourlyWeatherQuantity>)
     suspend fun setAddLocationHelpVisible(visible: Boolean)
+    suspend fun setUserId(userId: String)
+    suspend fun setUserName(userName: String?)
+    suspend fun setUserPicture(userPicture: String?)
 
 
 //    suspend fun setNotificationCount(count: Int)

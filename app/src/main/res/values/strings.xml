@@ -121,8 +121,8 @@
     <string name="hourly_diagram_device_title">Device</string>
     <string name="hourly_diagram_location_title">Location</string>
 
-    <string name="curve_smoothness_tooltip_titel">Smoothness</string>
-    <string name="curve_smoothness_tooltip_text">Increasing curve smoothness may increase error of some weather quantities value. In some cases it may lead to meaning-less values like negative probability.</string>
+<!--    <string name="curve_smoothness_tooltip_title">Smoothness</string>-->
+    <string name="curve_smoothness_tooltip_text">Increasing the smoothness of the curve may introduce larger errors. In some cases, it can even produce nonsensical results, such as negative probabilities.</string>
 
     <string name="history_weather_description">The Historical Data section grants access to a comprehensive meteorological archive, with global records extending back to 1940. This information is derived from sophisticated reanalysis datasets, which integrate and harmonize inputs from a diverse network of sources including weather stations, aircraft, buoys, radar, and satellites. To ensure a spatially complete and consistent record, these datasets employ advanced mathematical models to interpolate values and intelligently fill observational gaps. This methodology provides highly detailed historical weather reconstructions even for remote regions, such as rural locales or the open ocean, where direct station measurements have traditionally been unavailable.</string>
     <string name="history_weather_donate_motivation">The Historical tab provides access to detailed meteorological archives, featuring interactive graphs of hourly and daily weather variables dating back to 1940. Maintaining and providing this extensive historical data entails significant operational costs. To ensure the continued availability of this service, we kindly rely on the generous support of our users through donations. Your contribution is greatly appreciated.</string>
@@ -132,5 +132,10 @@
     <string name="remove_locations_dialog_text">You have reached locations count limit. Please remove some locations to free up space for new ones.</string>
 
     <string name="add_location_help_text">Press and hold any location on the map to add it to your favorite list.</string>
+
+    <string name="free_trial">Start your 7-day free trial</string>
+
+    <string name="sign_in_title">Sign in to preserve your donation across your devices</string>
+
 
 </resources>

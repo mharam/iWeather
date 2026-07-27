@@ -19,9 +19,6 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS
 import android.provider.Settings.EXTRA_APP_PACKAGE
-import android.util.Log
-import android.view.View
-import android.view.ViewTreeObserver
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -58,12 +55,10 @@ import com.takaapoo.weatherer.ui.viewModels.PreferenceViewModel
 import com.takaapoo.weatherer.utility.getWindowSize
 import com.takaapoo.weatherer.utility.readMoonPhaseBinFromAssets
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import java.util.Calendar
-
 
 val Context.dataStore by dataStore(
     fileName = "app_settings.json",
@@ -123,9 +118,10 @@ class MainActivity : ComponentActivity() {
     var goneToNotificationPermissionSettings = false
     var goneToAlarmPermissionSettings = false
     var enterAppRecently = true
+//    var topInsetsPaddingCalculated = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(
@@ -142,23 +138,28 @@ class MainActivity : ComponentActivity() {
 
 
         // Set up an OnPreDrawListener to the root view.
-        val content: View = findViewById(android.R.id.content)
+        /*val content: View = findViewById(android.R.id.content)
         content.viewTreeObserver.addOnPreDrawListener(
             object : ViewTreeObserver.OnPreDrawListener {
                 override fun onPreDraw(): Boolean {
                     // Check whether the initial data is ready.
-                    return if (homeViewModel.locationsState.value.firstOrNull()?.locationId == -2) {
+                    return if (homeViewModel.locationsBriefState.value.firstOrNull()?.locationId == -2 *//*||
+                        !topInsetsPaddingCalculated*//*) {
                         // The content isn't ready. Suspend.
                         false
                     } else {
                         // The content is ready. Start drawing.
-                        Log.i("delete1", "locationListState 3 = ${homeViewModel.locationsState.value.map { it.locationId }}")
                         content.viewTreeObserver.removeOnPreDrawListener(this)
                         true
                     }
                 }
             }
-        )
+        )*/
+        splashScreen.setKeepOnScreenCondition {
+            homeViewModel.locationsBriefState.value.firstOrNull()?.locationId == -2
+            /*|| !topInsetsPaddingCalculated*/
+        }
+
         createNotificationChannel()
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -190,8 +191,8 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val appSettings by preferenceViewModel.appSettings.collectAsStateWithLifecycle()
-            val locationListState by homeViewModel.locationsState.collectAsStateWithLifecycle()
-            if (locationListState.firstOrNull()?.locationId != -2){
+            val locationListState = homeViewModel.locationsState.collectAsStateWithLifecycle()
+            if (locationListState.value.firstOrNull()?.locationId != -2){
                 WeathererTheme(
                     appSettings = appSettings
                 ) {
@@ -206,7 +207,7 @@ class MainActivity : ComponentActivity() {
                             addLocationViewModel = addLocationViewModel,
                             preferenceViewModel = preferenceViewModel,
                             appSettings = appSettings,
-                            locationListState = locationListState.toImmutableList(),
+                            locationListState = locationListState,
                         )
                     }
                 }

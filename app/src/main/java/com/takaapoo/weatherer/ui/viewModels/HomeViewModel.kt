@@ -2,6 +2,7 @@ package com.takaapoo.weatherer.ui.viewModels
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.util.Log
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
@@ -20,9 +21,11 @@ import com.takaapoo.weatherer.di_modules.SystemClock
 import com.takaapoo.weatherer.di_modules.UtcClock
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.WeatherType.Companion.calculateMoonType
+import com.takaapoo.weatherer.domain.model.HomeCardsState
 import com.takaapoo.weatherer.domain.model.HomePaneContent
 import com.takaapoo.weatherer.domain.model.HomePaneState
 import com.takaapoo.weatherer.domain.model.HomeState
+import com.takaapoo.weatherer.domain.model.LocationsBriefState
 import com.takaapoo.weatherer.domain.model.LocationsState
 import com.takaapoo.weatherer.domain.repository.DataRefreshRepository
 import com.takaapoo.weatherer.domain.repository.LocalWeatherRepository
@@ -49,6 +52,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -67,6 +71,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.floor
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class DialogType{
     DELETE, EDIT, /*DONATE, LOCATION_COUNT_LIMIT*/
@@ -101,6 +106,8 @@ class HomeViewModel @Inject constructor(
             initialValue = HomeState(clock = systemClock)
         )
 
+    private val _homeCardsState = MutableStateFlow(List(50) { HomeCardsState() })
+
     private val _homePaneState = MutableStateFlow(HomePaneState())
     val homePaneState = _homePaneState.asStateFlow()
 
@@ -128,12 +135,10 @@ class HomeViewModel @Inject constructor(
                     dayGaugeNaturalIndex = Int.MAX_VALUE / 2 + localNow.dayOfWeek.value - 1
                 )
             }
-            delay(600_000)
+            delay(10_000.milliseconds)
         }
     }.flowOn(mainDispatcher)
     private lateinit var localNow: LocalDateTime
-//    private var weight1 = 0f
-//    private var weight2 = 0f
     private val dayGaugeMinutesFlow = _homeState.map { it.dayGaugeIndex*1440 }/*.distinctUntilChanged()*/
     private val clockGaugeMinutesFlow = snapshotFlow { (-_homeState.value.clockGaugeRotation.value*4).toLong() }
 //    private val allLocationsWeatherGrouped = localWeatherRepository.getAllLocationsWeather()
@@ -520,7 +525,8 @@ class HomeViewModel @Inject constructor(
             clockGaugeMinutesFlow,
             dayGaugeMinutesFlow,
             preferenceRepository.getSettingsFlow()
-        ) { locations, utcTime, clockMinuteIncremented,
+        )
+        { locations, utcTime, clockMinuteIncremented,
             dayMinuteIncremented, appSettings ->
             if (locations.isEmpty()) return@combine emptyList()
 
@@ -851,6 +857,17 @@ class HomeViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = listOf(LocationsState(locationId = -2))
         )
+    val locationsBriefState = locationsState.map { locationsStateList ->
+        locationsStateList.map {
+            it.summarize()
+        }
+    }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope.plus(defaultDispatcher),
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = listOf(LocationsBriefState(locationId = -2))
+        )
 
     /*val locationsPicNameState = combine(
         locationRepository.getAllLocations(),
@@ -931,7 +948,7 @@ class HomeViewModel @Inject constructor(
 
 
 
-    fun deleteLocation(locationId: Int) = viewModelScope.launch {
+    suspend fun deleteLocation(locationId: Int) {
         locationRepository.deleteLocation(locationId)
     }
 
@@ -1114,13 +1131,13 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun navigateToItem(locationId: Int, cardX: Float, cardY: Float, cardWidth: Float){
+    fun navigateToItem(locationId: Int, itemIndex: Int){
         _homeState.update {
             it.copy(
                 zoom = /*!_homeState.value.zoom*/ true,
-                selectedCardX = cardX,
-                selectedCardY = cardY,
-                cardWidth = cardWidth,
+                selectedCardX = _homeCardsState.value.getOrNull(itemIndex)?.cardX ?: 0f,
+                selectedCardY = _homeCardsState.value.getOrNull(itemIndex)?.cardY ?: 0f,
+                cardWidth = _homeCardsState.value.getOrNull(itemIndex)?.cardWidth ?: 0f,
                 selectedLocationId = locationId
             )
         }
@@ -1161,9 +1178,39 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun updateItemDragged(state: Boolean){
-        _homeState.update {
-            it.copy(itemDragged = state)
+//    fun updateItemDragged(state: Boolean){
+//        _homeState.update {
+//            it.copy(itemDragged = state)
+//        }
+//    }
+
+    fun updateHomeCardX(cardX: Float, cardIndex: Int){
+        _homeCardsState.update { homeCardsList ->
+            homeCardsList.toMutableList().apply{
+                this[cardIndex] = this[cardIndex].copy(
+                    cardX = cardX
+                )
+            }
+        }
+    }
+
+    fun updateHomeCardY(cardY: Float, cardIndex: Int){
+        _homeCardsState.update { homeCardsList ->
+            homeCardsList.toMutableList().apply{
+                this[cardIndex] = this[cardIndex].copy(
+                    cardY = cardY
+                )
+            }
+        }
+    }
+
+    fun updateHomeCardWidth(cardWidth: Float, cardIndex: Int){
+        _homeCardsState.update { homeCardsList ->
+            homeCardsList.toMutableList().apply{
+                this[cardIndex] = this[cardIndex].copy(
+                    cardWidth = cardWidth
+                )
+            }
         }
     }
 
@@ -1223,15 +1270,25 @@ class HomeViewModel @Inject constructor(
     )
     fun downloadAndSaveLandscapes(context: Context, picId: Int, picUrl: String, picName: String?) =
         viewModelScope.launch {
+            Log.i("Coil3", "downloadAndSaveLandscapes: picId = $picId , picUrl = $picUrl , picName = $picName")
             try {
                 val storageDir = File(context.filesDir, "pictures/pic${picId}")
                 if (!storageDir.exists()) {
+                    Log.i("Coil3", "directory pic${picId} created in viewModel!")
                     storageDir.mkdirs()
                 }
                 if (picName != null) {
                     requestAndStore(context, storageDir, picUrl, picName).join()
                 } else {
-                    landScapeNames.map { name ->
+                    val existingLandScapeNames = storageDir.listFiles()?.map {
+                        it.name.substringBeforeLast('.')
+                    }
+                    val nonExistingLandScapeNames = landScapeNames.filterNot { element ->
+                        existingLandScapeNames?.contains(element) == true
+                    }
+                    Log.i("Coil3", "existingLandScapeNames = $existingLandScapeNames")
+                    Log.i("Coil3", "nonExistingLandScapeNames = $nonExistingLandScapeNames")
+                    nonExistingLandScapeNames.map { name ->
                         requestAndStore(context, storageDir, picUrl, name)
                     }.joinAll()
                 }
@@ -1253,8 +1310,10 @@ class HomeViewModel @Inject constructor(
             .target(
                 onError = {
                     file.deleteRecursively()
+                    Log.i("Coil3", "Error for $picName")
                 },
                 onSuccess = { image ->
+                    Log.i("Coil3", "Success for $picName")
                     file.outputStream().use { outputStream ->
                         image.toBitmap().compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
                     }

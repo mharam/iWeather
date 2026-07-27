@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import com.takaapoo.weatherer.R
-import com.takaapoo.weatherer.domain.WeatherType
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.LocationsState
 import com.takaapoo.weatherer.ui.screens.home.shapes.CardShape
@@ -45,7 +47,7 @@ import java.io.File
 
 @Composable
 fun WeatherItemFake(
-    windowRotation: Float,
+    windowRotation: State<Float>,
     modifier: Modifier = Modifier,
     itemState: LocationsState,
     appSettings: AppSettings,
@@ -111,38 +113,41 @@ fun WeatherItemFake(
                     .fillMaxSize()
                     .graphicsLayer {
                         transformOrigin = TransformOrigin(0.5f, 0f)
-                        rotationX = windowRotation
+                        rotationX = windowRotation.value
                         cameraDistance = 50f
                     }
             ) {
-                val textColor = if (itemState.isDay) HomeCardNight else HomeCardDay
+                val colorProvider = { if (itemState.isDay) HomeCardNight else HomeCardDay }
                 WindowLeft(
                     modifier = Modifier.fillMaxSize(),
-                    isDay = itemState.isDay
+                    isDayProvider = { itemState.isDay }
                 )
                 WindowLeft(
                     modifier = Modifier
                         .fillMaxSize()
                         .scale(scaleX = -1f, scaleY = 1f),
-                    isDay = itemState.isDay
+                    isDayProvider = { itemState.isDay }
                 )
                 CardTitle(
                     modifier = Modifier.align(Alignment.TopCenter),
-                    locationName = itemState.locationName,
-                    color = textColor
+                    locationNameProvider = { itemState.locationName },
+                    colorProvider = colorProvider
                 )
-                val weatherType = WeatherType.fromWMO(
+                /*val weatherType = WeatherType.fromWMO(
                     code = itemState.currentWeatherCode,
                     isDay = itemState.isDay,
                     moonType = itemState.moonType
-                )
+                )*/
                 WeatherTypeData2(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(top = dimensionResource(R.dimen.home_card_top_over_head))
                         .size(2 * dimensionResource(R.dimen.home_card_clock_round)),
-                    weatherType = weatherType
-                )
+                    currentWeatherCodeProvider = { itemState.currentWeatherCode },
+                    isDayProvider = { itemState.isDay },
+                    moonTypeProvider = { itemState.moonType },
+
+                    )
                 Clock(
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -150,14 +155,17 @@ fun WeatherItemFake(
                         .size(2 * dimensionResource(R.dimen.home_card_clock_round)),
                     bigHandleRotationProvider = { itemState.clockBigHandleRotation },
                     smallHandleRotationProvider = { itemState.clockSmallHandleRotation },
-                    dayClockProvider = { itemState.isDay },
+                    colorProvider = colorProvider,
                     amProvider = { itemState.am }
                 )
                 WeatherData(
                     modifier = Modifier.fillMaxSize(),
-                    itemState = itemState,
+//                    itemState = itemState,
+                    locationsState = remember { mutableStateOf(listOf(itemState)) },
+                    itemIndex = 0,
                     appSettings = appSettings,
-                    isDay = itemState.isDay
+//                    isDay = itemState.isDay,
+                    colorProvider = colorProvider
                 )
                 Text(
                     modifier = Modifier
@@ -175,7 +183,7 @@ fun WeatherItemFake(
                     text = "${itemState.dayOfWeek}., ${itemState.month} ${itemState.day}, ${itemState.year}",
                     fontFamily = timeFontFamily,
                     fontSize = 14.sp,
-                    color = textColor
+                    color = colorProvider()
                 )
             }
         }
@@ -189,7 +197,7 @@ fun WeatherItemFake(
 fun WeatherItemFakePreview() {
     WeathererTheme {
         WeatherItemFake(
-            windowRotation = 0f,
+            windowRotation = remember { mutableFloatStateOf(0f) },
             modifier = Modifier/*.wrapContentHeight(align = Alignment.Top, unbounded = true)*/,
             itemState = LocationsState(
                 locationName = "اردبیل",

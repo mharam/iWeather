@@ -1,5 +1,6 @@
 package com.takaapoo.weatherer.ui.screens.add_location.dialogs
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -129,6 +130,7 @@ fun AddLocationDialog(
                 OutlinedTextField(
                     value = locationName,
                     onValueChange = {
+                        Log.i("dialog", "onValueChange: $it")
                         onUpdateLocationName(it)
                     },
                     label = { Text(
@@ -153,7 +155,7 @@ fun AddLocationDialog(
                         imeAction = ImeAction.Done
                     ),
                     keyboardActions = KeyboardActions(
-                        onDone = { if (locationName.isNotEmpty()) onConfirmation() }
+                        onDone = { if (locationName.isNotEmpty() && !nameAlreadyExists) onConfirmation() }
                     )
                 )
                 Spacer(Modifier.height(24.dp))
@@ -173,7 +175,7 @@ fun AddLocationDialog(
                     Spacer(Modifier.width(8.dp))
                     TextButton(
                         onClick = { onConfirmation() },
-                        enabled = locationName.isNotEmpty()
+                        enabled = locationName.isNotEmpty() && !nameAlreadyExists
                     ) {
                         Text(
                             text = "Add Location",

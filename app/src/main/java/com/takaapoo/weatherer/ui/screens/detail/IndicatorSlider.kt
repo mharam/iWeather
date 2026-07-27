@@ -1,5 +1,7 @@
 package com.takaapoo.weatherer.ui.screens.detail
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -13,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -39,7 +42,7 @@ import com.takaapoo.weatherer.ui.theme.WeathererTheme
 @Composable
 fun IndicatorSlider(
     modifier: Modifier = Modifier,
-    thumbPosition: Float,
+    thumbPosition: Animatable<Float, AnimationVector1D>,
     onUpdateThumbPosition: (movement: Float) -> Unit
 ){
     val railHeightDp = dimensionResource(id = R.dimen.diagram_slider_height)
@@ -93,7 +96,7 @@ fun IndicatorSlider(
         Image(
             modifier = Modifier
                 .graphicsLayer {
-                    translationX = thumbMovementLength * thumbPosition
+                    translationX = thumbMovementLength * thumbPosition.value
                 }
                 .size(dimensionResource(id = R.dimen.diagram_slider_thumb_size))
                 .shadow(
@@ -122,7 +125,7 @@ fun IndicatorSliderPreview(modifier: Modifier = Modifier) {
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .fillMaxWidth()
                 .height(24.dp),
-            thumbPosition = 0.3f,
+            thumbPosition = remember { Animatable(initialValue = 0.4f) },
             onUpdateThumbPosition = {}
         )
     }

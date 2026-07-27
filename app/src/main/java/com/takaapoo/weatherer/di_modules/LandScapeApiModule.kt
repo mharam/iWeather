@@ -26,17 +26,16 @@ object LandScapeApiModule {
     private val json = Json {
         ignoreUnknownKeys = true
     }
+    private val okHttpClient = OkHttpClient.Builder()
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .callTimeout(60, TimeUnit.SECONDS)
+        .build()
 
     @Https
     @Provides
     @Singleton
     fun provideLandscapeApiServiceHttps(): LandScapeApiService {
-        val okHttpClient = OkHttpClient.Builder()
-            .connectTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .callTimeout(60, TimeUnit.SECONDS)
-            .build()
-
         val retrofitHttps = Retrofit.Builder()
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .baseUrl(landScapeBaseURL_HTTPS)
@@ -52,12 +51,6 @@ object LandScapeApiModule {
     @Provides
     @Singleton
     fun provideLandscapeApiServiceHttp(): LandScapeApiService {
-        val okHttpClient = OkHttpClient.Builder()
-            .connectTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .callTimeout(60, TimeUnit.SECONDS)
-            .build()
-
         val retrofitHttp = Retrofit.Builder()
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .baseUrl(landScapeBaseURL_HTTP)

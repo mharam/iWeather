@@ -312,6 +312,24 @@ class PreferenceRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun setUserId(userId: String) {
+        context.dataStore.updateData {
+            it.copy(userId = userId)
+        }
+    }
+
+    override suspend fun setUserName(userName: String?) {
+        context.dataStore.updateData {
+            it.copy(userName = userName)
+        }
+    }
+
+    override suspend fun setUserPicture(userPicture: String?) {
+        context.dataStore.updateData {
+            it.copy(userPicture = userPicture)
+        }
+    }
+
 
     override fun getSettingsFlow(): Flow<AppSettings> {
         return context.dataStore.data

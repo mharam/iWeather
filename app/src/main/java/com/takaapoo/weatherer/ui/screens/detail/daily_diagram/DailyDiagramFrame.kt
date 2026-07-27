@@ -1,5 +1,7 @@
 package com.takaapoo.weatherer.ui.screens.detail.daily_diagram
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,10 +47,10 @@ import kotlin.math.roundToInt
 @Composable
 fun DailyDiagramFrameCanvas(
     modifier: Modifier = Modifier,
-    xAxisStart: Float,
-    xAxisEnd: Float,
-    yAxesStarts: Float,
-    yAxesEnds: Float,
+    xAxisStart: Animatable<Float, AnimationVector1D>,
+    xAxisEnd: Animatable<Float, AnimationVector1D>,
+    yAxesStarts: Animatable<Float, AnimationVector1D>,
+    yAxesEnds: Animatable<Float, AnimationVector1D>,
     minorBarVisible: Boolean,
     majorBarVisible: Boolean,
     cornerRadius: Dp,
@@ -56,8 +59,8 @@ fun DailyDiagramFrameCanvas(
     chartTheme: ChartTheme,
     chartQuantity: DailyWeatherQuantity,
     textMeasurer: TextMeasurer,
-    verticalDashLinePhase: Float,
-    horizontalDashLinePhase: Float,
+    verticalDashLinePhase: State<Float>,
+    horizontalDashLinePhase: State<Float>,
     isLoading: Boolean,
     onCalculateHorizontalBarSeparation:
         (start: Float, end: Float, diagramHeight: Float, textMeasurer: TextMeasurer) -> Pair<Float, Float>,
@@ -75,8 +78,8 @@ fun DailyDiagramFrameCanvas(
                 .clip(RectangleShape)   // This is to prevent DrawScope call unnecessarily
         ) {
             dailyDiagramFrame(
-                xAxisRange = xAxisStart..xAxisEnd,
-                yAxesRanges = yAxesStarts..yAxesEnds,
+                xAxisRange = xAxisStart.value..xAxisEnd.value,
+                yAxesRanges = yAxesStarts.value..yAxesEnds.value,
                 cornerRadius = cornerRadius.toPx(),
                 horizontalPadding = diagramHorPadding,
                 verticalPadding = diagramVertPadding,
@@ -89,8 +92,8 @@ fun DailyDiagramFrameCanvas(
                 appSurfaceColor = appThemeDiagramSurfaceColor,
 //            appSurfaceColorSecondary = appThemeDiagramSurfaceColorSecondary,
                 textMeasurer = textMeasurer,
-                horizontalDashLinePhase = horizontalDashLinePhase,
-                verticalDashLinePhase = verticalDashLinePhase,
+                horizontalDashLinePhase = horizontalDashLinePhase.value,
+                verticalDashLinePhase = verticalDashLinePhase.value,
                 onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
                 onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation
             )

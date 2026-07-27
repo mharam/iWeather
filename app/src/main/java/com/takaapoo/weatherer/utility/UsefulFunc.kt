@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.DrawStyle
@@ -76,6 +77,7 @@ import com.takaapoo.weatherer.domain.unit.Speed
 import com.takaapoo.weatherer.domain.unit.Temperature
 import com.takaapoo.weatherer.ui.navigation.Screen
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.indicesOf
+import com.takaapoo.weatherer.ui.theme.Cmu
 import com.takaapoo.weatherer.ui.theme.DarkColorScheme
 import com.takaapoo.weatherer.ui.theme.LightColorScheme
 import kotlinx.coroutines.flow.StateFlow
@@ -461,7 +463,7 @@ fun DrawScope.drawThickText(
     textBottom: Float? = null,
     textMiddle: Float? = null,
     fontSize: TextUnit = 14.sp,
-    fontFamily: FontFamily = Font(R.font.cmu_serif).toFontFamily(),
+    fontFamily: FontFamily = Cmu,
     borderWidth: Float = 1.5f,
     rectanglePadding: Dp = 4.dp,
     hasBackgroundRect: Boolean = false,
@@ -486,6 +488,104 @@ fun DrawScope.drawThickText(
         fontFamily = fontFamily,
         color = textColor
     )
+
+    val left = (textLeft ?: textCenter?.minus(measuredTextOutline.size.width / 2f)) ?:
+    (textRight!! - measuredTextOutline.size.width)
+    val top = (textTop ?: textMiddle?.minus(measuredTextOutline.size.height / 2f)) ?:
+    (textBottom!! - measuredTextOutline.size.height)
+    if (hasBackgroundRect) {
+        val padding = rectanglePadding.toPx()
+        val rectSize = androidx.compose.ui.geometry.Size(
+            width = measuredTextOutline.size.width + 4 * padding,
+            height = measuredTextOutline.size.height + 2 * padding
+        )
+        drawRoundRect(
+            color = Color.White,
+            topLeft = Offset(left - 2 * padding, top - padding),
+            size = rectSize,
+            cornerRadius = CornerRadius(measuredTextOutline.size.height / 2f + padding),
+            blendMode = BlendMode.Companion.Clear
+        )
+        drawRoundRect(
+            color = backgroundColor,
+            topLeft = Offset(left - 2 * padding, top - padding),
+            size = rectSize,
+            cornerRadius = CornerRadius(measuredTextOutline.size.height / 2f + padding),
+        )
+        drawRoundRect(
+            color = backgroundBorderColor,
+            topLeft = Offset(left - 2 * padding, top - padding),
+            size = rectSize,
+            cornerRadius = CornerRadius(measuredTextOutline.size.height / 2f + padding),
+            style = Stroke(backgroundBorderWidth)
+        )
+    }
+    drawText(
+        textLayoutResult = measuredTextOutline,
+        topLeft = Offset(x = left, y = top)
+    )
+    drawText(
+        textLayoutResult = measuredTextFill,
+        topLeft = Offset(x = left, y = top)
+    )
+}
+
+fun DrawScope.drawThickText(
+    textMeasurer: TextMeasurer,
+    text: String? = null,
+    annotatedString: AnnotatedString? = null,
+    textBrush: Brush,
+    textLeft: Float? = null,
+    textRight: Float? = null,
+    textCenter: Float? = null,
+    textTop: Float? = null,
+    textBottom: Float? = null,
+    textMiddle: Float? = null,
+    fontSize: TextUnit = 14.sp,
+    fontFamily: FontFamily = Cmu,
+    borderWidth: Float = 1.5f,
+    rectanglePadding: Dp = 4.dp,
+    hasBackgroundRect: Boolean = false,
+    backgroundColor: Color = Color.Unspecified,
+    backgroundBorderColor: Color = Color.Unspecified,
+    backgroundBorderWidth: Float = 4f,
+){
+    val borderTextStyle = TextStyle(
+        brush = textBrush,
+        fontSize = fontSize,
+        fontFamily = fontFamily,
+        drawStyle = Stroke(width = borderWidth)
+    )
+    val measuredTextOutline = if (text != null) {
+        textMeasurer.measure(
+            text = text,
+            style = borderTextStyle
+        )
+    } else {
+        textMeasurer.measure(
+            text = annotatedString!!,
+            style = borderTextStyle
+        )
+    }
+
+    val fillTextStyle = TextStyle(
+        brush = textBrush,
+        fontSize = fontSize,
+        fontFamily = fontFamily,
+        drawStyle = Fill
+    )
+    val measuredTextFill = if (text != null) {
+        textMeasurer.measure(
+            text = text,
+            style = fillTextStyle
+        )
+    } else {
+        textMeasurer.measure(
+            text = annotatedString!!,
+            style = fillTextStyle
+        )
+    }
+
 
     val left = (textLeft ?: textCenter?.minus(measuredTextOutline.size.width / 2f)) ?:
     (textRight!! - measuredTextOutline.size.width)
@@ -856,4 +956,12 @@ fun String.toFloatOrNull(): Float? {
 fun String.toIntOrNull(): Int? {
     if (isNullOrEmpty()) return null
     return toInt()
+}
+
+fun Float.isEqualTo(number: Float): Boolean {
+    return abs(this - number) < 0.001f
+}
+
+fun Duration.toCustomString(): String {
+    return "${if (isNegative) "-" else "+"}(${abs(toDaysPart())}D ${abs(toHoursPart())}H ${abs(toMinutesPart())}M)"
 }

@@ -191,7 +191,7 @@ class DetailViewModelTest {
             systemClock = Clock.fixed(fixedInstant, ZoneId.systemDefault()),
             utcClock = Clock.fixed(fixedInstant, ZoneId.of("UTC")),
         )
-        detailViewModel.setSliderThumbPositions(HourlyDiagramTime.UTC)
+        detailViewModel.initializeSliderThumbPositions(HourlyDiagramTime.UTC)
 
         backgroundScope.launch(dispatcher) {
             detailViewModel.detailState.collect {
@@ -204,7 +204,8 @@ class DetailViewModelTest {
         val nowX = 10.5f
         val expectedSliderPosition = (nowX - detailViewModel.initialXAxisStart) /
                 (detailViewModel.initialXAxisEnd - detailViewModel.initialXAxisStart)
-        assertThat(detailViewModel.hourlyChartState.first().value.sliderThumbPosition).isEqualTo(expectedSliderPosition)
+        assertThat(detailViewModel.hourlyChartState.first().value.sliderThumbPosition.value)
+            .isEqualTo(expectedSliderPosition)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

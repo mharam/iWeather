@@ -7,13 +7,14 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInteropFilter
@@ -38,7 +39,7 @@ fun DetailScreen(
     appSettings: AppSettings = AppSettings(),
     pagerState: PagerState,
     detailState: List<DetailState>,
-    chartStateList: List<HourlyChartState>,
+    chartStateList: List<State<HourlyChartState>>,
     dailyChartStateList: List<DailyChartState>,
     hourlyChartsData: List<List<HourlyChartDto>>,
     dailyChartsData: List<List<LocalDailyWeather>>,
@@ -48,6 +49,7 @@ fun DetailScreen(
     historicalDailyChartStateList: List<DailyChartState>,
     detailViewModel: DetailViewModel,
     singlePane: Boolean = true,
+    trialPeriodExpired: Boolean?,
 //    dataReady: Boolean = true,
 //    sharedTransitionScope: SharedTransitionScope,
 //    animatedContentScope: AnimatedContentScope,
@@ -55,6 +57,7 @@ fun DetailScreen(
     onNavigateUp: (pageNumber: Int) -> Unit,
     onNavigateToAQDetail: (pageNumber: Int, scrollValue: Int) -> Unit,
     onNavigateToDonateScreen: () -> Unit,
+    onNavigateToLoginScreen: () -> Unit
 ) {
 
     var offsetY by remember { mutableFloatStateOf(0f) }
@@ -101,33 +104,33 @@ fun DetailScreen(
         pageSpacing = 8.dp,
         userScrollEnabled = singlePane
     ) { page ->
-        val width = pagerState.layoutInfo.viewportSize.width
-        val endOffset = pagerState.endOffsetForPage(page)
-        val pageShape = CustomCircleShape(
-            progress = 1f - endOffset.absoluteValue.coerceAtMost(1f),
-            origin = Offset(
-                width.toFloat(),
-                offsetY,
-            )
-        )
         DetailPagerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
+                    val width = pagerState.layoutInfo.viewportSize.width
+                    val endOffset = pagerState.endOffsetForPage(page)
+                    val pageShape = CustomCircleShape(
+                        progress = 1f - endOffset.absoluteValue.coerceAtMost(1f),
+                        origin = Offset(
+                            width.toFloat(),
+                            offsetY,
+                        )
+                    )
                     val pageOffset = pagerState.offsetForPage(page)
                     translationX = size.width * pageOffset
                     shadowElevation = 8.dp.toPx()
                     shape = pageShape
                     clip = true
 
-                    val scale = 1f + (pageOffset.absoluteValue * 0.3f)
+                    val scale = 1f + (pageOffset.absoluteValue * 0.2f)
                     scaleX = scale
                     scaleY = scale
 
                     val startOffset = pagerState.startOffsetForPage(page)
                     alpha = (1.75f * (1f - startOffset)).coerceIn(0f, 1f)
                 }
-                /*.drawWithContent {
+            /*.drawWithContent {
                     val progress = 1f - endOffset.absoluteValue.coerceAtMost(1f)
                     val origin = Offset(size.width, offsetY)
                     val center = Offset(
@@ -148,19 +151,24 @@ fun DetailScreen(
                         }
                     }
                 }*/
-                .clip(pageShape)
+//                .clip(pageShape)
             ,
             detailState = detailState.getOrElse(index = page, defaultValue = { DetailState() }),
             detailViewModel = detailViewModel,
-            hourlyChartState = chartStateList.getOrElse(index = page, defaultValue = { HourlyChartState() }),
-            dailyChartState = dailyChartStateList.getOrElse(index = page, defaultValue = { DailyChartState() }),
+            hourlyChartState = chartStateList.getOrElse(
+                index = page,
+                defaultValue = { remember { mutableStateOf(HourlyChartState()) } }
+            ),
+            dailyChartState = dailyChartStateList.getOrElse(
+                index = page,
+                defaultValue = { DailyChartState() }),
             historicalChartState = historicalChartStateList.getOrElse(
                 index = page,
-                defaultValue = { HourlyChartState( chartQuantities = emptyList()) }
+                defaultValue = { HourlyChartState(chartQuantities = emptyList()) }
             ),
             historicalDailyChartState = historicalDailyChartStateList.getOrElse(
                 index = page,
-                defaultValue = { DailyChartState()}
+                defaultValue = { DailyChartState() }
             ),
             hourlyChartData = hourlyChartsData.getOrElse(
                 index = page,
@@ -182,6 +190,7 @@ fun DetailScreen(
             singlePane = singlePane,
             appSettings = appSettings,
             initialLandscape = detailViewModel.initialLandScape,
+            trialPeriodExpired = trialPeriodExpired,
 //            dataReady = dataReady,
 
             onResetScrollStates = {
@@ -196,6 +205,7 @@ fun DetailScreen(
             onNavigateUp = remember { onNavigateUp },
             onNavigateToAQDetail = remember { onNavigateToAQDetail },
             onNavigateToDonateScreen = remember { onNavigateToDonateScreen },
+            onNavigateToLoginScreen = remember { onNavigateToLoginScreen }
 //            sharedTransitionScope = sharedTransitionScope,
 //            animatedContentScope = animatedContentScope
         )
@@ -207,12 +217,6 @@ fun DetailScreen(
             pageIndex = pagerState.currentPage
         )
     }
-//    BackHandler {
-//        detailViewModel.updateNavigateBack(
-//            state = true,
-//            pageIndex = pagerState.currentPage
-//        )
-//    }
 }
 
 // ACTUAL OFFSET

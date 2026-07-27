@@ -131,43 +131,54 @@ fun generateStepGraph(
     yAxisRange: ClosedFloatingPointRange<Float>,
     horizontalPadding: Float,
     verticalPadding: Float,
-    reverse: Boolean = false,
+//    reverse: Boolean = false,
     lastPointX: Float = 0f,
     phase: Float = 0f
 ): Path? {
-    val newData = if (reverse) data.reversed() else data
-    val firstNonNullIndex = newData.indexOfFirst { it != null }
-    if (data.isEmpty() || firstNonNullIndex == -1) return null
+    val newData = /*if (reverse) data.reversed() else*/ data
+//    val firstNonNullIndex = newData.indexOfFirst { it != null }
+    if (data.isEmpty() || /*firstNonNullIndex == -1*/ newData.all { it == null }) return null
 
     val path = Path()
     val xAxisLength = xAxisRange.endInclusive - xAxisRange.start
     val yAxisLength = yAxisRange.endInclusive - yAxisRange.start
-    val firstPointY = newData[firstNonNullIndex] as Float
-    path.moveTo(
-        x = normalizedX((if (reverse) lastPointX+phase+1 else firstPointX-phase-1) + firstNonNullIndex,
-            xAxisRange.start, xAxisLength, horizontalPadding, diagramWidth),
-        y = normalizedY(firstPointY, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight)
-    )
+//    val firstPointY = newData[firstNonNullIndex]!!
+
+    if (newData[0] != null) {
+        path.moveTo(
+            x = normalizedX(
+                (/*if (reverse) lastPointX + phase + 1 else*/ firstPointX - phase - 1) /*+ firstNonNullIndex*/,
+                xAxisRange.start, xAxisLength, horizontalPadding, diagramWidth
+            ),
+            y = normalizedY(
+                newData[0]!!,
+                yAxisRange.start,
+                yAxisLength,
+                verticalPadding,
+                diagramHeight
+            )
+        )
+    }
     val oneStepDx = diagramWidth / xAxisLength
     val oneStepDy = diagramHeight / yAxisLength
     newData.forEachIndexed { i, y ->
-        if (i < newData.size - 1 && i >= firstNonNullIndex){
+        if (i < newData.size - 1 /*&& i >= firstNonNullIndex*/){
             if (y != null) {
-                path.relativeLineTo(dx = if (reverse) -oneStepDx else oneStepDx, dy = 0f)
+                path.relativeLineTo(dx = /*if (reverse) -oneStepDx else*/ oneStepDx, dy = 0f)
                 newData[i + 1]?.let {
                     path.relativeLineTo(dx = 0f, dy = (y - it) * oneStepDy)
                 }
-            } else {
+            } else if (newData.getOrNull(i+1) != null) {
                 path.moveTo(
-                    x = normalizedX(if (reverse) lastPointX+phase+1-i else firstPointX-phase-1+i,
+                    x = normalizedX(/*if (reverse) lastPointX+phase+1-i else*/ firstPointX-phase-1+i,
                         xAxisRange.start, xAxisLength, horizontalPadding, diagramWidth),
-                    y = normalizedY((newData[i + 1] ?: 0f), yAxisRange.start, yAxisLength,
+                    y = normalizedY((newData[i + 1]!!), yAxisRange.start, yAxisLength,
                         verticalPadding, diagramHeight)
                 )
             }
         }
     }
-    path.relativeLineTo(dx = if (reverse) -oneStepDx else oneStepDx, dy = 0f)
+    path.relativeLineTo(dx = /*if (reverse) -oneStepDx else*/ oneStepDx, dy = 0f)
     return path
 }
 
@@ -180,24 +191,34 @@ fun generateLinearGraph(
     yAxisRange: ClosedFloatingPointRange<Float>,
     horizontalPadding: Float,
     verticalPadding: Float,
-    reverse: Boolean = false,
+//    reverse: Boolean = false,
     lastPointX: Float = 0f
 ): Path? {
-    val newData = if (reverse) data.reversed() else data
-    val firstNonNullIndex = newData.indexOfFirst { it != null }
-    if (newData.isEmpty() || firstNonNullIndex == -1) return null
+    val newData = /*if (reverse) data.reversed() else*/ data
+//    val firstNonNullIndex = newData.indexOfFirst { it != null }
+    if (newData.isEmpty() || /*firstNonNullIndex == -1*/ newData.all { it == null }) return null
 
     val path = Path()
     val xAxisLength = xAxisRange.endInclusive - xAxisRange.start
     val yAxisLength = yAxisRange.endInclusive - yAxisRange.start
-    val firstPointY = newData[firstNonNullIndex]!!
+//    val firstPointY = newData[firstNonNullIndex]!!
 
-    path.moveTo(
-        x = normalizedX(if (reverse) lastPointX else firstPointX, xAxisRange.start, xAxisLength,
-            horizontalPadding, diagramWidth),
-        y = normalizedY(firstPointY, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight)
-    )
-    var x = if (reverse) lastPointX else firstPointX
+    if (newData[0] != null) {
+        path.moveTo(
+            x = normalizedX(
+                /*if (reverse) lastPointX else*/ firstPointX, xAxisRange.start, xAxisLength,
+                horizontalPadding, diagramWidth
+            ),
+            y = normalizedY(
+                newData[0]!!,
+                yAxisRange.start,
+                yAxisLength,
+                verticalPadding,
+                diagramHeight
+            )
+        )
+    }
+    var x = /*if (reverse) lastPointX else*/ firstPointX
     newData.forEachIndexed { i, y ->
         if (y != null) {
             path.lineTo(
@@ -210,7 +231,7 @@ fun generateLinearGraph(
                 y = normalizedY(newData[i + 1]!!, yAxisRange.start, yAxisLength, verticalPadding, diagramHeight)
             )
         }
-        if (reverse) x-- else x++
+        /*if (reverse) x-- else*/ x++
     }
     return path
 }

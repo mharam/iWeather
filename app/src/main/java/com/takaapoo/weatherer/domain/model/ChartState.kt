@@ -32,7 +32,7 @@ data class HourlyChartState(
     val yAxesEnds: List<Animatable<Float, AnimationVector1D>> = emptyList(),
     val curveAnimator: List<Animatable<Float, AnimationVector1D>> = emptyList(),
     val curvesColor: List<Int> = listOf(curveBlue, curvePink, curveGreen, curveOrange).map { it.toArgb() },
-    val sliderThumbPosition: Float = 0f,
+    val sliderThumbPosition: Animatable<Float, AnimationVector1D> = Animatable(initialValue = 0f),
     val curveValueAtIndicator: List<Float?> = listOf(null),
     val settingsUpdated: Boolean = false,
     val awaker: Int = 0, // This is used for when changing xAxisStart, ... to make hourlyChartState variable change
@@ -76,7 +76,7 @@ data class DailyChartState(
     val curveAnimator: Animatable<Float, AnimationVector1D> = Animatable(initialValue = 0f),
     val curveValueMinAtIndicator: Float = 0f,
     val curveValueMaxAtIndicator: Float = 0f,
-    val sliderThumbPosition: Float = 0f,
+    val sliderThumbPosition: Animatable<Float, AnimationVector1D> = Animatable(initialValue = 0f),
     val settingsUpdated: Boolean = false,
     val awaker: Int = 0,
     val dataLoadingStatus: MyResult<*> = MyResult.Success(data = Unit),

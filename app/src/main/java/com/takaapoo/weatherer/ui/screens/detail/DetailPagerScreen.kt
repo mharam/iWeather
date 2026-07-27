@@ -1,7 +1,6 @@
 package com.takaapoo.weatherer.ui.screens.detail
 
 import android.graphics.Bitmap
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -15,6 +14,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -35,7 +35,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,19 +45,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
@@ -79,13 +73,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import androidx.core.graphics.createBitmap
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
 import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.request.transformations
+import coil3.size.Size
 import coil3.toBitmap
 import coil3.transform.Transformation
-import com.google.android.renderscript.Toolkit
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.takaapoo.weatherer.MainActivity
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
@@ -124,7 +121,7 @@ fun DetailPagerScreen(
     modifier: Modifier = Modifier,
     detailState: DetailState,
     detailViewModel: DetailViewModel,
-    hourlyChartState: HourlyChartState = HourlyChartState(),
+    hourlyChartState: State<HourlyChartState> = remember { mutableStateOf(HourlyChartState()) },
     dailyChartState: DailyChartState = DailyChartState(),
     historicalChartState: HourlyChartState = HourlyChartState(),
     historicalDailyChartState: DailyChartState = DailyChartState(),
@@ -136,13 +133,16 @@ fun DetailPagerScreen(
     singlePane: Boolean = true,
     appSettings: AppSettings = AppSettings(),
     initialLandscape: Bitmap,
+    trialPeriodExpired: Boolean?,
+
 //    dataReady: Boolean = true,
 //    sharedTransitionScope: SharedTransitionScope,
 //    animatedContentScope: AnimatedContentScope,
     onResetScrollStates: suspend CoroutineScope.() -> Unit,
-    onNavigateUp: (pageNumber: Int) -> Unit,
-    onNavigateToAQDetail: (pageNumber: Int, scrollValue: Int) -> Unit,
+    onNavigateUp: (Int) -> Unit,
+    onNavigateToAQDetail: (Int, Int) -> Unit,
     onNavigateToDonateScreen: () -> Unit,
+    onNavigateToLoginScreen: () -> Unit,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -162,15 +162,12 @@ fun DetailPagerScreen(
 
     val scrollState = detailState.scrollState
 
-    val titleCornerRadius = ((spaceAboveTitle - scrollState.value)/headerHeight).coerceIn(0f,1f) * 32.dp
-    val temperatureY = when {
-        scrollState.value < 1.2f * titleInitialScroll -> 0f
-        else -> -scrollState.value + 1.2f * titleInitialScroll
+    val titleCornerRadiusProvider = {
+        ((spaceAboveTitle - scrollState.value)/headerHeight).coerceIn(0f,1f) * 40.dp
     }
-    val temperatureAlpha = (scrollState.value.toFloat() / titleInitialScroll).coerceAtMost(1f)
-    val showTemperature by remember(pageNumber) {
-        derivedStateOf { scrollState.value < context.windowHeight }
-    }
+//    val showTemperature by remember(pageNumber) {
+//        derivedStateOf { scrollState.value < context.windowHeight }
+//    }
 
     var imageBitmap by remember { mutableStateOf(initialLandscape) }
     LaunchedEffect(
@@ -190,7 +187,7 @@ fun DetailPagerScreen(
             )
             .transformations(object : Transformation() {
                 override val cacheKey: String = "force_alpha"
-                override suspend fun transform(input: coil3.Bitmap, size: coil3.size.Size): coil3.Bitmap {
+                override suspend fun transform(input: coil3.Bitmap, size: Size): coil3.Bitmap {
                     return input.copy(Bitmap.Config.ARGB_8888, true)
                 }
             })
@@ -202,9 +199,9 @@ fun DetailPagerScreen(
         context.imageLoader.execute(request)
     }
 
-    val blurredImage by remember(key1 = imageBitmap) {
-        mutableStateOf(Toolkit.blur(inputBitmap = imageBitmap, radius = 3).asImageBitmap())
-    }
+//    val blurredImage by remember(key1 = imageBitmap) {
+//        mutableStateOf(Toolkit.blur(inputBitmap = imageBitmap, radius = 3).asImageBitmap())
+//    }
     var infoBottomSheetVisible by rememberSaveable { mutableStateOf(false) }
     val infoSheetState = rememberModalBottomSheetState()
 
@@ -225,8 +222,6 @@ fun DetailPagerScreen(
                     value = titleInitialScroll.toInt(),
                     animationSpec = tween(durationMillis = 500)
                 )
-//                delay(100)
-//                detailViewModel.initializeXAxisBounds(updatingPageNumber)
             }
         }
     }
@@ -252,20 +247,33 @@ fun DetailPagerScreen(
         topBarScrollLimit = spaceAboveTitle,
         canScroll = detailState::scrollEnabled
     )
+    val primaryColor = MaterialTheme.colorScheme.primaryContainer
 
     Scaffold(
         modifier = modifier,
         topBar = {
             Column(
-                modifier = Modifier.background(
-                    if (showTemperature) Transparent
-                    else MaterialTheme.colorScheme.primaryContainer
-                ),
+                modifier = Modifier
+                    .graphicsLayer {
+                        colorFilter = ColorFilter.tint(
+                            color = if (scrollState.value < context.windowHeight) Transparent
+                            else primaryColor,
+                            blendMode = BlendMode.DstOver
+                        )
+                    }
+//                    .background(
+//                    /*if (showTemperature) Transparent else */MaterialTheme.colorScheme.primaryContainer
+//                )
+                ,
             ){
                 CenterAlignedTopAppBar(
                     title = {
                         Text(
-                            text = if (showTemperature) "" else  detailState.locationName,
+                            modifier = Modifier
+                                .graphicsLayer {
+                                    alpha = if (scrollState.value < context.windowHeight) 0f else 1f
+                                },
+                            text = detailState.locationName,
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
@@ -291,7 +299,7 @@ fun DetailPagerScreen(
                             DetailTabs.Now -> {}
                             DetailTabs.Hourly -> {
                                 HourlyDiagramSettingsOptions(
-                                    hourlyChartState = hourlyChartState,
+                                    hourlyChartState = hourlyChartState.value,
                                     settingsOpen = detailState.hourlyDiagramSettingOpen,
                                     pageNumber = pageNumber,
                                     onUpdateHourlyDiagramSettingOpen = remember(pageNumber) {
@@ -319,7 +327,7 @@ fun DetailPagerScreen(
                             }
                             DetailTabs.Daily -> {
                                 DailyDiagramSettingsOptions(
-                                    hourlyChartState = hourlyChartState,
+                                    hourlyChartState = hourlyChartState.value,
                                     settingsOpen = detailState.dailyDiagramSettingOpen,
                                     pageNumber = pageNumber,
                                     weatherConditionIconsVisible = dailyChartState.weatherConditionIconsVisible,
@@ -343,7 +351,7 @@ fun DetailPagerScreen(
                             DetailTabs.History -> {
                                 if (appSettings.hasDonated) {
                                     HistoricHourlyDiagramSettingsOptions(
-                                        hourlyChartState = hourlyChartState,
+                                        hourlyChartState = hourlyChartState.value,
                                         settingsOpen = detailState.hourlyDiagramSettingOpen,
                                         pageNumber = pageNumber,
                                         onUpdateHourlyDiagramSettingOpen = remember(pageNumber) {
@@ -392,7 +400,7 @@ fun DetailPagerScreen(
                 )
                 topTabHeight = detailPagerTopTabs(
                     modifier = Modifier.graphicsLayer {
-                        alpha = if (showTemperature) 0f else 1f
+                        alpha = if (scrollState.value < context.windowHeight) 0f else 1f
                     },
                     localDateTime = detailState.localDateTime,
                     selectedTabIndex = detailState.selectedTab.ordinal,
@@ -403,7 +411,7 @@ fun DetailPagerScreen(
             }
         }
     ) { paddingValues ->
-        AnimatedVisibility (detailState.chooseDiagramThemeDialogVisible) {
+        /*AnimatedVisibility (detailState.chooseDiagramThemeDialogVisible) {
             ChooseDiagramThemeDialog(
                 onConfirmation = {
                     detailViewModel.updateChooseDiagramThemeDialogVisibility(
@@ -411,10 +419,10 @@ fun DetailPagerScreen(
                         pageIndex = pageNumber
                     )
                 },
-                chartTheme = hourlyChartState.chartTheme,
+                chartTheme = hourlyChartState.value.chartTheme,
                 onSelectTheme = detailViewModel::updateHourlyChartTheme
             )
-        }
+        }*/
 
         Box(
             modifier = Modifier
@@ -423,32 +431,42 @@ fun DetailPagerScreen(
                     detailScreenWidth = it.size.width
                 }
         ) {
-            if (showTemperature) {
-                Image(
-                    modifier = Modifier.fillMaxSize(),
-                    bitmap = imageBitmap.asImageBitmap(),
-                    contentDescription = null,
-                    contentScale = ContentScale.FillHeight
-                )
-                val scale = 0.8f + 0.2f * temperatureAlpha
-                Temperatures(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            translationY = temperatureY
-                            alpha = temperatureAlpha
-                            scaleX = scale
-                            scaleY = scale
-                            TransformOrigin(0.5f, 0.5f)
-                        },
-                    detailState = detailState,
-                    appSettings = appSettings,
-                    topSpacerHeight = temperatureTopSpacerHeight
-                )
-                Image(
+            val backdrop = rememberLayerBackdrop()
+            Image(
+                modifier = Modifier.fillMaxSize()
+                    .layerBackdrop(backdrop),
+                bitmap = imageBitmap.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.FillHeight
+            )
+            Temperatures(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val temperatureAlpha = (scrollState.value.toFloat() / titleInitialScroll)
+                            .coerceAtMost(1f)
+                        val temperatureY = when {
+                            scrollState.value < 1.2f * titleInitialScroll -> 0f
+                            else -> -scrollState.value + 1.2f * titleInitialScroll
+                        }
+                        val scale = 0.8f + 0.2f * temperatureAlpha
+
+                        translationY = temperatureY
+                        alpha = temperatureAlpha
+                        scaleX = scale
+                        scaleY = scale
+                        TransformOrigin(0.5f, 0.5f)
+                    },
+                detailState = detailState,
+                appSettings = appSettings,
+                topSpacerHeight = temperatureTopSpacerHeight
+            )
+//            if (showTemperature) {
+                /*Image(
                     modifier = Modifier
                         .fillMaxSize()
                         .drawWithContent {
+                            val radius = titleCornerRadiusProvider().toPx()
                             clipPath(
                                 path = Path().apply {
                                     addRoundRect(
@@ -460,10 +478,7 @@ fun DetailPagerScreen(
                                                 ),
                                                 size = Size(detailScreenWidth.toFloat(), 5000f)
                                             ),
-                                            cornerRadius = CornerRadius(
-                                                titleCornerRadius.toPx(),
-                                                titleCornerRadius.toPx()
-                                            )
+                                            cornerRadius = CornerRadius(radius, radius)
                                         )
                                     )
                                 }
@@ -474,10 +489,10 @@ fun DetailPagerScreen(
                     bitmap = blurredImage,
                     contentDescription = null,
                     contentScale = ContentScale.FillHeight
-                )
-            }
+                )*/
+//            }
 
-            WeatherDataColumn2(
+            WeatherDataColumn(
                 modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
                 endPadding = paddingValues.calculateEndPadding(layoutDirection),
                 hourlyChartData = hourlyChartData,
@@ -486,24 +501,26 @@ fun DetailPagerScreen(
                 historicalDailyData = historicalDailyData,
                 appSettings = appSettings,
                 detailState = detailState,
-                hourlyChartState = hourlyChartState,
+                hourlyChartState = hourlyChartState.value,
                 dailyChartState = dailyChartState,
                 historicalChartState = historicalChartState,
                 historicalDailyChartState = historicalDailyChartState,
                 spaceAboveTitle = spaceAboveTitle,
                 bottomPadding = paddingValues.calculateBottomPadding(),
                 headerHeight = headerHeight,
-                cornerRadius = titleCornerRadius,
+                cornerRadiusProvider = titleCornerRadiusProvider,
                 tab = detailState.selectedTab,
                 tabHeight = topTabHeight.toFloat(),
-                initialXAxisRange = detailViewModel.initialXAxisStart .. detailViewModel.initialXAxisEnd,
-                historicInitialXAxisRange = detailViewModel.historicInitialXAxisStart ..
+                initialXAxisRange = detailViewModel.initialXAxisStart..detailViewModel.initialXAxisEnd,
+                historicInitialXAxisRange = detailViewModel.historicInitialXAxisStart..
                         detailViewModel.historicInitialXAxisEnd,
+                backdrop = backdrop,
+                trialPeriodExpired = trialPeriodExpired,
 //                timeAlpha = timeAlpha,
                 onAddYAxis = remember(pageNumber) {
                     {
-                        start, end, diagramHeight, textMeasurer, axisIndex: Int?,
-                        curveAnimatorInitialValue: Float, isHistoric,
+                            start, end, diagramHeight, textMeasurer, axisIndex: Int?,
+                            curveAnimatorInitialValue: Float, isHistoric,
                         ->
                         detailViewModel.addYAxis(
                             start = start,
@@ -628,12 +645,16 @@ fun DetailPagerScreen(
                 },
                 onUpdateDailyChartQuantity = remember(pageNumber) {
                     { quantity, isHistoric ->
-                        detailViewModel.updateDailyChartQuantity(quantity, updatingPageNumber, isHistoric)
+                        detailViewModel.updateDailyChartQuantity(
+                            quantity,
+                            updatingPageNumber,
+                            isHistoric
+                        )
                     }
                 },
                 onUpdateHourlyThumbPosition = remember(pageNumber) {
                     { movement, isHistoric ->
-                        detailViewModel.updateSliderThumbPosition(
+                        detailViewModel.setSliderThumbPosition(
                             movement,
                             updatingPageNumber,
                             isHistoric
@@ -642,7 +663,11 @@ fun DetailPagerScreen(
                 },
                 onUpdateDailyThumbPosition = remember(pageNumber) {
                     { movement, isHistoric ->
-                        detailViewModel.updateDailySliderThumbPosition(movement, updatingPageNumber, isHistoric)
+                        detailViewModel.setDailySliderThumbPosition(
+                            movement,
+                            updatingPageNumber,
+                            isHistoric
+                        )
                     }
                 },
                 onUpdateHourlyCurveValueAtIndicator = remember(pageNumber) {
@@ -655,16 +680,16 @@ fun DetailPagerScreen(
                         )
                     }
                 },
-                onUpdateDailyCurveValueAtIndicator = remember(pageNumber) {
-                    { valueMin, valueMax, isHistoric ->
-                        detailViewModel.updateDailyCurveValueAtIndicator(
-                            valueMin,
-                            valueMax,
-                            updatingPageNumber,
-                            isHistoric
-                        )
-                    }
-                },
+//                onUpdateDailyCurveValueAtIndicator = remember(pageNumber) {
+//                    { valueMin, valueMax, isHistoric ->
+//                        detailViewModel.updateDailyCurveValueAtIndicator(
+//                            valueMin,
+//                            valueMax,
+//                            updatingPageNumber,
+//                            isHistoric
+//                        )
+//                    }
+//                },
                 onNavigateToAQDetailScreen = remember(pageNumber) {
                     {
                         onNavigateToAQDetail(updatingPageNumber, scrollState.value)
@@ -705,7 +730,7 @@ fun DetailPagerScreen(
                     { detailViewModel.reloadHistoricalDailyData(updatingPageNumber) }
                 },
                 onNavigateToDonateScreen = onNavigateToDonateScreen,
-
+                onNavigateToLoginScreen = onNavigateToLoginScreen
 //                sharedTransitionScope = sharedTransitionScope,
 //                animatedContentScope = animatedContentScope
             )
@@ -716,6 +741,9 @@ fun DetailPagerScreen(
                 sheetState = infoSheetState,
                 onDismissRequest = {
                     infoBottomSheetVisible = false
+                },
+                contentWindowInsets = {
+                    WindowInsets.navigationBars
                 }
             ) {
                 Text(
@@ -731,6 +759,7 @@ fun DetailPagerScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Start
                 )
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
@@ -744,19 +773,8 @@ fun Temperatures(
     appSettings: AppSettings,
     topSpacerHeight: Dp,
 ) {
-    val tempUnit = appSettings.temperatureUnit
     val firstPointX = 0f
     val lastPointX = detailState.currentDayHourlyWeather.size.toFloat() - 1
-//    val (controlPoints1, controlPoints2) = quantityControlPoints(
-//        weatherData = detailState.currentDayHourlyWeather,
-//        airData = detailState.currentDayHourlyAirQuality,
-//        weatherQuantity = WeatherQuantity.TEMPERATURE,
-//    )
-//    val (apparentControlPoints1, apparentControlPoints2) = quantityControlPoints(
-//        weatherData = detailState.currentDayHourlyWeather,
-//        airData = detailState.currentDayHourlyAirQuality,
-//        weatherQuantity = WeatherQuantity.APPARENTTEMP,
-//    )
     val currentTemperature = weatherCurveXtoY(
         quantity = HourlyWeatherQuantity.TEMPERATURE,
         appSettings = appSettings,
@@ -875,13 +893,17 @@ fun DetailPagerScreenPreview() {
 //            ) {targetState ->
                 DetailPagerScreen(
                     detailState = DetailState(),
-                    detailViewModel = hiltViewModel(),
+                    detailViewModel = hiltViewModel<DetailViewModel>(
+                        viewModelStoreOwner = rememberViewModelStoreOwner()
+                    ),
 //                    scrollState = rememberScrollState(),
                     initialLandscape = createBitmap(bitmapWidth, bitmapHeight),
+                    trialPeriodExpired = null,
                     onResetScrollStates = {},
-                    onNavigateUp = {_ -> },
-                    onNavigateToAQDetail = {_, _ -> },
-                    onNavigateToDonateScreen = {}
+                    onNavigateUp = { _ -> },
+                    onNavigateToAQDetail = { _, _ -> },
+                    onNavigateToDonateScreen = {},
+                    onNavigateToLoginScreen = {}
 //                    sharedTransitionScope = this@SharedTransitionLayout,
 //                    animatedContentScope = this
                 )

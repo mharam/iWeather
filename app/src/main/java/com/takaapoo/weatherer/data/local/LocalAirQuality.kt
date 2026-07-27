@@ -9,8 +9,13 @@ import androidx.room.ForeignKey.Companion.CASCADE
 @Entity(
     tableName = "air_quality",
     foreignKeys = [
-        ForeignKey(entity = Location::class, parentColumns = ["id"], childColumns = ["location_id"],
-            onDelete = CASCADE)
+        ForeignKey(
+            entity = Location::class,
+            parentColumns = ["id"],
+            childColumns = ["location_id"],
+            onDelete = CASCADE,
+            deferred = true
+        )
     ],
     primaryKeys = ["location_id", "time"]
 )

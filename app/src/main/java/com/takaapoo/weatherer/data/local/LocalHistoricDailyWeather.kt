@@ -16,7 +16,8 @@ import com.takaapoo.weatherer.utility.mmToUnit
             entity = Location::class,
             parentColumns = ["id"],
             childColumns = ["location_id"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
+            deferred = true
         )
     ],
     primaryKeys = ["location_id", "time"]

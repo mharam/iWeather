@@ -29,6 +29,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,11 +50,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
@@ -62,9 +66,9 @@ import com.android.billingclient.api.BillingClient.ConnectionState
 import com.android.billingclient.api.BillingClient.ProductType
 import com.android.billingclient.api.ProductDetails
 import com.takaapoo.weatherer.R
+import com.takaapoo.weatherer.domain.model.BillingState
 import com.takaapoo.weatherer.domain.model.DonatePaneContent
 import com.takaapoo.weatherer.domain.model.DonateState
-import com.takaapoo.weatherer.ui.theme.LoadingData
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.customColorScheme
 import com.takaapoo.weatherer.ui.theme.gerdFontFamily
@@ -76,13 +80,16 @@ fun DonateScreen(
     modifier: Modifier = Modifier,
     singlePane: Boolean,
     donateState: DonateState,
+    billingState: BillingState,
+
     billingConnectionState: Int,
     drawerOpen: Boolean,
 
     onNavigateUp: () -> Unit,
     onNavigateToPay: () -> Unit,
     onConnectRetry: () -> Unit,
-    onPurchaseProduct: (ProductDetails) -> Unit
+    onPurchaseProduct: (ProductDetails) -> Unit,
+    onUpdatePurchaseSuccessDialogVisibility: (Boolean) -> Unit,
 ) {
     Scaffold(
         modifier = modifier,
@@ -141,9 +148,9 @@ fun DonateScreen(
                         PayScreen(
                             modifier = Modifier,
                             billingConnectionState = billingConnectionState,
-                            billingResultResponseCodes = donateState.billingResultResponseCodes,
-                            productDetailsList = donateState.productDetailsList,
-                            purchasedProductIds = donateState.purchasedProductsIds,
+                            billingResultResponseCodes = billingState.billingResultResponseCodes,
+                            productDetailsList = billingState.productDetailsList,
+                            purchasedProductIds = billingState.purchasedProductsIds,
                             drawerOpen = drawerOpen,
                             onNavigateUp = onNavigateUp,
                             onConnectRetry = onConnectRetry,
@@ -194,9 +201,9 @@ fun DonateScreen(
                             PayScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 billingConnectionState = billingConnectionState,
-                                billingResultResponseCodes = donateState.billingResultResponseCodes,
-                                productDetailsList = donateState.productDetailsList,
-                                purchasedProductIds = donateState.purchasedProductsIds,
+                                billingResultResponseCodes = billingState.billingResultResponseCodes,
+                                productDetailsList = billingState.productDetailsList,
+                                purchasedProductIds = billingState.purchasedProductsIds,
                                 drawerOpen = drawerOpen,
                                 onNavigateUp = onNavigateUp,
                                 onConnectRetry = onConnectRetry,
@@ -208,6 +215,52 @@ fun DonateScreen(
             }
         }
     }
+
+    if (billingState.purchaseSuccessDialogVisibility){
+        PurchaseSuccessDialog(
+            onDismiss = {
+                onUpdatePurchaseSuccessDialogVisibility(false)
+            }
+        )
+    }
+}
+
+@Composable
+fun PurchaseSuccessDialog(
+    modifier: Modifier = Modifier,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        modifier = modifier,
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss){
+                Text(
+                    text = "Ok",
+                    fontFamily = FontFamily.Default
+                )
+            }
+        },
+        icon = {
+            Icon(
+                painter = painterResource(R.drawable.donate),
+                contentDescription = null
+            )
+        },
+        title = {
+            Text(text = stringResource(R.string.donate_success_dialog_title))
+        },
+        text = {
+            Text(
+                text = stringResource(R.string.donate_success_dialog_text),
+                fontFamily = FontFamily.Default
+            )
+        },
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    )
 }
 
 
@@ -347,7 +400,9 @@ fun PayOptions(
     purchasedProductIds: List<String>,
     onPurchaseProduct: (ProductDetails) -> Unit
 ) {
-    val oneTimeProducts = productDetailsList?.filter { it.productType == ProductType.INAPP}
+    val oneTimeProducts = productDetailsList?.filter {
+        it.productType == ProductType.INAPP && !purchasedProductIds.contains(it.productId)
+    }
     val subscriptionProducts = productDetailsList?.filter {
         it.productType == ProductType.SUBS && !purchasedProductIds.contains(it.productId)
     }

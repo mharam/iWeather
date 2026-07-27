@@ -113,7 +113,7 @@ class AddLocationViewModel @Inject constructor(
         _mapState.update {
             it.copy(
                 addLocationDialogVisible = state,
-                selectedLocationName = ""
+//                selectedLocationName = ""
             )
         }
     }
@@ -275,7 +275,7 @@ class AddLocationViewModel @Inject constructor(
                             context as Activity,
                             REQUEST_CHECK_SETTINGS
                         )
-                    } catch (sendEx: IntentSender.SendIntentException) {
+                    } catch (_: IntentSender.SendIntentException) {
                         // Ignore the error.
                     }
                 }
@@ -283,7 +283,6 @@ class AddLocationViewModel @Inject constructor(
     }
 
     fun showPrecipitation(location: LatLng) {
-        Log.i("prec1", "Wait to Show ...")
         viewModelScope.launch {
             val yearlyWeatherResult = remoteWeatherRepository.getYearlyWeatherFromServer(
                 latitude = location.latitude.toFloat(),

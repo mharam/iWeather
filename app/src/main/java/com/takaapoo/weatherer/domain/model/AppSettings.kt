@@ -53,6 +53,9 @@ const val MaxLocationsCount = 20
 @Serializable
 data class AppSettings(
     val hasDonated: Boolean = false,
+    val userId: String? = null,
+    val userName: String? = null,
+    val userPicture: String? = null,
     val temperatureUnit: Temperature = Temperature.CELSIUS,
     val lengthUnit: Length = Length.SI,
     val pressureUnit: Pressure = Pressure.Pa,

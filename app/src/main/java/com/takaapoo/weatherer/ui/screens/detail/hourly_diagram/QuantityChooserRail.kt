@@ -8,7 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -173,14 +173,16 @@ fun QuantityChooserRail(
                         },
                         label = {
                             if (weatherQuantity.nameId == null)
-                                Box(modifier = Modifier.fillMaxSize()) {
+                                Box(
+                                    modifier = Modifier.fillMaxHeight()
+                                ) {
                                     Text(
                                         modifier = Modifier.align(Alignment.BottomCenter),
                                         text = weatherQuantity.title!!
                                     )
                                 }
                             else
-                                Text(text = stringResource(id = weatherQuantity.nameId!!))
+                                Text(text = stringResource(id = weatherQuantity.nameId))
                         }
                     )
                 }

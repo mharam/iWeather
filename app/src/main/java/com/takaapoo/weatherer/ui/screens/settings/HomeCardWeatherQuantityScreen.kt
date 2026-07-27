@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -139,7 +140,7 @@ fun HomeCardWeatherQuantityScreen(
                 WeatherItemFake(
                     itemState = itemState,
                     appSettings = appSettings,
-                    windowRotation = 0f,
+                    windowRotation = remember { mutableFloatStateOf(0f) },
                     modifier = Modifier.height(dimensionResource(R.dimen.home_card_max_height)),
                     landscapeId = R.drawable.landscape1
                 )

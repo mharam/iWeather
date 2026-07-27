@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -32,8 +33,9 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.text.TextMeasurer
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.takaapoo.weatherer.MainActivity
@@ -42,7 +44,6 @@ import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.model.AppSettings
 import com.takaapoo.weatherer.domain.model.DetailState
 import com.takaapoo.weatherer.domain.model.DonatePaneContent
-import com.takaapoo.weatherer.domain.model.DonateState
 import com.takaapoo.weatherer.domain.model.HourlyChartState
 import com.takaapoo.weatherer.domain.model.LocationsState
 import com.takaapoo.weatherer.ui.screens.add_location.AddLocationScreen
@@ -51,6 +52,7 @@ import com.takaapoo.weatherer.ui.screens.detail.aq_detail.AirQualityDetailScreen
 import com.takaapoo.weatherer.ui.screens.donate.DonateScreen
 import com.takaapoo.weatherer.ui.screens.home.HomeScreen
 import com.takaapoo.weatherer.ui.screens.home.HomeStartScreen
+import com.takaapoo.weatherer.ui.screens.login.Login
 import com.takaapoo.weatherer.ui.screens.radar.RadarScreen
 import com.takaapoo.weatherer.ui.screens.settings.GeneralSettingsScreen
 import com.takaapoo.weatherer.ui.screens.settings.HomeCardWeatherQuantityScreen
@@ -63,12 +65,12 @@ import com.takaapoo.weatherer.ui.viewModels.AppViewModel
 import com.takaapoo.weatherer.ui.viewModels.DetailViewModel
 import com.takaapoo.weatherer.ui.viewModels.DonateViewModel
 import com.takaapoo.weatherer.ui.viewModels.HomeViewModel
+import com.takaapoo.weatherer.ui.viewModels.LoginViewModel
 import com.takaapoo.weatherer.ui.viewModels.PreferenceViewModel
 import com.takaapoo.weatherer.utility.KeepScreenOn
 import com.takaapoo.weatherer.utility.collectAsStateWithPermission
 import com.takaapoo.weatherer.utility.toDp
 import com.takaapoo.weatherer.utility.toPx
-import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -84,10 +86,10 @@ fun WeatherNavGraph(
     homeViewModel: HomeViewModel,
     addLocationViewModel: AddLocationViewModel,
     preferenceViewModel: PreferenceViewModel /*= hiltViewModel()*/,
-    donateViewModel: DonateViewModel,
-    donateState: DonateState,
+//    donateViewModel: DonateViewModel,
+//    donateState: DonateState,
     appSettings: AppSettings,
-    locationListState: ImmutableList<LocationsState>,
+    locationListState: State<List<LocationsState>>,
 //    appUiState: AppUiState,
     modifier: Modifier = Modifier,
     singlePane: Boolean,
@@ -102,7 +104,7 @@ fun WeatherNavGraph(
 
     val detailState by detailViewModel.detailState.collectAsStateWithPermission(dataReadyForDisplay)
     val homePaneState by homeViewModel.homePaneState.collectAsStateWithLifecycle()
-    val homeState by homeViewModel.homeState.collectAsStateWithLifecycle()
+    val homeState = homeViewModel.homeState.collectAsStateWithLifecycle()
 
 //    SharedTransitionLayout {
     val entryProvider = entryProvider {
@@ -120,51 +122,52 @@ fun WeatherNavGraph(
             val density = LocalDensity.current
             val mainActivity = LocalActivity.current as MainActivity
 
-            // temporary variable //
-            val locations by homeViewModel.allLocations.collectAsStateWithLifecycle()
+            val locationsBriefStates by homeViewModel.locationsBriefState.collectAsStateWithLifecycle()
 
             var homeScreenWidth by rememberSaveable { mutableFloatStateOf(0f) }
             var homeScreenHeight by rememberSaveable { mutableFloatStateOf(0f) }
 
             val cardHeightPx = dimensionResource(R.dimen.home_card_max_height).toPx(density)
-            val zoomMax = mainActivity.windowHeight / cardHeightPx
+            val zoomMax = remember(mainActivity.windowHeight) {
+                mainActivity.windowHeight / cardHeightPx
+            }
 //            val width by remember { mutableStateOf(0.dp) }
 
             val transition = updateTransition(
-                targetState = homeState.zoom,
+                targetState = homeState.value.zoom,
                 label = "Transition"
             )
 
             val transitionDuration = 1300
             val zoomEasing = CubicBezierEasing(0.7f, 0f, 0.3f, 1f)
-            val translationEasing = if (homeState.zoom) CubicBezierEasing(0f, 0f, 0.3f, 1f)
+            val translationEasing = if (homeState.value.zoom) CubicBezierEasing(0f, 0f, 0.3f, 1f)
             else CubicBezierEasing(1f, 0f, 0.7f, 1f)
 
             val translationTransitionSpec =
                 tween<Float>(durationMillis = transitionDuration, easing = translationEasing)
-            val zoom by transition.animateFloat(
+            val zoom = transition.animateFloat(
                 transitionSpec = { tween(durationMillis = transitionDuration, easing = zoomEasing) },
                 label = "Zoom",
                 targetValueByState = { state ->
                     if (state) zoomMax else 1f
                 }
             )
-            val itemTranslationX by transition.animateFloat(
+            val itemTranslationX = transition.animateFloat(
                 transitionSpec = { translationTransitionSpec },
                 label = "TranslationX"
             ) { state ->
-                if (state) (homeScreenWidth - homeState.cardWidth)/2 - homeState.selectedCardX
+                if (state) (homeScreenWidth - homeState.value.cardWidth)/2 - homeState.value.selectedCardX
                 else 0f
             }
             val itemTranslationY = transition.animateFloat(
                 transitionSpec = { translationTransitionSpec },
                 label = "TranslationY",
                 targetValueByState = { state ->
-                    if (state) (mainActivity.windowHeight - cardHeightPx)/2 - (homeState.selectedCardY /*+ listBoxTopPadding*/)
-                    else -homeState.verticalOffsetDifference
+                    if (state) (mainActivity.windowHeight - cardHeightPx)/2 - (homeState.value.selectedCardY)
+                    else -homeState.value.verticalOffsetDifference
                 }
             )
-            val windowRotation by transition.animateFloat(
+            val windowRotation = transition.animateFloat(
                 transitionSpec = { translationTransitionSpec },
                 label = "windowRotation"
             ) { state -> if (state) 90f else 0f }
@@ -187,8 +190,8 @@ fun WeatherNavGraph(
                         homeScreenWidth = it.width.toFloat()
                         homeScreenHeight = it.height.toFloat()
                     },
-                locations = locations,
-                homeState = homeState,
+                locationsBriefStates = locationsBriefStates,
+                homeRealState = homeState,
                 locationListState = locationListState,
                 appSettings = appSettings,
                 weatherDataLoadStatus = mapState.weatherDataLoadStatus,
@@ -199,7 +202,7 @@ fun WeatherNavGraph(
                 zoom = zoom,
                 zoomMax = zoomMax,
                 itemTranslationX = itemTranslationX,
-                itemTranslationY = itemTranslationY.value,
+                itemTranslationY = itemTranslationY,
                 windowRotation = windowRotation,
                 initialFirstItemIndex = homePaneState.pageNumberReturningFromDetail,
                 singlePane = singlePane,
@@ -275,11 +278,11 @@ fun WeatherNavGraph(
                         homeViewModel.updateToBeDeletedLocationId()
                     }
                 },
-                onUpdateHomePaneContent = remember {
-                    { content ->
-                        homeViewModel.updateHomePaneContent(content)
-                    }
-                },
+//                onUpdateHomePaneContent = remember {
+//                    { content ->
+//                        homeViewModel.updateHomePaneContent(content)
+//                    }
+//                },
                 onModifyInitialPage = remember {
                     {
                         homeViewModel.modifyInitialPage(deletedPage = it)
@@ -304,13 +307,8 @@ fun WeatherNavGraph(
                     }
                 },
                 onNavigateToItem = remember {
-                    { locationId, cardX, cardY, cardWidth ->
-                        homeViewModel.navigateToItem(
-                            locationId,
-                            cardX,
-                            cardY,
-                            cardWidth
-                        )
+                    { locationId, itemIndex ->
+                        homeViewModel.navigateToItem(locationId, itemIndex)
                     }
                 },
                 onUpdateSelectedLocationId = remember {
@@ -337,7 +335,7 @@ fun WeatherNavGraph(
                 onSwapLocations = { id1, id2 ->
                     homeViewModel.swapLocationCustomId(id1, id2)
                     detailViewModel.swapLocations(id1, id2)
-                    if (!singlePane){
+                    if (!singlePane) {
                         val currentPageLocationId = homeViewModel.locationsState.value
                             .getOrNull(homePaneState.initialPage)?.locationId
 
@@ -363,7 +361,7 @@ fun WeatherNavGraph(
                 onNavigateToDetailScreen = { locationsCount: Int, initialPageNumber: Int ->
                     homeViewModel.updateLocationsCount(count = locationsCount)
                     homeViewModel.updateInitialPage(page = initialPageNumber)
-                    detailViewModel.setSliderThumbPositions()
+                    detailViewModel.initializeSliderThumbPositions()
                     navigator.navigate(Detail)
                 },
                 onNavigateToAddLocationScreen = {
@@ -379,15 +377,30 @@ fun WeatherNavGraph(
                     addLocationViewModel.loadALocationWeatherData(location)
                 },
                 onUpdateClockGaugeLock = remember { homeViewModel::updateClockGaugeLock },
-                onUpdateItemDragged = remember { homeViewModel::updateItemDragged },
+//                onUpdateItemDragged = remember { homeViewModel::updateItemDragged },
                 onDownloadAndSaveLandscapes = remember {
                     { context, picId, picUrl, picName ->
                         homeViewModel.downloadAndSaveLandscapes(context, picId, picUrl, picName)
                     }
                 },
                 onUpdateInitialLandscape = remember { detailViewModel::updateInitialLandScape },
-                onReInitialize = remember { detailViewModel::reInitialize },
-                onAdjustSettings = remember { detailViewModel::adjustSettings }
+//                onReInitialize = remember { detailViewModel::reInitialize },
+                onAdjustSettings = remember { detailViewModel::adjustSettings },
+                onUpdateHomeCardX = remember {
+                    { cardX: Float, itemIndex: Int ->
+                        homeViewModel.updateHomeCardX(cardX, itemIndex)
+                    }
+                },
+                onUpdateHomeCardY = remember {
+                    { cardY: Float, itemIndex: Int ->
+                        homeViewModel.updateHomeCardY(cardY, itemIndex)
+                    }
+                },
+                onUpdateHomeCardWidth = remember {
+                    { cardWidth: Float, itemIndex: Int ->
+                        homeViewModel.updateHomeCardWidth(cardWidth, itemIndex)
+                    }
+                }
             )
         }
         entry<Detail>(
@@ -401,7 +414,7 @@ fun WeatherNavGraph(
         )
         {
             val chartStateList = detailViewModel.hourlyChartState.map {
-                it.collectAsStateWithPermission(dataReadyForDisplay).value
+                it.collectAsStateWithPermission(dataReadyForDisplay)
             }
             val dailyChartStateList = detailViewModel.dailyChartState.map {
                 it.collectAsStateWithPermission(dataReadyForDisplay).value
@@ -457,6 +470,7 @@ fun WeatherNavGraph(
                 appSettings = appSettings,
                 pagerState = pagerState,
                 singlePane = singlePane,
+                trialPeriodExpired = appViewModel.user.trialPeriodExpired,
 //                dataReady = dataReadyForDisplay,
                 onUpdateHomeSelectedItemIndex = { index: Int ->
                     homeViewModel.updateSelectedItemIndexOffset(index = index)
@@ -470,12 +484,15 @@ fun WeatherNavGraph(
                 onNavigateToAQDetail = remember {
                     { pageNumber, scrollValue ->
 //                        currentPage = pageNumber
-                        navigator.navigate(AQDetail(pageNumber))
+                        navigator.navigate(route = AQDetail(pageNumber))
                     }
                 },
                 onNavigateToDonateScreen = {
                     navigator.navigate(route = Donate)
                 },
+                onNavigateToLoginScreen = {
+                    navigator.navigate(route = Login)
+                }
             )
 
         }
@@ -764,7 +781,7 @@ fun WeatherNavGraph(
 //            val locationListState by homeViewModel.locationsState.collectAsStateWithLifecycle()
             HomeCardWeatherQuantityScreen(
                 modifier = modifier,
-                itemState = locationListState[0],
+                itemState = locationListState.value[0],
                 appSettings = appSettings,
                 onUpdateHomeCardQuantityUnitsVisibility = preferenceViewModel::updateHomeCardQuantityUnitsVisibility,
                 cardWeatherQuantities = appSettings.cardWeatherQuantities,
@@ -852,7 +869,7 @@ fun WeatherNavGraph(
                 onNavigateUp = navigator::goBack,
                 onUpdateTimeAxis = {
                     preferenceViewModel.updateTimeAxis(it)
-                    detailViewModel.setSliderThumbPositions(it)
+                    detailViewModel.initializeSliderThumbPositions(it)
                 },
                 onUpdateChartTheme = detailViewModel::updateHourlyChartTheme,
                 onUpdateChartGrid = detailViewModel::updateHourlyChartGrid
@@ -913,16 +930,19 @@ fun WeatherNavGraph(
         }
         entry<Donate> {
 //                val parentEntry = remember(key1 = it) { navController.getBackStackEntry<Donate>() }
-//                val donateViewModel = hiltViewModel<DonateViewModel>(
-//                    viewModelStoreOwner = parentEntry
-//                )
-//            val donateState by donateViewModel.donateState.collectAsStateWithLifecycle()
+            val donateViewModel = hiltViewModel<DonateViewModel>(
+                viewModelStoreOwner = rememberViewModelStoreOwner()
+            )
+            val donateState by donateViewModel.donateState.collectAsStateWithLifecycle()
+            val billingState by appViewModel.billing.billingState.collectAsStateWithLifecycle()
             val activity = LocalActivity.current as MainActivity
             DonateScreen(
                 modifier = Modifier.fillMaxSize(),
                 singlePane = singlePane,
                 donateState = donateState,
-                billingConnectionState = donateViewModel.billingClient.connectionState,
+                billingState = billingState,
+
+                billingConnectionState = donateViewModel.billing.billingClient.connectionState,
                 drawerOpen = drawerOpen,
 
                 onNavigateUp = {
@@ -940,7 +960,25 @@ fun WeatherNavGraph(
                         activity = activity,
                         productDetails = productDetails
                     )
-                }
+                },
+                onUpdatePurchaseSuccessDialogVisibility =
+                    appViewModel.billing::updatePurchaseSuccessDialogVisibility,
+            )
+        }
+        entry<Login>(
+//            metadata = ListDetailSceneStrategy.detailPane()
+        ){
+            val loginViewModel = hiltViewModel<LoginViewModel>(
+                viewModelStoreOwner = rememberViewModelStoreOwner()
+            )
+            val loginState by loginViewModel.loginState.collectAsStateWithLifecycle()
+            Login(
+                modifier = Modifier.fillMaxSize(),
+                loginState = loginState,
+                user = loginViewModel.user,
+
+                onNavigateUp = navigator::goBack,
+                onUpdateLoginState = loginViewModel::updateLoginState,
             )
         }
     }

@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateValue
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryScrollableTabRow
@@ -17,9 +18,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -73,41 +77,68 @@ fun detailPagerTopTabs(
                     onUpdateSelectedTabIndex(DetailTabs.entries.find { it.ordinal == index } ?: DetailTabs.Now)
                 },
                 text = {
-                    Text(
-                        text = if (index == 0)
-                            buildAnnotatedString {
-                                withStyle(
-                                    style = SpanStyle(
-                                        fontFamily = FontFamily.Default
-                                    )
-                                ){ append(tab.name) }
-                                withStyle(
-                                    style = SpanStyle(
-                                        fontFamily = timeFontFamily
-                                    )
-                                ){
-                                    append(" (")
-                                    append(
-                                        if (clockColonVisibility <= 0.5f)
-                                            localDateTime.toLocalTime()
-                                                .format(DateTimeFormatter.ofPattern("HH\u200C:\u200Cmm"))
-                                        else localDateTime.toLocalTime()
-                                            .format(DateTimeFormatter.ofPattern("HH\u200C \u200Cmm"))
-                                    )
-                                    append(")")
-                                }
-                            }
-                        else
-                            buildAnnotatedString {
-                                append(tab.name)
-                            },
+                    val commonTextStyle = TextStyle(
                         fontFamily = FontFamily.Default,
                         fontSize = 14.sp,
                         fontWeight = FontWeight(500),
                         color = if (index == selectedTabIndex) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
                     )
+                    if (index == 0)
+                        Row(
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            val localTime = localDateTime.toLocalTime()
+                            Text(
+                                text = buildAnnotatedString {
+                                    withStyle(
+                                        style = SpanStyle(
+                                            fontFamily = FontFamily.Default
+                                        )
+                                    ){ append(tab.name) }
+                                    withStyle(
+                                        style = SpanStyle(
+                                            fontFamily = timeFontFamily
+                                        )
+                                    ){
+                                        append(" (${localTime.format(DateTimeFormatter.ofPattern("HH"))}")
+                                    }
+                                },
+                                style = commonTextStyle
+                            )
+                            Text(
+                                modifier = Modifier.graphicsLayer {
+                                    alpha = if (clockColonVisibility <= 0.5f) 1f else 0f
+                                },
+                                text = buildAnnotatedString {
+                                    withStyle(
+                                        style = SpanStyle(
+                                            fontFamily = timeFontFamily
+                                        )
+                                    ){
+                                        append("\u200C:\u200C")
+                                    }
+                                },
+                                style = commonTextStyle
+                            )
+                            Text(
+                                text = buildAnnotatedString {
+                                    withStyle(
+                                        style = SpanStyle(
+                                            fontFamily = timeFontFamily
+                                        )
+                                    ){
+                                        append("${localTime.format(DateTimeFormatter.ofPattern("mm"))})")
+                                    }
+                                },
+                                style = commonTextStyle
+                            )
+                        }
+                    else
+                        Text(
+                            text = tab.name,
+                            style = commonTextStyle
+                        )
                 }
             )
         }

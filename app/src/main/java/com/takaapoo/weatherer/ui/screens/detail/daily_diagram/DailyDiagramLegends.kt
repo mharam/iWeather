@@ -1,5 +1,7 @@
 package com.takaapoo.weatherer.ui.screens.detail.daily_diagram
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -43,9 +45,11 @@ import kotlin.math.roundToLong
 
 
 fun DrawScope.dailyDiagramLegends(
-//    data: List<ClosedFloatingPointRange<Float>?>,
-    xAxisRange: ClosedFloatingPointRange<Float>,
-    yAxesRanges: ClosedFloatingPointRange<Float>,
+    data: List<ClosedFloatingPointRange<Float>?>,
+    xAxisStart: Animatable<Float, AnimationVector1D>,
+    xAxisEnd: Animatable<Float, AnimationVector1D>,
+    yAxisStart: Animatable<Float, AnimationVector1D>,
+    yAxisEnd: Animatable<Float, AnimationVector1D>,
     chartTheme: ChartTheme,
     chartQuantity: DailyWeatherQuantity,
     chartTitle: String,
@@ -54,12 +58,10 @@ fun DrawScope.dailyDiagramLegends(
     verticalPadding: Float,
     dataMax: Float,
     dataMin: Float,
-    curveValueMinAtIndicator: Float?,
-    curveValueMaxAtIndicator: Float?,
+    firstPointX: Float?,
     barOrCurveGraph: Boolean,
     indicatorPosition: Float,
     onAppSurfaceColor: Color,
-//    appSurfaceColor: Color,
     textMeasurer: TextMeasurer,
     timeFontFamily: FontFamily,
     onCalculateHorizontalBarSeparation:
@@ -80,9 +82,9 @@ fun DrawScope.dailyDiagramLegends(
     val tickLength = 8.dp.toPx()
     val tickWidth = 2 * mainGridWidthDp.toPx()
 
-    val xAxisLength = xAxisRange.endInclusive - xAxisRange.start
-    val verticalBarSeparation = calculateDailyVerticalBarSeparation(xAxisRange.start,
-        xAxisRange.endInclusive, diagramWidth, textMeasurer).first
+    val xAxisLength = xAxisEnd.value - xAxisStart.value
+    val verticalBarSeparation = calculateDailyVerticalBarSeparation(xAxisStart.value,
+        xAxisEnd.value, diagramWidth, textMeasurer).first
     val now = LocalDate.now()
 
     val curveValueColor = /*when (chartTheme){
@@ -98,6 +100,7 @@ fun DrawScope.dailyDiagramLegends(
 
     val indicatorLineX = (indicatorPosition * diagramWidth) + horizontalPadding
     val indicatorWidth = 1.4f * tickWidth
+    val indicatorX = xAxisStart.value + indicatorPosition * xAxisLength
 
     clipPath(path = diagramBounds) {
         drawIntoCanvas {
@@ -113,6 +116,13 @@ fun DrawScope.dailyDiagramLegends(
                 strokeWidth = indicatorWidth,
             )
 
+            var curveValueMinAtIndicator: Float? = null
+            var curveValueMaxAtIndicator: Float? = null
+            if (firstPointX != null)
+                data.getOrNull((indicatorX - firstPointX).roundToInt())?.let {
+                    curveValueMinAtIndicator = it.start
+                    curveValueMaxAtIndicator = it.endInclusive
+                }
             val maxValueY = verticalPadding + 24.dp.toPx()
             val minValueY = size.height - verticalPadding - 24.dp.toPx()
             drawCurveValues(
@@ -137,10 +147,10 @@ fun DrawScope.dailyDiagramLegends(
     }
 
 
-    var x = (xAxisRange.start / verticalBarSeparation).toInt() * verticalBarSeparation
-    while (x <= xAxisRange.start) x += verticalBarSeparation
-    while (x < xAxisRange.endInclusive) {
-        val lineX = ((x - xAxisRange.start) / xAxisLength) * diagramWidth + horizontalPadding
+    var x = (xAxisStart.value / verticalBarSeparation).toInt() * verticalBarSeparation
+    while (x <= xAxisStart.value) x += verticalBarSeparation
+    while (x < xAxisEnd.value) {
+        val lineX = ((x - xAxisStart.value) / xAxisLength) * diagramWidth + horizontalPadding
         val tickColor = when (chartTheme){
             ChartTheme.LIGHT -> OnDiagramLightTheme
             ChartTheme.DARK -> OnDiagramDarkTheme
@@ -207,7 +217,6 @@ fun DrawScope.dailyDiagramLegends(
         x += verticalBarSeparation
     }
 
-    val indicatorX = xAxisRange.start + indicatorPosition * xAxisLength
     val indicatorDate = now.plusDays(indicatorX.roundToLong())
     val indicatorDateString = indicatorDate.format(
         DateTimeFormatter.ofPattern("EEE., MMMM d, uuuu")
@@ -224,8 +233,8 @@ fun DrawScope.dailyDiagramLegends(
         textColor = onAppSurfaceColor
     )
 
-    val start = yAxesRanges.start
-    val end = yAxesRanges.endInclusive
+    val start = yAxisStart.value
+    val end = yAxisEnd.value
     val yAxisLength = end - start
     val horizontalBarSeparation = if (chartQuantity == DailyWeatherQuantity.SUNRISESET)
         onCalculateVerticalBarSeparation(start, end, diagramHeight, textMeasurer).first.toFloat()

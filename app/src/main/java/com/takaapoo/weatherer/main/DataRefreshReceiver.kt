@@ -11,7 +11,7 @@ import com.takaapoo.weatherer.domain.use_case.UpdateWeatherUseCase
 import com.takaapoo.weatherer.setDataRefreshAlarm
 import com.takaapoo.weatherer.ui.notification.notify
 import com.takaapoo.weatherer.ui.screens.updateAllWidgets
-import com.takaapoo.weatherer.utility.NetworkUtils
+import com.takaapoo.weatherer.utility.NetworkObserver
 import dagger.hilt.android.AndroidEntryPoint
 import jakarta.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -36,7 +36,7 @@ class DataRefreshReceiver : BroadcastReceiver() {
             try {
                 wakeLock.acquire(60_000)
                 setDataRefreshAlarm(context)
-                if (NetworkUtils.isConnectedToInternet(context)) {
+                if (NetworkObserver(context).isConnectedToInternet()) {
                     updateWeatherUseCase.updateAllLocationsWeatherBatch()
                 }
                 notify(

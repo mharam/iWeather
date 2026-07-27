@@ -1,5 +1,6 @@
 package com.takaapoo.weatherer.ui.viewModels
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
@@ -7,12 +8,18 @@ import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.domain.repository.LocalWeatherRepository
 import com.takaapoo.weatherer.domain.repository.PreferenceRepository
 import com.takaapoo.weatherer.domain.use_case.GetHourlyChartDataUseCase
+import com.takaapoo.weatherer.utility.Billing
+import com.takaapoo.weatherer.utility.NetworkObserver
+import com.takaapoo.weatherer.utility.User
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import java.time.LocalDate
@@ -21,14 +28,24 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AppViewModel @Inject constructor(
+    @param:ApplicationContext val applicationContext: Context,
     preferenceRepository: PreferenceRepository,
     private val hourlyChartDataUseCase: GetHourlyChartDataUseCase,
     private val localWeatherRepository: LocalWeatherRepository,
-//    private val locationRepository: LocationRepository
+    val billing: Billing,
+    val user: User
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState = _uiState.asStateFlow()
+
+    private val networkObserver = NetworkObserver(applicationContext)
+    val internetConnected: StateFlow<Boolean> = networkObserver.connectivityStatusFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = networkObserver.isConnectedToInternet()
+        )
 
     val settingsFlow = preferenceRepository.getSettingsFlow()
     val notificationHourlyChartData: StateFlow<List<HourlyChartDto>> =
@@ -68,35 +85,25 @@ class AppViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-
-    /*fun updateScreen(screen: Screen){
-        _uiState.update {
-            it.copy(currentScreen = screen)
-        }
-    }*/
-
     fun updateNotifChannelDialogVisibility(visible: Boolean){
         _uiState.update {
             it.copy(notifChannelDialogVisibility = visible)
         }
     }
-    /*fun updateNotificationBitmaps(bitmaps: List<Bitmap?>){
-        _uiState.update {
-            it.copy(notificationBitmaps = bitmaps)
-        }
-    }
-    fun updateNotificationHeader(header: Int){
-        _uiState.update {
-            it.copy(notificationHeader = header)
-        }
-    }*/
 
+    init {
+        internetConnected
+            .onEach { isConnected ->
+                if (isConnected) {
+                    billing.startBillingConnection()
+                    user.initialize()
+                }
+            }
+            .launchIn(viewModelScope)
+    }
 
 }
 
 data class AppUiState(
-//    val currentScreen: Screen = HomePane,
     val notifChannelDialogVisibility: Boolean = false,
-//    val notificationBitmaps: List<Bitmap?> = emptyList(),
-//    val notificationHeader: Int = 1
 )

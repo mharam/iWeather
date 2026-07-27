@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -282,7 +283,24 @@ fun HourlyDiagramCurvesScreen(
                         diagramHorPadding = diagramHorPadding,
                         diagramVertPadding = diagramVertPadding,
                         hourlyChartData = hourlyChartData,
-                        hourlyChartState = hourlyChartState,
+                        curveAnimator = hourlyChartState.curveAnimator,
+                        chartQuantities = hourlyChartState.chartQuantities,
+                        settingsUpdated = hourlyChartState.settingsUpdated,
+                        xAxisAnimationTrigger = hourlyChartState.xAxisAnimationTrigger,
+                        xAxisStart = hourlyChartState.xAxisStart,
+                        xAxisEnd = hourlyChartState.xAxisEnd,
+                        yAxesStarts = hourlyChartState.yAxesStarts,
+                        yAxesEnds = hourlyChartState.yAxesEnds,
+                        chartGrid = hourlyChartState.chartGrid,
+                        chartTheme = hourlyChartState.chartTheme,
+                        dataLoadingStatus = hourlyChartState.dataLoadingStatus,
+                        curvesSmoothness = hourlyChartState.curvesSmoothness,
+                        curvesColor = hourlyChartState.curvesColor,
+                        dotsOnCurveVisible = hourlyChartState.dotsOnCurveVisible,
+                        curveShadowVisible = hourlyChartState.curveShadowVisible,
+                        sliderThumbPosition = hourlyChartState.sliderThumbPosition,
+                        sunRiseSetIconsVisible = hourlyChartState.sunRiseSetIconsVisible,
+                        weatherConditionIconsVisible = hourlyChartState.weatherConditionIconsVisible,
                         appSettings = appSettings,
                         initialXAxisRange = initialXAxisRange,
                         onAddYAxis = onAddYAxis,
@@ -432,7 +450,7 @@ fun HourlyDiagramCurvesScreen(
                                 RichTooltip(
 //                                    title = {
 //                                        Text(
-//                                            text = stringResource(R.string.curve_smoothness_tooltip_titel),
+//                                            text = stringResource(R.string.curve_smoothness_tooltip_title),
 //                                            fontSize = 14.sp,
 //                                            fontWeight = FontWeight(500),
 //                                            fontFamily = FontFamily.Default,
@@ -495,10 +513,10 @@ fun HourlyDiagramCurvesScreen(
                         titleAnnotated = quantity.title,
                         color = quantityColor ?: Color.Unspecified,
                         onClick = {
-                            onAddRemoveQuantity(
-                                quantity,
-                                !hourlyChartState.chartQuantities.contains(quantity)
-                            )
+//                            onAddRemoveQuantity(
+//                                quantity,
+//                                !hourlyChartState.chartQuantities.contains(quantity)
+//                            )
                         },
                         subContent = {
                             Slider(
@@ -535,7 +553,8 @@ fun HourlyDiagramCurvesScreen(
                                                         if (press?.changedToUp() == true) {
                                                             isThumbPressed = false
                                                         }
-                                                    } while (event.changes.any { it.pressed })
+                                                    } while (event.changes.any { pointerInputChange->
+                                                        pointerInputChange.pressed })
                                                 }
                                             },
                                         horizontalAlignment = Alignment.CenterHorizontally
@@ -585,10 +604,26 @@ fun HourlyDiagramCurvesScreen(
                     )
                 }
                 Spacer(
-                    modifier = Modifier.height(
-                        paddingValues.calculateBottomPadding() + cardPartHeight + 16.dp
-                                - scrollState.value.toDp(density)
-                    )
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .layout { measurable, constraints ->
+                            // Reading scrollState.value here happens during the layout phase, not composition.
+                            val scrollOffset = scrollState.value
+                            val heightPx = (paddingValues.calculateBottomPadding() + cardPartHeight + 16.dp).toPx() -
+                                    scrollOffset
+                            val height = heightPx.roundToInt().coerceAtLeast(0)
+
+                            val placeable = measurable.measure(
+                                constraints.copy(minHeight = height, maxHeight = height)
+                            )
+                            layout(placeable.width, placeable.height) {
+                                placeable.placeRelative(0, 0)
+                            }
+                        }
+//                        .height(
+//                            paddingValues.calculateBottomPadding() + cardPartHeight + 16.dp -
+//                                    scrollState.value.toDp(density)
+//                        )
                 )
             }
         }

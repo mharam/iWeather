@@ -11,7 +11,7 @@ import com.takaapoo.weatherer.domain.use_case.UpdateWeatherUseCase
 import com.takaapoo.weatherer.setDataRefreshAlarm
 import com.takaapoo.weatherer.ui.notification.notify
 import com.takaapoo.weatherer.ui.screens.updateAllWidgets
-import com.takaapoo.weatherer.utility.NetworkUtils
+import com.takaapoo.weatherer.utility.NetworkObserver
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
@@ -28,7 +28,7 @@ class RefreshWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         return try {
-            if (NetworkUtils.isConnectedToInternet(context))
+            if (NetworkObserver(context).isConnectedToInternet())
                 updateWeatherUseCase.updateAllLocationsWeatherBatch()
 
 //            if (Build.VERSION.SDK_INT >= 31 && !alarmManager.canScheduleExactAlarms()) {

@@ -1,8 +1,11 @@
 package com.takaapoo.weatherer.ui.screens.detail.hourly_diagram
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -25,18 +28,22 @@ import com.takaapoo.weatherer.domain.model.HistoricHourlyChartDto
 import com.takaapoo.weatherer.domain.model.HourlyChartDto
 import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.theme.Transparent
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 
 @Composable
 fun DiagramCurve(
     modifier: Modifier = Modifier,
-    hourlyData: List<HourlyChartDto?> = emptyList(),
-    historicalHourlyData: List<HistoricHourlyChartDto?> = emptyList(),
-    curveAnimatorProgress: Float,
-    timeData: List<Int>,
+    hourlyData: ImmutableList<HourlyChartDto?> = persistentListOf(),
+    historicalHourlyData: ImmutableList<HistoricHourlyChartDto?> = persistentListOf(),
+    curveAnimatorProgress: Animatable<Float, AnimationVector1D>?,
+    timeData: ImmutableList<Int>,
     weatherQuantity: HourlyWeatherQuantity,
     initialXAxisRange: ClosedFloatingPointRange<Float>,
-    xAxisRange: ClosedFloatingPointRange<Float>,
-    yAxisRange: ClosedFloatingPointRange<Float>,
+    xAxisStart: Animatable<Float, AnimationVector1D>,
+    xAxisEnd: Animatable<Float, AnimationVector1D>,
+    yAxisStart: Animatable<Float, AnimationVector1D>,
+    yAxisEnd: Animatable<Float, AnimationVector1D>,
     cornerRadius: Float,
     horizontalPadding: Float,
     verticalPadding: Float,
@@ -46,7 +53,7 @@ fun DiagramCurve(
     dotsVisible: Boolean,
     shadowVisible: Boolean,
     dotType: DotType,
-    sliderPosition: Float,
+    sliderPosition: Animatable<Float, AnimationVector1D>,
     onUpdateCurveValueAtIndicator: (value: Float?) -> Unit
 ) {
     if (historicalHourlyData.isEmpty()) {
@@ -73,11 +80,13 @@ fun DiagramCurve(
         timeClock = appSettings.hourlyDiagramTime
     )!!
 
-    val data = quantityData(
-        hourlyChartData = hourlyData,
-        weatherQuantity = weatherQuantity,
-        historicWeatherData = historicalHourlyData.map { it?.hourlyWeather }
-    ).also {
+    val data = remember(hourlyData, historicalHourlyData, weatherQuantity) {
+        quantityData(
+            hourlyChartData = hourlyData,
+            weatherQuantity = weatherQuantity,
+            historicWeatherData = historicalHourlyData.map { it?.hourlyWeather }
+        )
+    }.also {
         if (it.isEmpty()) return
     }
     val graphType = weatherQuantity.graphType(
@@ -89,23 +98,23 @@ fun DiagramCurve(
         smoothnessFactor = smoothnessFactor
     )
 
-    val indicatorX = xAxisRange.start + sliderPosition * (xAxisRange.endInclusive - xAxisRange.start)
-    val curveValueAtIndicator = weatherCurveXtoY(
-        quantity = weatherQuantity,
-        appSettings = appSettings,
-        smoothnessFactor = if (historicalHourlyData.isEmpty()) smoothnessFactor else 0f,
-        hourlyWeather = hourlyData.map { it?.hourlyWeather },
-        hourlyAirQuality = hourlyData.map { it?.airQuality },
-        historicWeatherData = historicalHourlyData.map { it?.hourlyWeather },
-        firstPointX = firstPointX,
-        lastPointX = lastPointX,
-        targetX = indicatorX
-    )
-    onUpdateCurveValueAtIndicator(curveValueAtIndicator)
-
     val pointSize = dimensionResource(id = R.dimen.hourly_curve_point_size)
     val curveWidth = dimensionResource(id = R.dimen.diagram_curve_width)
     Canvas(modifier = modifier.fillMaxSize()) {
+        val indicatorX = xAxisStart.value + sliderPosition.value * (xAxisEnd.value - xAxisStart.value)
+        val curveValueAtIndicator = weatherCurveXtoY(
+            quantity = weatherQuantity,
+            appSettings = appSettings,
+            smoothnessFactor = if (historicalHourlyData.isEmpty()) smoothnessFactor else 0f,
+            hourlyWeather = hourlyData.map { it?.hourlyWeather },
+            hourlyAirQuality = hourlyData.map { it?.airQuality },
+            historicWeatherData = historicalHourlyData.map { it?.hourlyWeather },
+            firstPointX = firstPointX,
+            lastPointX = lastPointX,
+            targetX = indicatorX
+        )
+        onUpdateCurveValueAtIndicator(curveValueAtIndicator)
+
         val diagramWidth = size.width - 2 * horizontalPadding
         val diagramHeight = size.height - 2 * verticalPadding
         val pointSizePx = pointSize.toPx()
@@ -113,6 +122,8 @@ fun DiagramCurve(
 
         val filledPath = Path()
         var filledPathBrush = Brush.verticalGradient()
+        val xAxisRange = xAxisStart.value .. xAxisEnd.value
+        val yAxisRange = yAxisStart.value .. yAxisEnd.value
         val path = when (graphType) {
             GraphTypes.STEP -> generateStepGraph(
                 data = data,
@@ -170,7 +181,7 @@ fun DiagramCurve(
                     left = horizontalPadding,
                     top = verticalPadding,
                     right = horizontalPadding + (size.width - 2 * horizontalPadding) *
-                            curveAnimatorProgress,
+                            (curveAnimatorProgress?.value ?: 0f),
                     bottom = size.height - verticalPadding,
                     cornerRadius = CornerRadius(cornerRadius)
                 )
@@ -213,9 +224,9 @@ fun DiagramCurve(
             drawIndicatorPoint(
                 curveValueAtIndicator,
                 curveColor,
-                sliderPosition,
-                yAxisRange.start,
-                yAxisRange.endInclusive,
+                sliderPosition.value,
+                yAxisStart.value,
+                yAxisEnd.value,
                 horizontalPadding,
                 verticalPadding,
                 diagramWidth,
@@ -381,7 +392,7 @@ fun DrawScope.drawIndicatorPoint(
     diagramWidth: Float,
     diagramHeight: Float,
     pointSizePx: Float,
-    curveWidth: Float
+    curveWidth: Float,
 ){
     if (yAxisStart == yAxisEnd) return
     curveValueAtIndicator?.let {

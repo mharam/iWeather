@@ -51,6 +51,7 @@
 
     <dimen name="rail_edge_width">2dp</dimen>
     <dimen name="tense_width">72dp</dimen>
+    <dimen name="tense_height">32dp</dimen>
 
     <dimen name="notification_weather_type_size">48dp</dimen>
     <dimen name="notification_diagram_height">186dp</dimen>

@@ -1,5 +1,7 @@
 package com.takaapoo.weatherer.ui.screens.detail
 
+import android.os.Build
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.slideInHorizontally
@@ -16,9 +18,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -30,14 +33,15 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
@@ -47,20 +51,26 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextMeasurer
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.toFontFamily
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.ColorUtils
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
+import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
 import com.takaapoo.weatherer.MainActivity
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
@@ -88,7 +98,8 @@ import com.takaapoo.weatherer.ui.theme.OnDiagramDarkTheme
 import com.takaapoo.weatherer.ui.theme.OnDiagramLightTheme
 import com.takaapoo.weatherer.ui.theme.Transparent10
 import com.takaapoo.weatherer.ui.theme.customColorScheme
-import com.takaapoo.weatherer.utility.BorderedText
+import com.takaapoo.weatherer.ui.viewModels.DonatePromotionViewModel
+import com.takaapoo.weatherer.utility.drawThickText
 import com.takaapoo.weatherer.utility.toDp
 import com.takaapoo.weatherer.utility.toPx
 import kotlinx.collections.immutable.toImmutableList
@@ -98,7 +109,7 @@ import kotlin.math.pow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WeatherDataColumn2(
+fun WeatherDataColumn(
     endPadding: Dp,
     hourlyChartData: List<HourlyChartDto>,
     dailyChartData: List<LocalDailyWeather>,
@@ -114,11 +125,13 @@ fun WeatherDataColumn2(
     spaceAboveTitle: Float,
     bottomPadding: Dp,
     headerHeight: Float,
-    cornerRadius: Dp,
+    cornerRadiusProvider: () -> Dp,
     tab: DetailTabs,
     tabHeight: Float,
     initialXAxisRange: ClosedFloatingPointRange<Float>,
     historicInitialXAxisRange: ClosedFloatingPointRange<Float>,
+    backdrop: LayerBackdrop,
+    trialPeriodExpired: Boolean?,
 
     onAddYAxis: (start: Float, end: Float, diagramHeight: Float, textMeasurer: TextMeasurer, axisIndex: Int?, curveAnimatorInitialValue: Float, isHistoric: Boolean) -> Unit,
     onUpdateDailyYAxis: (quantity: DailyWeatherQuantity, curveAnimatorInitialValue: Float, isHistoric: Boolean) -> Unit,
@@ -140,7 +153,6 @@ fun WeatherDataColumn2(
     onUpdateHourlyThumbPosition: (movement: Float, isHistoric: Boolean) -> Unit,
     onUpdateDailyThumbPosition: (movement: Float, isHistoric: Boolean) -> Unit,
     onUpdateHourlyCurveValueAtIndicator: (curveIndex: Int, value: Float?, isHistoric: Boolean) -> Unit,
-    onUpdateDailyCurveValueAtIndicator: (valueMin: Float, valueMax: Float, isHistoric: Boolean) -> Unit,
     onNavigateToAQDetailScreen: () -> Unit,
     onUpdateSelectedTab: (tab: DetailTabs) -> Unit,
     onAnimateHourlyDiagramAxis: (time: LocalDate) -> Unit,
@@ -148,42 +160,102 @@ fun WeatherDataColumn2(
     onReloadHistoricalDailyData: () -> Unit,
     onAnimateDailyDiagramAxis: (time: LocalDate) -> Unit,
     onNavigateToDonateScreen: () -> Unit,
-
-//    sharedTransitionScope: SharedTransitionScope,
-//    animatedContentScope: AnimatedContentScope
+    onNavigateToLoginScreen: () -> Unit,
 ) {
-    val context = LocalContext.current
+    val activity = LocalActivity.current
     val density = LocalDensity.current
 //    val scrollState = detailState.scrollState
-    val titleShrinkStartPoint = spaceAboveTitle - 0.3f * (context as MainActivity).windowHeight
-    var titleWidth by rememberSaveable{ mutableIntStateOf(0) }
-    val screenPadding = dimensionResource(R.dimen.detail_screen_padding).toPx(density)
-    val titleMaxXMove = (detailScreenWidth - titleWidth)/2f - screenPadding
+    val titleShrinkStartPoint = spaceAboveTitle - 0.3f * (activity as MainActivity).windowHeight
+//    var titleWidth by rememberSaveable{ mutableIntStateOf(0) }
+//    val screenPadding = dimensionResource(R.dimen.detail_screen_padding).toPx(density)
+//    val titleMaxXMove = (detailScreenWidth - titleWidth)/2f - screenPadding
     var previousTab by rememberSaveable { mutableStateOf(tab) }
 
-//    Box(modifier = modifier.fillMaxSize()) {
-
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(
+                state = detailState.scrollState,
+                enabled = detailState.scrollEnabled()
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(spaceAboveTitle.toDp(density)))
+        val surfaceColor = MaterialTheme.customColorScheme.detailScreenSurface.toArgb()
+        val borderColor = MaterialTheme.colorScheme.primaryContainer
         Column(
-            modifier = modifier
-                .fillMaxSize()
-                .verticalScroll(
-                    state = detailState.scrollState,
-                    enabled = detailState.scrollEnabled()
-                ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = {
+                        val cornerSize = CornerSize(cornerRadiusProvider())
+                        RoundedCornerShape(
+                            topStart = cornerSize,
+                            topEnd = cornerSize,
+                            bottomStart = CornerSize(0f),
+                            bottomEnd = CornerSize(0f)
+                        )
+                    },
+                    effects = {
+                        vibrancy()
+                        lens(64.dp.toPx(), 32.dp.toPx())
+                        blur(4.dp.toPx())
+                    }
+                )
+                .drawBehind {
+                    val width = size.width
+                    val height = size.height
+                    val cornerRad = CornerRadius(cornerRadiusProvider().toPx())
+                    val backgroundPath = Path().apply {
+                        this.addRoundRect(
+                            roundRect = RoundRect(
+                                left = 0f,
+                                top = 0f,
+                                right = width,
+                                bottom = height,
+                                topLeftCornerRadius = cornerRad,
+                                topRightCornerRadius = cornerRad
+                            )
+                        )
+                    }
+                    drawPath(
+                        path = backgroundPath,
+                        color = barColor(
+                            scroll = detailState.scrollState.value,
+                            start = titleShrinkStartPoint,
+                            end = spaceAboveTitle,
+                            color1 = Transparent10.toArgb(),
+                            color2 = surfaceColor
+                        )
+                    )
+                    if (Build.VERSION.SDK_INT < 33) {
+                        drawPath(
+                            path = backgroundPath,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(borderColor, Color.Transparent),
+                                startY = 0f,
+                                endY = 300f
+                            ),
+                            style = Stroke(width = 1.dp.toPx()),
+                        )
+                    }
+                }
+                .padding(bottom = bottomPadding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(spaceAboveTitle.toDp(density)))
-            val surfaceColor = MaterialTheme.customColorScheme.detailScreenSurface.toArgb()
-            val borderColor = MaterialTheme.colorScheme.primaryContainer
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = if (detailState.scrollState.value < activity.windowHeight) 1f else 0f
+                    }
                     .drawBehind {
                         val width = size.width
                         val height = size.height
-                        val cornerRad = CornerRadius(cornerRadius.toPx())
+                        val cornerRad = CornerRadius(cornerRadiusProvider().toPx())
                         val backgroundPath = Path().apply {
-                            this.addRoundRect(
+                            addRoundRect(
                                 roundRect = RoundRect(
                                     left = 0f,
                                     top = 0f,
@@ -196,323 +268,277 @@ fun WeatherDataColumn2(
                         }
                         drawPath(
                             path = backgroundPath,
-                            color = barColor(
-                                scroll = detailState.scrollState.value,
-                                start = titleShrinkStartPoint,
-                                end = spaceAboveTitle,
-                                color1 = Transparent10.toArgb(),
-                                color2 = surfaceColor
-                            )
-                        )
-                        drawPath(
-                            path = backgroundPath,
                             brush = Brush.verticalGradient(
-                                colors = listOf(borderColor, Color.Transparent),
-                                startY = 0f,
-                                endY = 300f
-                            ),
-                            style = Stroke(width = 1.dp.toPx()),
-                        )
-                    }
-                    .padding(bottom = bottomPadding),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .drawBehind {
-                            val width = size.width
-                            val height = size.height
-                            val cornerRad = CornerRadius(cornerRadius.toPx())
-                            val backgroundPath = Path().apply {
-                                this.addRoundRect(
-                                    roundRect = RoundRect(
-                                        left = 0f,
-                                        top = 0f,
-                                        right = width,
-                                        bottom = height,
-                                        topLeftCornerRadius = cornerRad,
-                                        topRightCornerRadius = cornerRad
-                                    )
-                                )
-                            }
-                            drawPath(
-                                path = backgroundPath,
-                                brush = Brush.verticalGradient(
-                                    0f to borderColor,
-                                    1f to barColor(
-                                        scroll = detailState.scrollState.value,
-                                        start = titleShrinkStartPoint,
-                                        end = spaceAboveTitle,
-                                        color1 = 0x00FFFFFF,
-                                        color2 = borderColor.toArgb()
-                                    ),
-                                    endY = movementFraction(
-                                        scroll = detailState.scrollState.value,
-                                        start = titleShrinkStartPoint,
-                                        end = spaceAboveTitle
-                                    ) * headerHeight
-                                )
-                            )
-                        }
-                ) {
-                    Title2(
-                        locationName = hourlyChartData.firstOrNull()?.locationName ?: "",
-                        modifier = Modifier
-                            .height(headerHeight.toDp(density))
-                            .graphicsLayer {
-                                translationX = titleXTranslation(
+                                0f to borderColor,
+                                1f to barColor(
                                     scroll = detailState.scrollState.value,
                                     start = titleShrinkStartPoint,
                                     end = spaceAboveTitle,
-                                    maxMovement = titleMaxXMove
-                                )
-                            }
-                            .padding(
-                                start = dimensionResource(R.dimen.detail_screen_padding),
-                                end = endPadding + dimensionResource(R.dimen.detail_screen_padding)
+                                    color1 = 0x00FFFFFF,
+                                    color2 = borderColor.toArgb()
+                                ),
+                                endY = movementFraction(
+                                    scroll = detailState.scrollState.value,
+                                    start = titleShrinkStartPoint,
+                                    end = spaceAboveTitle
+                                ) * headerHeight
                             )
-                            .onGloballyPositioned {
-                                titleWidth = it.size.width
-                            }
-//                            .padding(horizontal = dimensionResource(R.dimen.detail_screen_padding))
-                        ,
-                        scrollValue = detailState.scrollState.value,
-                        titleShrinkStartPoint = titleShrinkStartPoint,
-                        spaceAboveTitle = spaceAboveTitle
-                    )
-                    detailPagerTopTabs(
-                        localDateTime = detailState.localDateTime,
-                        selectedTabIndex = detailState.selectedTab.ordinal,
-                        onUpdateSelectedTabIndex = onUpdateSelectedTab
-                    )
-                }
-//                with(sharedTransitionScope) {
-
-//                }
-
-                AnimatedContent(
-                    modifier = Modifier,
-                    targetState = tab,
-                    transitionSpec = {
-                        ContentTransform(
-                            targetContentEnter = if (previousTab < tab) {
-                                slideInHorizontally(initialOffsetX = { it })
-                            } else {
-                                slideInHorizontally(initialOffsetX = { -it })
-                            },
-                            initialContentExit = if (previousTab < tab) {
-                                slideOutHorizontally(targetOffsetX = { -it })
-                            } else {
-                                slideOutHorizontally(targetOffsetX = { it })
-                            },
-                            targetContentZIndex = 0f,
-                            sizeTransform = null
                         )
                     }
-                ) {  detailTab ->
-                    val columnHeight = context.windowHeight.toFloat() - tabHeight -
-                            WindowInsets.statusBars.getTop(density) - bottomPadding.toPx(density)
-                    when(detailTab) {
-                        DetailTabs.Now -> {
-                            CurrentWeather(
+            ) {
+                Title2(
+                    locationName = hourlyChartData.firstOrNull()?.locationName ?: "",
+                    modifier = Modifier
+                        .height(headerHeight.toDp(density))
+                        .padding(
+                            start = dimensionResource(R.dimen.detail_screen_padding),
+                            end = endPadding + dimensionResource(R.dimen.detail_screen_padding)
+                        ),
+                    scrollState = detailState.scrollState,
+                    titleShrinkStartPoint = titleShrinkStartPoint,
+                    spaceAboveTitle = spaceAboveTitle
+                )
+                detailPagerTopTabs(
+                    localDateTime = detailState.localDateTime,
+                    selectedTabIndex = detailState.selectedTab.ordinal,
+                    onUpdateSelectedTabIndex = onUpdateSelectedTab
+                )
+            }
+
+            AnimatedContent(
+                modifier = Modifier,
+                targetState = tab,
+                transitionSpec = {
+                    ContentTransform(
+                        targetContentEnter = if (previousTab < tab) {
+                            slideInHorizontally(initialOffsetX = { it })
+                        } else {
+                            slideInHorizontally(initialOffsetX = { -it })
+                        },
+                        initialContentExit = if (previousTab < tab) {
+                            slideOutHorizontally(targetOffsetX = { -it })
+                        } else {
+                            slideOutHorizontally(targetOffsetX = { it })
+                        },
+                        targetContentZIndex = 0f,
+                        sizeTransform = null
+                    )
+                }
+            ) {  detailTab ->
+                val columnHeight = activity.windowHeight.toFloat() - tabHeight -
+                        WindowInsets.statusBars.getTop(density) - bottomPadding.toPx(density)
+                val collapseBarHeight = (64.dp).toPx(density)
+                LaunchedEffect(detailTab) {
+                    val maxScroll = activity.windowHeight.toFloat() + collapseBarHeight
+                    if (detailState.scrollState.value > maxScroll){
+                        detailState.scrollState.scrollTo(maxScroll.toInt())
+                    }
+                }
+                when(detailTab) {
+                    DetailTabs.Now -> {
+                        CurrentWeather(
+                            modifier = Modifier,
+                            detailState = detailState,
+                            appSettings = appSettings,
+                            headerHeight = headerHeight,
+                            endPadding = endPadding,
+                            onNavigateToAQDetailScreen = onNavigateToAQDetailScreen
+                        )
+                    }
+                    DetailTabs.Hourly -> {
+                        HourlyWeather(
+                            modifier = Modifier,
+                            hourlyChartState = hourlyChartState,
+                            endPadding = endPadding,
+                            appSettings = appSettings,
+                            hourlyChartData = hourlyChartData,
+                            columnHeight = columnHeight,
+//                            maxScroll = context.windowHeight.toFloat() + collapseBarHeight,
+//                            scrollState = detailState.scrollState,
+                            initialXAxisRange = initialXAxisRange,
+
+                            onRemoveChartQuantity = {
+                                onRemoveHourlyChartQuantity(it, false)
+                            },
+                            onAddChartQuantity = {
+                                onAddHourlyChartQuantity(it, false)
+                            },
+                            onAddYAxis = { start, end, diagramHeight, textMeasurer, axisIndex,
+                                           curveAnimatorInitialValue ->
+                                onAddYAxis( start, end, diagramHeight,
+                                    textMeasurer, axisIndex, curveAnimatorInitialValue, false )
+                            },
+                            onMoveHourlyDiagramAxis = {
+                                onMoveHourlyDiagramAxis(it, false)
+                            },
+                            onScaleHourlyDiagramAxis = { center, scaleX, scaleY ->
+                                onScaleHourlyDiagramAxis(center, scaleX, scaleY, false)
+                            },
+                            onScaleBack = { offset ->
+                                onScaleBack(offset, false)
+                            },
+                            onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
+                            onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation,
+                            onUpdateHourlyCurveValueAtIndicator = { index, value ->
+                                onUpdateHourlyCurveValueAtIndicator(index, value, false)
+                            },
+                            undoHourlyDiagramScaleMove = undoHourlyDiagramScaleMove,
+                            onUpdateHourlyThumbPosition = {
+                                onUpdateHourlyThumbPosition(it, false)
+                            }
+                        )
+                    }
+                    DetailTabs.Daily -> {
+                        DailyWeather(
+                            modifier = Modifier,
+                            hourlyChartState = hourlyChartState,
+                            endPadding = endPadding,
+                            dailyChartState = dailyChartState,
+                            appSettings = appSettings,
+                            dailyChartData = dailyChartData,
+                            columnHeight = columnHeight,
+//                            maxScroll = context.windowHeight.toFloat() + headerHeight,
+//                            scrollState = detailState.scrollState,
+
+                            onUpdateDailyChartQuantity = { quantity ->
+                                onUpdateDailyChartQuantity(quantity, false)
+                            },
+                            onUpdateDailyYAxis = { quantity, curveAnimatorInitialValue ->
+                                onUpdateDailyYAxis(quantity, curveAnimatorInitialValue, false)
+                            },
+                            onMoveDailyDiagramAxis = { offset ->
+                                onMoveDailyDiagramAxis(offset, false)
+                            },
+                            onScaleDailyDiagramAxis = { center, scaleX, scaleY ->
+                                onScaleDailyDiagramAxis(center, scaleX, scaleY, false)
+                            },
+                            onScaleBackDaily = { offset ->
+                                onScaleBackDaily(offset, false)
+                            },
+                            onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
+                            onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation,
+//                                onUpdateDailyCurveValueAtIndicator = { minValue, maxValue ->
+//                                    onUpdateDailyCurveValueAtIndicator(minValue, maxValue, false)
+//                                },
+                            undoDailyDiagramScaleMove = undoDailyDiagramScaleMove,
+                            onUpdateDailyThumbPosition = {
+                                onUpdateDailyThumbPosition(it, false)
+                            }
+                        )
+                    }
+                    DetailTabs.History -> {
+                        if(appSettings.hasDonated) {
+                            HistoricalWeather(
                                 modifier = Modifier,
-                                detailState = detailState,
-                                appSettings = appSettings,
-                                headerHeight = headerHeight,
+                                historicalChartState = historicalChartState.copy(
+                                    dotsOnCurveVisible = hourlyChartState.dotsOnCurveVisible,
+                                    curveShadowVisible = hourlyChartState.curveShadowVisible,
+                                    chartGrid = hourlyChartState.chartGrid,
+                                    chartTheme = hourlyChartState.chartTheme,
+                                    weatherConditionIconsVisible = hourlyChartState.weatherConditionIconsVisible
+                                ),
+                                historicalDailyChartState = historicalDailyChartState.copy(
+                                    weatherConditionIconsVisible = hourlyChartState.weatherConditionIconsVisible
+                                ),
                                 endPadding = endPadding,
-                                onNavigateToAQDetailScreen = onNavigateToAQDetailScreen
-                            )
-                        }
-                        DetailTabs.Hourly -> {
-                            HourlyWeather(
-                                modifier = Modifier,
-                                hourlyChartState = hourlyChartState,
-                                endPadding = endPadding,
                                 appSettings = appSettings,
-                                hourlyChartData = hourlyChartData,
+                                historicalHourlyData = historicalHourlyData,
+                                historicalDailyData = historicalDailyData,
                                 columnHeight = columnHeight,
-                                maxScroll = context.windowHeight.toFloat() + headerHeight,
-                                scrollState = detailState.scrollState,
-                                initialXAxisRange = initialXAxisRange,
+//                                maxScroll = context.windowHeight.toFloat() + headerHeight,
+                                detailState = detailState,
+                                initialXAxisRange = historicInitialXAxisRange,
 
                                 onRemoveChartQuantity = {
-                                    onRemoveHourlyChartQuantity(it, false)
+                                    onRemoveHourlyChartQuantity(it, true)
                                 },
                                 onAddChartQuantity = {
-                                    onAddHourlyChartQuantity(it, false)
+                                    onAddHourlyChartQuantity(it, true)
                                 },
-                                onAddYAxis = { start, end, diagramHeight, textMeasurer, axisIndex,
-                                               curveAnimatorInitialValue ->
-                                    onAddYAxis( start, end, diagramHeight,
-                                        textMeasurer, axisIndex, curveAnimatorInitialValue, false )
+                                onAddYAxis = {
+                                        start, end, diagramHeight, textMeasurer, axisIndex,
+                                        curveAnimatorInitialValue
+                                    ->
+                                    onAddYAxis(
+                                        start, end, diagramHeight,
+                                        textMeasurer, axisIndex, curveAnimatorInitialValue, true
+                                    )
                                 },
                                 onMoveHourlyDiagramAxis = {
-                                    onMoveHourlyDiagramAxis(it, false)
+                                    onMoveHourlyDiagramAxis(it, true)
                                 },
                                 onScaleHourlyDiagramAxis = { center, scaleX, scaleY ->
-                                    onScaleHourlyDiagramAxis(center, scaleX, scaleY, false)
+                                    onScaleHourlyDiagramAxis(center, scaleX, scaleY, true)
                                 },
                                 onScaleBack = { offset ->
-                                    onScaleBack(offset, false)
+                                    onScaleBack(offset, true)
                                 },
                                 onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
                                 onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation,
                                 onUpdateHourlyCurveValueAtIndicator = { index, value ->
-                                    onUpdateHourlyCurveValueAtIndicator(index, value, false)
+                                    onUpdateHourlyCurveValueAtIndicator(index, value, true)
                                 },
-                                undoHourlyDiagramScaleMove = undoHourlyDiagramScaleMove,
                                 onUpdateHourlyThumbPosition = {
-                                    onUpdateHourlyThumbPosition(it, false)
-                                }
-                            )
-                        }
-                        DetailTabs.Daily -> {
-                            DailyWeather(
-                                modifier = Modifier,
-                                hourlyChartState = hourlyChartState,
-                                endPadding = endPadding,
-                                dailyChartState = dailyChartState,
-                                appSettings = appSettings,
-                                dailyChartData = dailyChartData,
-                                columnHeight = columnHeight,
-                                maxScroll = context.windowHeight.toFloat() + headerHeight,
-                                scrollState = detailState.scrollState,
+                                    onUpdateHourlyThumbPosition(it, true)
+                                },
+                                onAnimateHourlyDiagramAxis = onAnimateHourlyDiagramAxis,
+                                onReloadHistoricalData = onReloadHistoricalData,
 
                                 onUpdateDailyChartQuantity = { quantity ->
-                                    onUpdateDailyChartQuantity(quantity, false)
+                                    onUpdateDailyChartQuantity(quantity, true)
                                 },
                                 onUpdateDailyYAxis = { quantity, curveAnimatorInitialValue ->
-                                    onUpdateDailyYAxis(quantity, curveAnimatorInitialValue, false)
+                                    onUpdateDailyYAxis(
+                                        quantity,
+                                        curveAnimatorInitialValue,
+                                        true
+                                    )
                                 },
                                 onMoveDailyDiagramAxis = { offset ->
-                                    onMoveDailyDiagramAxis(offset, false)
+                                    onMoveDailyDiagramAxis(offset, true)
                                 },
                                 onScaleDailyDiagramAxis = { center, scaleX, scaleY ->
-                                    onScaleDailyDiagramAxis(center, scaleX, scaleY, false)
+                                    onScaleDailyDiagramAxis(center, scaleX, scaleY, true)
                                 },
+//                                    onUpdateDailyCurveValueAtIndicator = { minValue, maxValue ->
+//                                        onUpdateDailyCurveValueAtIndicator(
+//                                            minValue,
+//                                            maxValue,
+//                                            false
+//                                        )
+//                                    },
                                 onScaleBackDaily = { offset ->
-                                    onScaleBackDaily(offset, false)
+                                    onScaleBackDaily(offset, true)
                                 },
-                                onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
-                                onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation,
-                                onUpdateDailyCurveValueAtIndicator = { minValue, maxValue ->
-                                    onUpdateDailyCurveValueAtIndicator(minValue, maxValue, false)
-                                },
-                                undoDailyDiagramScaleMove = undoDailyDiagramScaleMove,
                                 onUpdateDailyThumbPosition = {
-                                    onUpdateDailyThumbPosition(it, false)
-                                }
+                                    onUpdateDailyThumbPosition(it, true)
+                                },
+                                onAnimateDailyDiagramAxis = onAnimateDailyDiagramAxis,
+                                onReloadHistoricalDailyData = onReloadHistoricalDailyData,
+                            )
+                        } else {
+                            val donatePromotionViewModel = hiltViewModel<DonatePromotionViewModel>(
+                                viewModelStoreOwner = rememberViewModelStoreOwner()
+                            )
+                            DonatePromotion(
+                                modifier = Modifier,
+                                columnHeight = columnHeight,
+                                trialPeriodExpired = trialPeriodExpired,
+//                                maxScroll = context.windowHeight.toFloat() + headerHeight,
+//                                scrollState = detailState.scrollState,
+                                onNavigateToDonateScreen = onNavigateToDonateScreen,
+                                onNavigateToLoginScreen = onNavigateToLoginScreen
+//                                onVerifyIdToken = remember {
+//                                    donatePromotionViewModel::verifyIdToken
+//                                }
                             )
                         }
-                        DetailTabs.History -> {
-                            if(/*appSettings.hasDonated*/true) {
-                                HistoricalWeather(
-                                    modifier = Modifier,
-                                    historicalChartState = historicalChartState.copy(
-                                        dotsOnCurveVisible = hourlyChartState.dotsOnCurveVisible,
-                                        curveShadowVisible = hourlyChartState.curveShadowVisible,
-                                        chartGrid = hourlyChartState.chartGrid,
-                                        chartTheme = hourlyChartState.chartTheme,
-                                        weatherConditionIconsVisible = hourlyChartState.weatherConditionIconsVisible
-                                    ),
-                                    historicalDailyChartState = historicalDailyChartState.copy(
-                                        weatherConditionIconsVisible = hourlyChartState.weatherConditionIconsVisible
-                                    ),
-                                    endPadding = endPadding,
-                                    appSettings = appSettings,
-                                    historicalHourlyData = historicalHourlyData,
-                                    historicalDailyData = historicalDailyData,
-                                    columnHeight = columnHeight,
-                                    maxScroll = context.windowHeight.toFloat() + headerHeight,
-                                    detailState = detailState,
-                                    initialXAxisRange = historicInitialXAxisRange,
-
-                                    onRemoveChartQuantity = {
-                                        onRemoveHourlyChartQuantity(it, true)
-                                    },
-                                    onAddChartQuantity = {
-                                        onAddHourlyChartQuantity(it, true)
-                                    },
-                                    onAddYAxis = {
-                                            start, end, diagramHeight, textMeasurer, axisIndex,
-                                            curveAnimatorInitialValue
-                                        ->
-                                        onAddYAxis(
-                                            start, end, diagramHeight,
-                                            textMeasurer, axisIndex, curveAnimatorInitialValue, true
-                                        )
-                                    },
-                                    onMoveHourlyDiagramAxis = {
-                                        onMoveHourlyDiagramAxis(it, true)
-                                    },
-                                    onScaleHourlyDiagramAxis = { center, scaleX, scaleY ->
-                                        onScaleHourlyDiagramAxis(center, scaleX, scaleY, true)
-                                    },
-                                    onScaleBack = { offset ->
-                                        onScaleBack(offset, true)
-                                    },
-                                    onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
-                                    onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation,
-                                    onUpdateHourlyCurveValueAtIndicator = { index, value ->
-                                        onUpdateHourlyCurveValueAtIndicator(index, value, true)
-                                    },
-                                    onUpdateHourlyThumbPosition = {
-                                        onUpdateHourlyThumbPosition(it, true)
-                                    },
-                                    onAnimateHourlyDiagramAxis = onAnimateHourlyDiagramAxis,
-                                    onReloadHistoricalData = onReloadHistoricalData,
-
-                                    onUpdateDailyChartQuantity = { quantity ->
-                                        onUpdateDailyChartQuantity(quantity, true)
-                                    },
-                                    onUpdateDailyYAxis = { quantity, curveAnimatorInitialValue ->
-                                        onUpdateDailyYAxis(
-                                            quantity,
-                                            curveAnimatorInitialValue,
-                                            true
-                                        )
-                                    },
-                                    onMoveDailyDiagramAxis = { offset ->
-                                        onMoveDailyDiagramAxis(offset, true)
-                                    },
-                                    onScaleDailyDiagramAxis = { center, scaleX, scaleY ->
-                                        onScaleDailyDiagramAxis(center, scaleX, scaleY, true)
-                                    },
-                                    onUpdateDailyCurveValueAtIndicator = { minValue, maxValue ->
-                                        onUpdateDailyCurveValueAtIndicator(
-                                            minValue,
-                                            maxValue,
-                                            false
-                                        )
-                                    },
-                                    onScaleBackDaily = { offset ->
-                                        onScaleBackDaily(offset, true)
-                                    },
-                                    onUpdateDailyThumbPosition = {
-                                        onUpdateDailyThumbPosition(it, true)
-                                    },
-                                    onAnimateDailyDiagramAxis = onAnimateDailyDiagramAxis,
-                                    onReloadHistoricalDailyData = onReloadHistoricalDailyData,
-                                )
-                            } else {
-                                DonatePromotion(
-                                    modifier = Modifier,
-                                    columnHeight = columnHeight,
-                                    maxScroll = context.windowHeight.toFloat() + headerHeight,
-                                    scrollState = detailState.scrollState,
-                                    onNavigateToDonateScreen = onNavigateToDonateScreen
-                                )
-                            }
-                        }
                     }
-                    previousTab = detailTab
                 }
-
-
+                previousTab = detailTab
             }
         }
-//    }
+    }
 }
 
 private fun titleXTranslation(
@@ -540,34 +566,59 @@ private fun barColor(scroll: Int, start: Float, end: Float, color1: Int, color2:
 fun Title2(
     locationName: String,
     modifier: Modifier = Modifier,
-    scrollValue: Int,
+    scrollState: ScrollState,
     titleShrinkStartPoint: Float,
-    spaceAboveTitle: Float
+    spaceAboveTitle: Float,
 ) {
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+
+    val textColor = MaterialTheme.colorScheme.onPrimaryContainer
+    val borderColor = MaterialTheme.colorScheme.primaryContainer
+    val fontFamily = Font(R.font.cmu_serif_bold).toFontFamily()
+    val borderWidth = 15f
+    val fontSize = 30.sp
+    val titleSize = textMeasurer.measure(
+        text = locationName,
+        style = TextStyle(
+            fontFamily = fontFamily,
+            fontSize = fontSize,
+            drawStyle = Stroke(width = borderWidth)
+        )
+    ).size
+    val titleMaxXMove = (detailScreenWidth - titleSize.width)/2f - dimensionResource(R.dimen.detail_screen_padding).toPx(density)
+
     Box(
         modifier = modifier
-    ) {
-        val fontSize = (30 - 10 *
-                (scrollValue - titleShrinkStartPoint)/(spaceAboveTitle - titleShrinkStartPoint))
-            .coerceIn(20f, 30f)
-        val scale = fontSize / 30f
-        BorderedText(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .height(64.dp)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                }
-                .wrapContentHeight(),
-            text = buildAnnotatedString { append(locationName) },
-            fontFamily = Font(R.font.cmu_serif_bold).toFontFamily(),
-            strokeColor = MaterialTheme.colorScheme.primaryContainer,
-            fillColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            fontSize = 30.sp,
-            strokeWidth = 15f
-        )
-    }
+            .fillMaxWidth()
+            .graphicsLayer {
+                val fontSize = (30 - 10 *
+                        (scrollState.value - titleShrinkStartPoint) / (spaceAboveTitle - titleShrinkStartPoint))
+                    .coerceIn(20f, 30f)
+                val scale = fontSize / 30f
+                scaleX = scale
+                scaleY = scale
+                translationX = titleXTranslation(
+                    scroll = scrollState.value,
+                    start = titleShrinkStartPoint,
+                    end = spaceAboveTitle,
+                    maxMovement = titleMaxXMove
+                ) * scale
+            }
+            .drawWithContent {
+                drawThickText(
+                    textMeasurer = textMeasurer,
+                    text = locationName,
+                    fontFamily = fontFamily,
+                    fontSize = fontSize,
+                    textLeft = 0f,
+                    textBottom = size.height,
+                    textColor = textColor,
+                    borderColor = borderColor,
+                    borderWidth = borderWidth,
+                )
+            }
+    )
 }
 
 
@@ -689,7 +740,7 @@ fun CurrentWeather(
             modifier = Modifier.padding(horizontal = 8.dp)
         ) {
             AirQualityCurrentCondition(
-                modifier = Modifier.Companion.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth()
                 /*.sharedBounds(
                     sharedTransitionScope.rememberSharedContentState(
                         key = "AQI_${dailyChartData.firstOrNull()?.locationId}"
@@ -727,8 +778,8 @@ fun HourlyWeather(
     appSettings: AppSettings,
     hourlyChartData: List<HourlyChartDto>,
     columnHeight: Float,
-    maxScroll: Float,
-    scrollState: ScrollState,
+//    maxScroll: Float,
+//    scrollState: ScrollState,
     initialXAxisRange: ClosedFloatingPointRange<Float>,
 
     onRemoveChartQuantity: (HourlyWeatherQuantity) -> Unit,
@@ -744,11 +795,6 @@ fun HourlyWeather(
     onUpdateHourlyThumbPosition: (Float) -> Unit
 ) {
     val density = LocalDensity.current
-    LaunchedEffect(Unit) {
-        if (scrollState.value > maxScroll){
-            scrollState.scrollTo(maxScroll.toInt())
-        }
-    }
 
     Column(
         modifier = modifier
@@ -756,11 +802,14 @@ fun HourlyWeather(
             .heightIn(min = columnHeight.toDp(density))
             .padding(top = 16.dp)
     ) {
-        val undoIconTint = when (hourlyChartState.chartTheme) {
-            ChartTheme.LIGHT -> OnDiagramLightTheme
-            ChartTheme.DARK -> OnDiagramDarkTheme
-            ChartTheme.APPTHEME -> LocalContentColor.current
-            ChartTheme.DAYNIGHT -> DiagramGrid
+        val currentColor = LocalContentColor.current
+        val undoIconTint = remember(hourlyChartState.chartTheme) {
+            when (hourlyChartState.chartTheme) {
+                ChartTheme.LIGHT -> OnDiagramLightTheme
+                ChartTheme.DARK -> OnDiagramDarkTheme
+                ChartTheme.APPTHEME -> currentColor
+                ChartTheme.DAYNIGHT -> DiagramGrid
+            }
         }
         QuantityChooserRail(
             modifier = Modifier.padding(end = endPadding),
@@ -782,9 +831,9 @@ fun HourlyWeather(
         Spacer(modifier = Modifier.height(16.dp))
         HourlyDiagramLegend(
             modifier = Modifier.padding(start = 16.dp, /*end = 8.dp + endPadding*/),
-            chartQuantities = hourlyChartState.chartQuantities.toImmutableList(),
+            chartQuantities = hourlyChartState.chartQuantities,
             dotsOnCurveVisible = hourlyChartState.dotsOnCurveVisible,
-            curveValueAtIndicator = hourlyChartState.curveValueAtIndicator.toImmutableList(),
+            curveValueAtIndicator = hourlyChartState.curveValueAtIndicator,
             appSettings = appSettings,
             onRemoveChartQuantity = onRemoveChartQuantity
         )
@@ -800,7 +849,24 @@ fun HourlyWeather(
                 diagramHorPadding = dimensionResource(id = R.dimen.diagram_frame_hor_padding).toPx(density),
                 diagramVertPadding = dimensionResource(id = R.dimen.diagram_frame_ver_padding).toPx(density),
                 hourlyChartData = hourlyChartData.toImmutableList(),
-                hourlyChartState = hourlyChartState,
+                curveAnimator = hourlyChartState.curveAnimator,
+                chartQuantities = hourlyChartState.chartQuantities,
+                settingsUpdated = hourlyChartState.settingsUpdated,
+                xAxisAnimationTrigger = hourlyChartState.xAxisAnimationTrigger,
+                xAxisStart = hourlyChartState.xAxisStart,
+                xAxisEnd = hourlyChartState.xAxisEnd,
+                yAxesStarts = hourlyChartState.yAxesStarts,
+                yAxesEnds = hourlyChartState.yAxesEnds,
+                chartGrid = hourlyChartState.chartGrid,
+                chartTheme = hourlyChartState.chartTheme,
+                dataLoadingStatus = hourlyChartState.dataLoadingStatus,
+                curvesSmoothness = hourlyChartState.curvesSmoothness,
+                curvesColor = hourlyChartState.curvesColor,
+                dotsOnCurveVisible = hourlyChartState.dotsOnCurveVisible,
+                curveShadowVisible = hourlyChartState.curveShadowVisible,
+                sliderThumbPosition = hourlyChartState.sliderThumbPosition,
+                sunRiseSetIconsVisible = hourlyChartState.sunRiseSetIconsVisible,
+                weatherConditionIconsVisible = hourlyChartState.weatherConditionIconsVisible,
                 appSettings = appSettings,
                 initialXAxisRange = initialXAxisRange,
                 onAddYAxis = onAddYAxis,
@@ -809,23 +875,18 @@ fun HourlyWeather(
                 onScaleBack = onScaleBack,
                 onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
                 onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation,
-                onUpdateCurveValueAtIndicator = onUpdateHourlyCurveValueAtIndicator
+                onUpdateCurveValueAtIndicator = onUpdateHourlyCurveValueAtIndicator,
             )
-            IconButton(
+            ChartUndoBotton(
                 modifier = Modifier
                     .padding(
                         top = dimensionResource(id = R.dimen.diagram_frame_ver_padding) - 8.dp,
                         end = dimensionResource(id = R.dimen.diagram_frame_hor_padding) - 8.dp + endPadding
                     )
                     .align(Alignment.TopEnd),
-                onClick = undoHourlyDiagramScaleMove
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.undo),
-                    contentDescription = "Undo",
-                    tint = undoIconTint
-                )
-            }
+                undoIconTint = undoIconTint,
+                undoDiagramScaleMove = undoHourlyDiagramScaleMove,
+            )
         }
         Spacer(modifier = Modifier.height(8.dp))
         IndicatorSlider(
@@ -841,6 +902,25 @@ fun HourlyWeather(
             thumbPosition = hourlyChartState.sliderThumbPosition,
             onUpdateThumbPosition = onUpdateHourlyThumbPosition
         )
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+fun ChartUndoBotton(
+    modifier: Modifier = Modifier,
+    undoIconTint: Color,
+    undoDiagramScaleMove: () -> Unit
+) {
+    IconButton(
+        modifier = modifier,
+        onClick = undoDiagramScaleMove
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.undo),
+            contentDescription = "Undo",
+            tint = undoIconTint
+        )
     }
 }
 
@@ -853,8 +933,8 @@ fun DailyWeather(
     appSettings: AppSettings,
     dailyChartData: List<LocalDailyWeather>,
     columnHeight: Float,
-    maxScroll: Float,
-    scrollState: ScrollState,
+//    maxScroll: Float,
+//    scrollState: ScrollState,
 
     onUpdateDailyChartQuantity: (DailyWeatherQuantity) -> Unit,
     onUpdateDailyYAxis: (DailyWeatherQuantity, curveAnimatorInitialValue: Float) -> Unit,
@@ -863,16 +943,11 @@ fun DailyWeather(
     onScaleBackDaily: (Offset) -> Unit,
     onCalculateHorizontalBarSeparation: (Float, Float, Float, TextMeasurer) -> Pair<Float, Float>,
     onCalculateVerticalBarSeparation: (Float, Float, Float, TextMeasurer) -> Pair<Int, Float>,
-    onUpdateDailyCurveValueAtIndicator: (Float, Float) -> Unit,
+//    onUpdateDailyCurveValueAtIndicator: (Float, Float) -> Unit,
     undoDailyDiagramScaleMove: () -> Unit,
     onUpdateDailyThumbPosition: (Float) -> Unit
 ) {
     val density = LocalDensity.current
-    LaunchedEffect(Unit) {
-        if (scrollState.value > maxScroll){
-            scrollState.scrollTo(maxScroll.toInt())
-        }
-    }
 
     Column(
         modifier = modifier
@@ -893,7 +968,7 @@ fun DailyWeather(
         DailyQuantityChooserRail(
             modifier = Modifier.padding(end = endPadding),
             allQuantities = DailyWeatherQuantity.entries
-                .filter { it.historicalState != HistoricalState.HISTORIC_ONLY },
+                .filter { it.historicalState != HistoricalState.HISTORIC_ONLY }.toImmutableList(),
             selectedQuantity = dailyChartState.chartQuantity,
             onUpdateChartQuantity = onUpdateDailyChartQuantity
         )
@@ -919,23 +994,18 @@ fun DailyWeather(
                 onScaleBack = onScaleBackDaily,
                 onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
                 onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation,
-                onUpdateCurveValueAtIndicator = onUpdateDailyCurveValueAtIndicator
+//                onUpdateCurveValueAtIndicator = onUpdateDailyCurveValueAtIndicator
             )
-            IconButton(
+            ChartUndoBotton(
                 modifier = Modifier
                     .padding(
                         top = dimensionResource(id = R.dimen.diagram_frame_ver_padding) - 8.dp,
                         end = dimensionResource(id = R.dimen.diagram_frame_hor_padding) - 8.dp + endPadding
                     )
                     .align(Alignment.TopEnd),
-                onClick = undoDailyDiagramScaleMove
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.undo),
-                    contentDescription = "Undo",
-                    tint = undoIconTint
-                )
-            }
+                undoIconTint = undoIconTint,
+                undoDiagramScaleMove = undoDailyDiagramScaleMove,
+            )
         }
         Spacer(modifier = Modifier.height(8.dp))
         IndicatorSlider(
@@ -951,6 +1021,7 @@ fun DailyWeather(
             thumbPosition = dailyChartState.sliderThumbPosition,
             onUpdateThumbPosition = onUpdateDailyThumbPosition
         )
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -964,7 +1035,7 @@ fun HistoricalWeather(
     historicalHourlyData: List<HistoricHourlyChartDto>,
     historicalDailyData: List<HistoricDailyChartDto>,
     columnHeight: Float,
-    maxScroll: Float,
+//    maxScroll: Float,
     detailState: DetailState,
     initialXAxisRange: ClosedFloatingPointRange<Float>,
 
@@ -985,7 +1056,7 @@ fun HistoricalWeather(
     onUpdateDailyYAxis: (quantity: DailyWeatherQuantity, curveAnimatorInitialValue: Float) -> Unit,
     onMoveDailyDiagramAxis: (Offset) -> Unit,
     onScaleDailyDiagramAxis: (center: Offset, scaleX:Float, scaleY:Float) -> Unit,
-    onUpdateDailyCurveValueAtIndicator: (valueMin: Float, valueMax: Float) -> Unit,
+//    onUpdateDailyCurveValueAtIndicator: (valueMin: Float, valueMax: Float) -> Unit,
     onScaleBackDaily: (Offset) -> Unit,
     onUpdateDailyThumbPosition: (Float) -> Unit,
     onAnimateDailyDiagramAxis: (date: LocalDate) -> Unit,
@@ -993,12 +1064,7 @@ fun HistoricalWeather(
 ) {
     val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
-    LaunchedEffect(Unit) {
-        if (detailState.scrollState.value > maxScroll){
-            detailState.scrollState.scrollTo(maxScroll.toInt())
-        }
-//        onUpdateHistoricalHourlyChartData()
-    }
+
     var selectedTab by rememberSaveable { mutableStateOf(HistoricalTabs.Hourly) }
     val pagerState = rememberPagerState(
         initialPage = selectedTab.ordinal,
@@ -1070,9 +1136,26 @@ fun HistoricalWeather(
                                 modifier = Modifier.fillMaxSize(),
                                 diagramHorPadding = dimensionResource(id = R.dimen.diagram_frame_hor_padding).toPx(density),
                                 diagramVertPadding = dimensionResource(id = R.dimen.diagram_frame_ver_padding).toPx(density),
-//                                hourlyChartData = hourlyChartData.toImmutableList(),
                                 historicalHourlyData = historicalHourlyData.toImmutableList(),
-                                hourlyChartState = historicalChartState,
+                                curveAnimator = historicalChartState.curveAnimator,
+                                chartQuantities = historicalChartState.chartQuantities,
+                                settingsUpdated = historicalChartState.settingsUpdated,
+                                xAxisAnimationTrigger = historicalChartState.xAxisAnimationTrigger,
+                                xAxisStart = historicalChartState.xAxisStart,
+                                xAxisEnd = historicalChartState.xAxisEnd,
+                                yAxesStarts = historicalChartState.yAxesStarts,
+                                yAxesEnds = historicalChartState.yAxesEnds,
+                                chartGrid = historicalChartState.chartGrid,
+                                chartTheme = historicalChartState.chartTheme,
+                                dataLoadingStatus = historicalChartState.dataLoadingStatus,
+                                curvesSmoothness = historicalChartState.curvesSmoothness,
+                                curvesColor = historicalChartState.curvesColor,
+                                dotsOnCurveVisible = historicalChartState.dotsOnCurveVisible,
+                                curveShadowVisible = historicalChartState.curveShadowVisible,
+                                sliderThumbPosition = historicalChartState.sliderThumbPosition,
+                                sunRiseSetIconsVisible = historicalChartState.sunRiseSetIconsVisible,
+                                weatherConditionIconsVisible = historicalChartState.weatherConditionIconsVisible,
+
                                 appSettings = appSettings,
                                 initialXAxisRange = initialXAxisRange,
                                 onAddYAxis = onAddYAxis,
@@ -1106,6 +1189,7 @@ fun HistoricalWeather(
                             theme = appSettings.theme,
                             onAnimateDiagramAxis = onAnimateHourlyDiagramAxis
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
                 1 -> {
@@ -1116,7 +1200,7 @@ fun HistoricalWeather(
                         DailyQuantityChooserRail(
                             modifier = Modifier.padding(end = endPadding),
                             allQuantities = DailyWeatherQuantity.entries
-                                .filter { it.historicalState != HistoricalState.FORECAST_ONLY },
+                                .filter { it.historicalState != HistoricalState.FORECAST_ONLY }.toImmutableList(),
                             selectedQuantity = historicalDailyChartState.chartQuantity,
                             onUpdateChartQuantity = onUpdateDailyChartQuantity
                         )
@@ -1148,7 +1232,7 @@ fun HistoricalWeather(
                                 onScaleBack = onScaleBackDaily,
                                 onCalculateHorizontalBarSeparation = onCalculateHorizontalBarSeparation,
                                 onCalculateVerticalBarSeparation = onCalculateVerticalBarSeparation,
-                                onUpdateCurveValueAtIndicator = onUpdateDailyCurveValueAtIndicator
+//                                onUpdateCurveValueAtIndicator = onUpdateDailyCurveValueAtIndicator
                             )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
@@ -1173,6 +1257,7 @@ fun HistoricalWeather(
                             theme = appSettings.theme,
                             onAnimateDiagramAxis = onAnimateDailyDiagramAxis
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }

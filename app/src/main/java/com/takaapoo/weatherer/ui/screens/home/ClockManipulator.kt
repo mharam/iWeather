@@ -1,7 +1,6 @@
 package com.takaapoo.weatherer.ui.screens.home
 
 import android.media.MediaPlayer
-import androidx.annotation.DrawableRes
 import androidx.annotation.VisibleForTesting
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -23,6 +22,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -43,8 +43,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -53,10 +56,14 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedback
@@ -77,19 +84,22 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.takaapoo.weatherer.R
+import com.takaapoo.weatherer.domain.model.HomeState
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.indicesOf
 import com.takaapoo.weatherer.ui.screens.home.shapes.DayGaugeShape
 import com.takaapoo.weatherer.ui.theme.Gray30
 import com.takaapoo.weatherer.ui.theme.TenseGreen
 import com.takaapoo.weatherer.ui.theme.TenseRed
 import com.takaapoo.weatherer.ui.theme.timeFontFamily
-import com.takaapoo.weatherer.utility.BorderedText
 import com.takaapoo.weatherer.utility.drawThickText
+import com.takaapoo.weatherer.utility.isEqualTo
+import com.takaapoo.weatherer.utility.toCustomString
 import com.takaapoo.weatherer.utility.toPx
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.Duration
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.sign
@@ -101,15 +111,17 @@ val dayList = listOf("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
 fun ClockManipulator(
     modifier: Modifier = Modifier,
     gaugeSize: Dp,
-    @DrawableRes dayGaugeResource: Int,
-    clockGaugeRotation: Float,
-    clockGaugeNaturalRotation: Float,
+//    @DrawableRes dayGaugeResource: Int,
+    dayGaugeProvider: () -> Boolean,
+    homeState: State<HomeState>,
+//    clockGaugeRotation: Float,
+//    clockGaugeNaturalRotation: Float,
     clockGaugeRotationCoefficient: Float,
-    dayListState: LazyListState,
-    dayGaugeIndex: Int,
-    dayGaugeNaturalIndex: Int,
-    visibleDayIndex: Int,
-    clockGaugeLock: Boolean,
+//    dayListState: LazyListState,
+//    dayGaugeIndex: Int,
+//    dayGaugeNaturalIndex: Int,
+//    visibleDayIndex: Int,
+//    clockGaugeLock: Boolean,
     silent: Boolean,
     vibration: Boolean,
     dispatchers: CoroutineDispatcher = Dispatchers.Default,
@@ -122,7 +134,7 @@ fun ClockManipulator(
     onUpdateClockGaugeLock: (lock: Boolean) -> Unit,
     onUndoButtonPressed: () -> Unit,
 
-) {
+    ) {
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val context = LocalContext.current
@@ -140,13 +152,24 @@ fun ClockManipulator(
         MutableList(clicksCount){ false }
     }
 
-    val daysOfHours = floor(
-        -(clockGaugeRotation + clockGaugeNaturalRotation) / 360f
-    ).toInt()
-    val dayScrollIndex = dayGaugeIndex + dayGaugeNaturalIndex + daysOfHours - visibleDayIndex
+    val itemHeight = dimensionResource(R.dimen.day_display_item_height).toPx(density)
+    val dayListState = rememberLazyListState(
+        initialFirstVisibleItemIndex = homeState.value.dayGaugeNaturalIndex,
+        initialFirstVisibleItemScrollOffset = -(itemHeight/2f).toInt(),
+    )
+
+    val daysOfHours by remember {
+        derivedStateOf {
+            floor(
+                -(homeState.value.clockGaugeRotation.value + homeState.value.clockGaugeNaturalRotation) / 360f
+            ).toInt()
+        }
+    }
+    val dayScrollIndex = homeState.value.dayGaugeIndex + homeState.value.dayGaugeNaturalIndex +
+            daysOfHours - homeState.value.visibleDayIndex
     val dragState = rememberDraggableState { delta ->
         onUpdateClockGaugeRotation(
-            clockGaugeRotation + delta * clockGaugeRotationCoefficient
+            homeState.value.clockGaugeRotation.value + delta * clockGaugeRotationCoefficient
         )
     }
     val textMeasurer: TextMeasurer = rememberTextMeasurer()
@@ -187,12 +210,14 @@ fun ClockManipulator(
                 .size(gaugeSize)
                 .align(Alignment.TopCenter)
                 .graphicsLayer {
-                    rotationZ = clockGaugeRotation + clockGaugeNaturalRotation
+                    rotationZ = homeState.value.clockGaugeRotation.value +
+                            homeState.value.clockGaugeNaturalRotation
                     wholeGaugeRotation = rotationZ
                     coroutineScope.launch(dispatchers) {
                         if (previousRotationZ != 0f) {
-                            val diff = abs((wholeGaugeRotation / 3.75f).toInt() - (previousRotationZ / 3.75f).toInt())
-                            if (wholeGaugeRotation.sign != previousRotationZ.sign){
+                            val diff =
+                                abs((wholeGaugeRotation / 3.75f).toInt() - (previousRotationZ / 3.75f).toInt())
+                            if (wholeGaugeRotation.sign != previousRotationZ.sign) {
                                 playClick(
                                     clickSound = clickSound,
                                     clickStarted = clickStarted,
@@ -294,7 +319,9 @@ fun ClockManipulator(
             )
             Spacer(Modifier.height(4.dp))
             Row(
-                modifier = Modifier.offset(y = (-16).dp).testTag("row"),
+                modifier = Modifier
+                    .offset(y = (-16).dp)
+                    .testTag("row"),
                 verticalAlignment = Alignment.CenterVertically
             ){
                 IconButton(
@@ -307,74 +334,26 @@ fun ClockManipulator(
                     )
                 }
                 Spacer(modifier = Modifier.width(16.dp))
-                Box(
-                    modifier = Modifier
-                        .size(
-                            width = dimensionResource(R.dimen.day_display_height) * 2.5f,
-                            height = dimensionResource(R.dimen.day_display_height) * 2f
-                        )
-                ){
-                    Image(
-                        painter = painterResource(dayGaugeResource),
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .size(
-                                width = dimensionResource(R.dimen.day_display_height) * 2.5f,
-                                height = dimensionResource(R.dimen.day_display_height)
-                            ),
-                        contentDescription = "Day display",
-                        contentScale = ContentScale.Fit
-                    )
-                    val itemHeight = dimensionResource(R.dimen.day_display_item_height).toPx(density)
-                    LazyColumn(
-                        modifier = Modifier
-                            .size(
-                                width = dimensionResource(R.dimen.day_display_height) * 2.5f,
-                                height = dimensionResource(R.dimen.day_display_item_height) * 2
-                            )
-                            .align(Alignment.Center)
-                            .clip(DayGaugeShape()),
-                        state = dayListState,
-                        flingBehavior = rememberSnapFlingBehavior(lazyListState = dayListState)
-
-                    ) {
-                        items(count = Int.MAX_VALUE){ dayIndex ->
-                            Text(
-                                text = dayList[dayIndex % 7],
-                                modifier = Modifier
-                                    .size(
-                                        width = dimensionResource(R.dimen.day_display_height) * 2.5f,
-                                        height = dimensionResource(R.dimen.day_display_item_height)
-                                    )
-                                    .graphicsLayer {
-                                        rotationX =
-                                            (-dayListState.firstVisibleItemScrollOffset / itemHeight + 0.5f
-                                                    - (dayListState.firstVisibleItemIndex - dayIndex + 1)) * 60f
-                                    }
-                                    .wrapContentHeight(),
-                                textAlign = TextAlign.Center,
-                                fontFamily = timeFontFamily,
-                                fontSize = 18.sp
-                            )
-                        }
-                    }
-                }
+                DayGauge(
+                    dayGaugeProvider = dayGaugeProvider,
+                    dayListState = dayListState,
+                    itemHeight = itemHeight
+                )
                 Spacer(modifier = Modifier.width(16.dp))
                 IconToggleButton(
-                    checked = clockGaugeLock,
+                    checked = homeState.value.clockGaugeLock,
                     onCheckedChange = onUpdateClockGaugeLock
                 ) {
-                    Icon(
-                        painter = if (clockGaugeLock) painterResource(id = R.drawable.lock)
-                        else painterResource(id = R.drawable.lock_open),
-                        contentDescription = "Lock clock",
-                    )
+                    LockIcon(homeState.value.clockGaugeLock)
                 }
             }
             TenseText(
                 modifier = Modifier.offset(y = (-32).dp),
-                dayGaugeIndex = dayGaugeIndex,
-                clockGaugeRotation = clockGaugeRotation
+                hourAngleProvider = {
+                    homeState.value.dayGaugeIndex * 360 - homeState.value.clockGaugeRotation.value
+                },
+//                dayGaugeIndex = dayGaugeIndex,
+//                clockGaugeRotation = homeState.value.clockGaugeRotation.value
             )
         }
 
@@ -382,59 +361,78 @@ fun ClockManipulator(
     }
 }
 
-enum class Tense(val title: String) {
+/*enum class Tense(val title: String) {
     PAST(title = "Past"),
     LIVE(title = "LIVE"), // ●
     FUTURE(title = "Future")
-}
+}*/
 @Composable
 fun TenseText(
     modifier: Modifier = Modifier,
-    dayGaugeIndex: Int,
-    clockGaugeRotation: Float
+    hourAngleProvider: () -> Float,
+//    dayGaugeIndex: Int,
+//    clockGaugeRotation: Float
 ) {
+    val textMeasurer = rememberTextMeasurer()
     val infiniteTransition = rememberInfiniteTransition(label = "tense")
     val tenseVisibility by infiniteTransition.animateValue(
         initialValue = 0f,
-        targetValue = 1f,
+        targetValue = 1.5f,
         typeConverter = Float.VectorConverter,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            animation = tween(durationMillis = 1500, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "tense alpha"
     )
-    val hourAngle = dayGaugeIndex * 360 - clockGaugeRotation
-    val tense = when {
-        abs(hourAngle) < 0.01f -> Tense.LIVE
-        hourAngle > 0 -> Tense.FUTURE
-        else -> Tense.PAST
-    }
-    val color = if (tense == Tense.LIVE) TenseGreen else TenseRed
+//    val hourAngle = dayGaugeIndex * 360 - clockGaugeRotation
+//    val tense = when {
+//        abs(hourAngle) < 0.01f -> Tense.LIVE
+//        hourAngle > 0 -> Tense.FUTURE
+//        else -> Tense.PAST
+//    }
 
     Box(
-        modifier = modifier.width(dimensionResource(R.dimen.tense_width))
-//            .border(
-//                width = 2.dp,
-//                color = color,
-//                shape = RoundedCornerShape(percent = 25)
-//            )
+        modifier = modifier
+            .width(dimensionResource(R.dimen.tense_width))
+            .height(dimensionResource(R.dimen.tense_height))
             .padding(horizontal = 8.dp)
             .graphicsLayer {
-                alpha = if (tense == Tense.LIVE) 1f
+                alpha = if (abs(hourAngleProvider()).isEqualTo(0f)) 1f
                 else {
                     if (tenseVisibility < 0.5f) 0f else 1f
                 }
             }
+            .drawBehind {
+                val hourAngle = hourAngleProvider()
+                val isLive = abs(hourAngle).isEqualTo(0f)
+                drawThickText(
+                    textMeasurer = textMeasurer,
+                    annotatedString = AnnotatedString(
+                        if (isLive) "LIVE"
+                        else Duration.ofMinutes((hourAngle * 4).toLong()).toCustomString()
+                    ),
+                    textCenter = size.width / 2,
+                    textTop = 0f,
+                    textColor = if (isLive) TenseGreen else TenseRed,
+                    borderWidth = 1f,
+                    fontFamily = timeFontFamily
+                )
+            }
     ) {
-        BorderedText(
-            modifier = Modifier.align(Alignment.Center),
-            text = AnnotatedString(tense.title),
-            fillColor = color,
-            fontSize = 14.sp,
-            strokeWidth = 1f,
-            fontFamily =  timeFontFamily
-        )
+//        BorderedText(
+//            modifier = Modifier.align(Alignment.Center)
+//                .graphicsLayer {
+//                    colorFilter = ColorFilter.tint(
+//                        color = if (abs(hourAngle).isEqualTo(0f)) TenseGreen else TenseRed
+//                    )
+//                },
+//            text = AnnotatedString(tense.title),
+////            fillColor = color,
+//            fontSize = 14.sp,
+//            strokeWidth = 1f,
+//            fontFamily =  timeFontFamily
+//        )
     }
 }
 
@@ -460,20 +458,95 @@ internal suspend fun playClick(
     }
 }
 
+@Composable
+fun DayGauge(
+    modifier: Modifier = Modifier,
+    dayGaugeProvider: () -> Boolean,
+    dayListState: LazyListState,
+    itemHeight: Float
+) {
+    Box(
+        modifier = modifier.size(
+            width = dimensionResource(R.dimen.day_display_height) * 2.5f,
+            height = dimensionResource(R.dimen.day_display_height) * 2f
+        )
+    ){
+        Image(
+            painter = painterResource(R.drawable.day_gauge_light),
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxSize()
+                .graphicsLayer {
+                    colorFilter =
+                        ColorFilter.tint(
+                            color = if (dayGaugeProvider()) Color.White else Color.Black,
+                            blendMode = BlendMode.Modulate
+                        )
+                },
+            contentDescription = "Day display",
+            contentScale = ContentScale.Fit
+        )
+
+        LazyColumn(
+            modifier = Modifier
+                .size(
+                    width = dimensionResource(R.dimen.day_display_height) * 2.5f,
+                    height = dimensionResource(R.dimen.day_display_item_height) * 2
+                )
+                .align(Alignment.Center)
+                .clip(DayGaugeShape()),
+            state = dayListState,
+            flingBehavior = rememberSnapFlingBehavior(lazyListState = dayListState)
+
+        ) {
+            items(count = Int.MAX_VALUE){ dayIndex ->
+                Text(
+                    text = dayList[dayIndex % 7],
+                    modifier = Modifier
+                        .size(
+                            width = dimensionResource(R.dimen.day_display_height) * 2.5f,
+                            height = dimensionResource(R.dimen.day_display_item_height)
+                        )
+                        .graphicsLayer {
+                            rotationX =
+                                (-dayListState.firstVisibleItemScrollOffset / itemHeight + 0.5f
+                                        - (dayListState.firstVisibleItemIndex - dayIndex + 1)) * 60f
+                        }
+                        .wrapContentHeight(),
+                    textAlign = TextAlign.Center,
+                    fontFamily = timeFontFamily,
+                    fontSize = 18.sp
+                )
+            }
+        }
+    }
+}
+@Composable
+fun LockIcon(isLocked: Boolean) {
+    Icon(
+        painter = if (isLocked) painterResource(id = R.drawable.lock)
+        else painterResource(id = R.drawable.lock_open),
+        contentDescription = "Lock clock",
+    )
+}
+
+
 @Preview(showBackground = true)
 @Composable
 fun ClockManipulatorPreview() {
     ClockManipulator(
         gaugeSize = 300.dp,
-        dayGaugeResource = R.drawable.day_gauge_light,
-        clockGaugeRotation = 0f,
-        clockGaugeNaturalRotation = 0f,
+//        dayGaugeResource = R.drawable.day_gauge_light,
+        dayGaugeProvider = { true },
+        homeState = remember { mutableStateOf(HomeState()) },
+//        clockGaugeRotation = 0f,
+//        clockGaugeNaturalRotation = 0f,
         clockGaugeRotationCoefficient = 1f,
-        dayListState = rememberLazyListState(),
-        dayGaugeIndex = 0,
-        dayGaugeNaturalIndex = 0,
-        visibleDayIndex = 0,
-        clockGaugeLock = false,
+//        dayListState = rememberLazyListState(),
+//        dayGaugeIndex = 0,
+//        dayGaugeNaturalIndex = 0,
+//        visibleDayIndex = 0,
+//        clockGaugeLock = false,
         silent = true,
         vibration = false,
         onUpdateVisibleDayIndex = { _ -> },

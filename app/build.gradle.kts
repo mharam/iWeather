@@ -131,7 +131,7 @@ dependencies {
 
     // Dagger-Hilt
     implementation(libs.hilt.android.v249)
-    implementation(project(":renderscript-toolkit"))
+//    implementation(project(":renderscript-toolkit"))
     implementation(libs.androidx.foundation.android)
     implementation(libs.core)
 //    implementation(libs.androidx.runner)
@@ -245,6 +245,21 @@ dependencies {
     // Navigation3
     implementation(libs.bundles.navigation3)
     implementation(libs.kotlinx.serialization.core)
+
+
+
+    // Rebugger
+    debugImplementation(libs.rebugger)
+
+    // Liquid Effect
+    implementation(libs.backdrop)
+
+    // Credential Manager
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services)
+    implementation(libs.googleid)
+
+
 
 
 
