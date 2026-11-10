@@ -1,19 +1,10 @@
 package com.takaapoo.weatherer.ui.viewModels
 
-import android.annotation.SuppressLint
-import android.app.Activity
-import android.content.Context
-import android.content.IntentSender
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.android.gms.common.api.ResolvableApiException
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.LocationSettingsRequest
-import com.google.android.gms.location.Priority
-import com.google.android.gms.location.SettingsClient
 import com.google.android.gms.maps.model.LatLng
+import com.takaapoo.weatherer.MainActivity
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.di_modules.MainDispatcher
 import com.takaapoo.weatherer.domain.MyResult
@@ -22,7 +13,7 @@ import com.takaapoo.weatherer.domain.repository.LocationRepository
 import com.takaapoo.weatherer.domain.repository.RemoteWeatherRepository
 import com.takaapoo.weatherer.domain.use_case.AddLocationUseCase
 import com.takaapoo.weatherer.domain.use_case.UpdateWeatherUseCase
-import com.takaapoo.weatherer.ui.screens.add_location.REQUEST_CHECK_SETTINGS
+import com.takaapoo.weatherer.utility.getMyLocationResolvable
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.delay
@@ -244,7 +235,7 @@ class AddLocationViewModel @Inject constructor(
         }
     }
 
-    @SuppressLint("MissingPermission")
+    /*@SuppressLint("MissingPermission")
     fun goToMyLocation(context: Context){
         val locationRequest = LocationRequest.Builder(10000)
             .setMinUpdateIntervalMillis(10000)
@@ -280,6 +271,19 @@ class AddLocationViewModel @Inject constructor(
                     }
                 }
             }
+    }*/
+
+    fun goToMyLocation2(mainActivity: MainActivity){
+        viewModelScope.launch {
+            getMyLocationResolvable(
+                mainActivity = mainActivity,
+                pendingLocationActionCode = 1,
+                onLocationResult = { latitude, longitude ->
+                    val locationLatLng = LatLng(latitude, longitude)
+                    goToLocation(locationLatLng)
+                }
+            )
+        }
     }
 
     fun showPrecipitation(location: LatLng) {

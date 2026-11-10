@@ -289,7 +289,7 @@ fun MotivationScreen(
                 composition = lottieComposition,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(330.dp),
+                    .height(364.dp),
                 iterations = LottieConstants.IterateForever
             )
             Text(
@@ -520,7 +520,8 @@ fun Error(
         Icon(
             modifier = Modifier.size(88.dp),
             painter = painterResource(R.drawable.error_24px),
-            contentDescription = null
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error
         )
         Spacer(Modifier.height(16.dp))
         Text(

@@ -52,6 +52,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -356,7 +357,7 @@ fun HourlyDiagramCurvesScreen(
                 )
                 SettingsRow1(
                     modifier = Modifier.fillMaxWidth(),
-                    icon = R.drawable.clock_icon,
+                    icon = R.drawable.globe_clock_24dp,
                     title = "Time axis clock",
                     subTitle = stringResource(appSettings.hourlyDiagramTime.title),
                     onClick = { onUpdateTimeAxisDialogVisibility(true) },
@@ -519,12 +520,16 @@ fun HourlyDiagramCurvesScreen(
 //                            )
                         },
                         subContent = {
+                            val sliderState = remember {
+                                SliderState(hourlyChartState.curvesSmoothness[quantity]!!)
+                            }
                             Slider(
                                 modifier = Modifier.fillMaxWidth(),
-                                value = hourlyChartState.curvesSmoothness[quantity]!!,
+//                                value = hourlyChartState.curvesSmoothness[quantity]!!,
+                                state = sliderState,
                                 onValueChange = {
-//                                    if (!isThumbPressed && isDragging)
-                                        onUpdateCurvesSmoothness(quantity, it)
+                                    sliderState.value = it
+                                    onUpdateCurvesSmoothness(quantity, it)
                                 },
                                 onValueChangeFinished = {
                                     onSaveCurvesSmoothness(

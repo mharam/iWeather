@@ -36,7 +36,7 @@ data object ContactUs: NavKey
 data object AboutUs: NavKey
 
 @Serializable
-data object RateUs: NavKey
+data object Support: NavKey
 
 @Serializable
 data object Settings: NavKey

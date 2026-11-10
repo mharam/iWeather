@@ -42,8 +42,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.ui.theme.Cmu
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
-import kotlin.math.pow
-import kotlin.math.roundToInt
+import com.takaapoo.weatherer.utility.roundTo
 
 @Composable
 fun AddLocationDialog(
@@ -186,11 +185,6 @@ fun AddLocationDialog(
             }
         }
     }
-}
-
-fun Double.roundTo(decimalDigits: Int): Double {
-    val multiplier = 10.0.pow(decimalDigits)
-    return (this * multiplier).roundToInt() / multiplier
 }
 
 @Preview(showBackground = true)

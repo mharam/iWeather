@@ -23,6 +23,7 @@ data class CustomColorsPalette(
     val appThemeDiagramSurfaceColor: Color = Color.Unspecified,
     val appThemeDiagramOnSurfaceColor: Color = Color.Unspecified,
     val paneSpacerColor: Color = Color.Unspecified,
+    val warning: Color = Color.Unspecified,
 )
 
 val LocalCustomColorsPalette = staticCompositionLocalOf { CustomColorsPalette() }

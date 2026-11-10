@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -84,9 +85,9 @@ import com.takaapoo.weatherer.ui.navigation.Donate
 import com.takaapoo.weatherer.ui.navigation.Home
 import com.takaapoo.weatherer.ui.navigation.Navigator
 import com.takaapoo.weatherer.ui.navigation.Radar
-import com.takaapoo.weatherer.ui.navigation.RateUs
 import com.takaapoo.weatherer.ui.navigation.Settings
 import com.takaapoo.weatherer.ui.navigation.Start
+import com.takaapoo.weatherer.ui.navigation.Support
 import com.takaapoo.weatherer.ui.navigation.WeatherNavGraph
 import com.takaapoo.weatherer.ui.navigation.rememberNavigationState
 import com.takaapoo.weatherer.ui.notification.NotificationSender
@@ -142,16 +143,16 @@ val screenItems = listOf(
         unSelectedIcon = R.drawable.mail_24px
     ),
     DrawerNavigationItem(
-        title = "About us",
+        title = "About iWeather",
         screen = AboutUs,
         selectedIcon = R.drawable.info_fill_24px,
         unSelectedIcon = R.drawable.info_24px
     ),
     DrawerNavigationItem(
-        title = "Rate us",
-        screen = RateUs,
-        selectedIcon = R.drawable.star_rate_24px,
-        unSelectedIcon = R.drawable.star_rate_24px
+        title = "Support iWeather",
+        screen = Support,
+        selectedIcon = R.drawable.support_fill,
+        unSelectedIcon = R.drawable.support
     ),
 )
 
@@ -167,7 +168,8 @@ fun AppScreen(
         viewModelStoreOwner = rememberViewModelStoreOwner()
     ),
     preferenceViewModel: PreferenceViewModel,
-    windowSizeClass: WindowSizeClass = currentWindowAdaptiveInfoV2().windowSizeClass
+    windowSizeClass: WindowSizeClass = currentWindowAdaptiveInfoV2().windowSizeClass,
+    locationAdded: Boolean,
 ) {
     val locationsBriefState by homeViewModel.locationsBriefState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -176,11 +178,11 @@ fun AppScreen(
     val drawerWidthPx = dimensionResource(R.dimen.drawer_width).toPx(density)
     val navigationState = rememberNavigationState(
         startRoute = Home,
-        topLevelRoutes = setOf(Start, Home, Settings, Donate, AddLocation, Radar)
+        topLevelRoutes = setOf(Start, Home, Settings, AddLocation, Radar)
     )
     val navigator = remember { Navigator(navigationState) }
 
-    if (locationsBriefState.isEmpty()) {
+    if (!locationAdded) {
         if (navigationState.topLevelRoute != AddLocation)
             navigationState.updateStacksInUse(newStartRoute = Start)
     } else if (navigationState.topLevelRoute == AddLocation && navigationState.startRoute != Home) {
@@ -716,7 +718,8 @@ fun WeatherDrawerContent(
                     Icon(
                         painter = painterResource(if (isSelected) navigationItem.selectedIcon
                         else navigationItem.unSelectedIcon),
-                        contentDescription = navigationItem.title
+                        contentDescription = navigationItem.title,
+                        modifier = Modifier.size(24.dp)
                     )
                 },
                 label = {

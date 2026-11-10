@@ -1,8 +1,8 @@
 package com.takaapoo.weatherer.ui.screens.add_location
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.graphics.Point
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -16,9 +16,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -31,13 +33,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.core.locationbutton.compose.LocationButton
+import androidx.core.locationbutton.compose.LocationButtonTextType
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -61,6 +68,7 @@ import com.takaapoo.weatherer.ui.screens.add_location.dialogs.HelpDialog
 import com.takaapoo.weatherer.utility.calculateLocationSurroundingPoints
 import com.takaapoo.weatherer.utility.toPx
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 val indicatingCircleDiameter = 200.dp
 
@@ -77,7 +85,7 @@ fun AddLocationScreen(
     onShowIndicatingCircle: () -> Unit,
     onResetAddResult: () -> Unit,
     onUpdateShowLocationState: (Boolean) -> Unit,
-    onGoToMyLocation: (Context) -> Unit,
+    onGoToMyLocation: () -> Unit,
     onUpdateSearchQuery: (String, Boolean) -> Unit,
     onGoToLocation: (LatLng, DoubleArray?) -> Unit,
     onUpdateSelectedLocationLatLng: (LatLng) -> Unit,
@@ -179,7 +187,7 @@ fun AddLocationScreen(
         onResetAddResult()
     }
 
-    if (mapState.handleShowingLocation){
+    /*if (mapState.handleShowingLocation){
         HandleLocationRequest(
             onDismiss = { onUpdateShowLocationState(false) },
             goToMyLocation = { onGoToMyLocation(context) },
@@ -187,20 +195,50 @@ fun AddLocationScreen(
                 onUpdateLocationPermissionGranted(granted)
             }
         )
-    }
+    }*/
     var surroundingPoints by remember{ mutableStateOf(emptyList<LatLng>()) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         modifier = modifier,
         floatingActionButton = {
-            MapFAB(
+            LocationButton(
+                modifier = Modifier.size(48.dp)
+                    .dropShadow(
+                        shape = RoundedCornerShape(12.dp),
+                        shadow = Shadow(
+                            radius = 12.dp,
+                            color = Color.Black.copy(alpha = 0.2f),
+                            spread = (-4).dp,
+                            offset = DpOffset(x = 2.dp, y = 4.dp)
+                        )
+                    ),
+                onPermissionResult = { isGranted ->
+                    if (isGranted) {
+                        onGoToMyLocation()
+                    } else {
+                        Toast.makeText(
+                            context,
+                            "Location Permission NOT Granted!",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                },
+                textType = LocationButtonTextType.None,
+                backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
+                iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
+                cornerRadius = 12.dp,
+                pressedCornerRadius = 8.dp
+            )
+
+
+            /*MapFAB(
                 onMyLocationPressed = {
                     onUpdateShowLocationState(it)
                 },
                 mapState = mapState,
                 screenCenter = cameraPositionState.position.target
-            )
+            )*/
         },
         topBar = {
             MapTopBar(
@@ -293,7 +331,7 @@ fun AddLocationScreen(
         }
         LaunchedEffect(mapState.addLocationDialogVisible) {
             if (!mapState.addLocationDialogVisible) {
-                delay(1000)
+                delay(1000.milliseconds)
                 onUpdateSelectedLocationName("")
             }
         }

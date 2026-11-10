@@ -15,6 +15,7 @@ import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartGrids
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
+import com.takaapoo.weatherer.ui.screens.radar.RadarClocks
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -312,7 +313,7 @@ class PreferenceRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun setUserId(userId: String) {
+    override suspend fun setUserId(userId: String?) {
         context.dataStore.updateData {
             it.copy(userId = userId)
         }
@@ -327,6 +328,30 @@ class PreferenceRepositoryImpl @Inject constructor(
     override suspend fun setUserPicture(userPicture: String?) {
         context.dataStore.updateData {
             it.copy(userPicture = userPicture)
+        }
+    }
+
+    override suspend fun setRadarCrossHairVisible(visible: Boolean) {
+        context.dataStore.updateData {
+            it.copy(radarCrossHairVisible = visible)
+        }
+    }
+
+    override suspend fun setRadarElevationVisible(visible: Boolean) {
+        context.dataStore.updateData {
+            it.copy(radarElevationVisible = visible)
+        }
+    }
+
+    override suspend fun setRadarClockGaugeVisible(visible: Boolean) {
+        context.dataStore.updateData {
+            it.copy(radarClockGaugeVisible = visible)
+        }
+    }
+
+    override suspend fun setRadarClock(clock: RadarClocks) {
+        context.dataStore.updateData {
+            it.copy(radarClock = clock)
         }
     }
 

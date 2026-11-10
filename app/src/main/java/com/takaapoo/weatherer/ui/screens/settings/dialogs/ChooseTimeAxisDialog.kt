@@ -38,7 +38,7 @@ fun ChooseTimeAxisDialog(
         modifier = modifier,
         icon = {
             Icon(
-                painter = painterResource(R.drawable.clock_icon),
+                painter = painterResource(R.drawable.globe_clock_24dp),
                 contentDescription = null
             )
         },

@@ -25,6 +25,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.security.SecureRandom
 import kotlin.time.Duration.Companion.milliseconds
@@ -36,7 +39,9 @@ class User @Inject constructor(
     val userRepository: UserRepository,
     val preferenceRepository: PreferenceRepository
 ) {
-    var trialPeriodExpired: Boolean? = null
+    private val _trialPeriodExpired = MutableStateFlow<Boolean?>(null)
+    val trialPeriodExpired = _trialPeriodExpired.asStateFlow()
+
     private val coroutineScope = CoroutineScope(SupervisorJob())
 
     fun initialize(){
@@ -45,7 +50,7 @@ class User @Inject constructor(
             settings.userId?.let {
                 val result = userRepository.getTrialExpired(it)
                 if (result is MyResult.Success && result.data.exist){
-                    trialPeriodExpired = result.data.trialExpired
+                    updateTrialPeriodExpired(result.data.trialExpired)
                 }
             }
         }
@@ -58,6 +63,7 @@ class User @Inject constructor(
             Log.d(TAG, "Successfully fetched ID Token: idToken = $it")
             val response = userRepository.verifyGoogleToken(it)
             if (response is MyResult.Success) {
+                updateTrialPeriodExpired(response.data.trialExpired)
                 preferenceRepository.apply {
                     setUserId(response.data.userId)
                     setUserName(response.data.name)
@@ -196,5 +202,9 @@ class User @Inject constructor(
             result = MyResult.Error(e)
         }
         return result
+    }
+
+    fun updateTrialPeriodExpired(expired: Boolean?){
+        _trialPeriodExpired.update { expired }
     }
 }

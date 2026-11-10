@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -77,13 +77,15 @@ fun DonatePromotion(
             .heightIn(min = columnHeight.toDp(density))
             .padding(16.dp),
     ) {
+        Spacer(modifier = Modifier.height(32.dp))
         LottieAnimation(
             composition = lottieComposition,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(280.dp),
+                .height(300.dp),
             iterations = LottieConstants.IterateForever
         )
+        Spacer(Modifier.height(32.dp))
         Text(
             text = stringResource(R.string.history_weather_donate_title),
             style = MaterialTheme.typography.titleMedium,
@@ -109,29 +111,26 @@ fun DonatePromotion(
                 fontSize = 16.sp
             )
         }
-        if (trialPeriodExpired != true) {
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                onClick = {
-                    onNavigateToLoginScreen()
-//                getGoogleIdToken(
-//                    context,
-//                    coroutineScope,
-//                    onVerifyIdToken
-//                )
-                }
-            ) {
-                Text(
-                    text = stringResource(R.string.free_trial),
-                    fontFamily = gerdFontFamily,
-                    fontSize = 16.sp
-                )
-            }
-            Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(8.dp))
+        TextButton (
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            onClick = {
+                onNavigateToLoginScreen()
+            },
+            enabled = (trialPeriodExpired == null)
+        ) {
+            Text(
+                text = stringResource(
+                    if (trialPeriodExpired == true) R.string.free_trial_expired
+                    else R.string.free_trial
+                ),
+                fontFamily = gerdFontFamily,
+                fontSize = 16.sp
+            )
         }
+        Spacer(Modifier.height(16.dp))
     }
 }
 

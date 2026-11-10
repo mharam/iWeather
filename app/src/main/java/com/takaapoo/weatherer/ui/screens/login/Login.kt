@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -14,7 +15,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -41,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.remote.UserAuthResponse
 import com.takaapoo.weatherer.domain.MyResult
+import com.takaapoo.weatherer.domain.model.AppTheme
 import com.takaapoo.weatherer.domain.model.LoginState
 import com.takaapoo.weatherer.ui.theme.Gray20
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
@@ -55,6 +59,7 @@ fun Login(
     modifier: Modifier = Modifier,
     loginState: LoginState,
     user: User?,
+    theme: AppTheme,
 
     onNavigateUp: () -> Unit,
     onUpdateLoginState: (MyResult<out UserAuthResponse>) -> Unit,
@@ -62,7 +67,6 @@ fun Login(
     val density = LocalDensity.current
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -103,11 +107,12 @@ fun Login(
                     top = paddingValues.calculateTopPadding(),
                     start = 16.dp,
                     end = 16.dp
-                ),
+                )
+                .verticalScroll(rememberScrollState()),
         ) {
             Spacer(modifier = Modifier.height(32.dp))
             Image(
-                modifier = Modifier.fillMaxWidth().height(320.dp)
+                modifier = Modifier.fillMaxWidth().height(300.dp)
                     .align(Alignment.CenterHorizontally),
                 painter = painterResource(id = R.drawable.login),
                 contentDescription = null,
@@ -120,7 +125,7 @@ fun Login(
                 fontFamily = gerdFontFamily
             )
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(48.dp))
             Box(
                 Modifier.fillMaxWidth()
                     .height(1.dp)
@@ -128,8 +133,16 @@ fun Login(
                     .background(Gray20)
             )
             Spacer(Modifier.height(48.dp))
+            val buttonResource = when (theme) {
+                AppTheme.LIGHT -> R.drawable.sign_in_button_light
+                AppTheme.DARK -> R.drawable.sign_in_button_dark
+                AppTheme.SYSTEM -> {
+                    if (isSystemInDarkTheme()) R.drawable.sign_in_button_dark
+                    else R.drawable.sign_in_button_light
+                }
+            }
             Image(
-                painter = painterResource(id = R.drawable.sign_in_button),
+                painter = painterResource(id = buttonResource),
                 contentDescription = "sign in button",
                 contentScale = ContentScale.FillHeight,
                 modifier = Modifier
@@ -140,50 +153,26 @@ fun Login(
                         onClick = {
                             coroutineScope.launch {
                                 val signInResult = user!!.signIn(context)
-//                                if (signInResult is MyResult.Success){
-//                                    Toast.makeText(
-//                                        context,
-//                                        "Hi ${signInResult.data.name}!",
-//                                        Toast.LENGTH_SHORT
-//                                    ).show()
-//                                    onNavigateUp()
-//                                } else if (signInResult is MyResult.Error){
+                                if (signInResult is MyResult.Success){
                                     Toast.makeText(
                                         context,
-                                        "Failed to sign in! \uD83D\uDE22",
-                                        Toast.LENGTH_SHORT
+                                        "Hi ${signInResult.data.name}! \uD83D\uDD90",
+                                        Toast.LENGTH_LONG
                                     ).show()
-//                                }
+                                    onNavigateUp()
+                                } else if (signInResult is MyResult.Error){
+                                    Toast.makeText(
+                                        context,
+                                        "${signInResult.message} \uD83D\uDE22",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
 //                                onUpdateLoginState(signInResult)
                             }
                         }
                     )
             )
-            /*Spacer(Modifier.height(48.dp))
-
-            when (loginState.state) {
-                is MyResult.Success -> {
-                    Text(
-                        text = "Signed in successfully!",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 24.sp,
-                        fontFamily = gerdFontFamily
-                    )
-                }
-                is MyResult.Error -> {
-                    Text(
-                        text = loginState.state.message ?: loginState.state.exception?.message!!,
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 24.sp,
-                        fontFamily = gerdFontFamily
-                    )
-                }
-                else -> {}
-            }*/
         }
-
-
-
     }
 }
 
@@ -195,6 +184,7 @@ fun LoginPreview() {
             modifier = Modifier.fillMaxSize(),
             loginState = LoginState(),
             user = null,
+            theme = AppTheme.SYSTEM,
             onNavigateUp = {},
             onUpdateLoginState = {}
         )

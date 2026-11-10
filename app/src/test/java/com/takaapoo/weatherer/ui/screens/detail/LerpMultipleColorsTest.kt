@@ -3,6 +3,7 @@ package com.takaapoo.weatherer.ui.screens.detail
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import com.google.common.truth.Truth.assertThat
+import com.takaapoo.weatherer.utility.lerpMultipleColors
 import org.junit.Test
 
 class LerpMultipleColorsTest {

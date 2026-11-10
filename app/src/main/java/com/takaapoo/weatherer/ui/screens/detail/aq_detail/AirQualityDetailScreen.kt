@@ -146,7 +146,7 @@ fun AirQualityDetailScreen(
                 modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer),
                 title = {
                     Text(
-                        text = "Air quality details",
+                        text = "AQ details",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )

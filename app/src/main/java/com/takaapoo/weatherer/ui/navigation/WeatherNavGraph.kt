@@ -35,7 +35,6 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.text.TextMeasurer
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.takaapoo.weatherer.MainActivity
@@ -46,6 +45,8 @@ import com.takaapoo.weatherer.domain.model.DetailState
 import com.takaapoo.weatherer.domain.model.DonatePaneContent
 import com.takaapoo.weatherer.domain.model.HourlyChartState
 import com.takaapoo.weatherer.domain.model.LocationsState
+import com.takaapoo.weatherer.ui.screens.ContactUsScreen
+import com.takaapoo.weatherer.ui.screens.SupportScreen
 import com.takaapoo.weatherer.ui.screens.add_location.AddLocationScreen
 import com.takaapoo.weatherer.ui.screens.detail.DetailScreen
 import com.takaapoo.weatherer.ui.screens.detail.aq_detail.AirQualityDetailScreen
@@ -67,6 +68,7 @@ import com.takaapoo.weatherer.ui.viewModels.DonateViewModel
 import com.takaapoo.weatherer.ui.viewModels.HomeViewModel
 import com.takaapoo.weatherer.ui.viewModels.LoginViewModel
 import com.takaapoo.weatherer.ui.viewModels.PreferenceViewModel
+import com.takaapoo.weatherer.ui.viewModels.RadarViewModel
 import com.takaapoo.weatherer.utility.KeepScreenOn
 import com.takaapoo.weatherer.utility.collectAsStateWithPermission
 import com.takaapoo.weatherer.utility.toDp
@@ -105,6 +107,7 @@ fun WeatherNavGraph(
     val detailState by detailViewModel.detailState.collectAsStateWithPermission(dataReadyForDisplay)
     val homePaneState by homeViewModel.homePaneState.collectAsStateWithLifecycle()
     val homeState = homeViewModel.homeState.collectAsStateWithLifecycle()
+    val mainActivity = LocalActivity.current as MainActivity
 
 //    SharedTransitionLayout {
     val entryProvider = entryProvider {
@@ -120,8 +123,6 @@ fun WeatherNavGraph(
         )
         {
             val density = LocalDensity.current
-            val mainActivity = LocalActivity.current as MainActivity
-
             val locationsBriefStates by homeViewModel.locationsBriefState.collectAsStateWithLifecycle()
 
             var homeScreenWidth by rememberSaveable { mutableFloatStateOf(0f) }
@@ -448,10 +449,8 @@ fun WeatherNavGraph(
                     pagerState.requestScrollToPage(homePaneState.initialPage)
                 }
             }
-
-//            var currentPage by rememberSaveable {
-//                mutableIntStateOf(0)
-//            }
+            val trialPeriodExpired by appViewModel.user.trialPeriodExpired.collectAsStateWithLifecycle()
+            val hasDonated by appViewModel.billing.hasDonated.collectAsStateWithLifecycle()
 
             DetailScreen(
                 modifier = Modifier
@@ -470,7 +469,8 @@ fun WeatherNavGraph(
                 appSettings = appSettings,
                 pagerState = pagerState,
                 singlePane = singlePane,
-                trialPeriodExpired = appViewModel.user.trialPeriodExpired,
+                trialPeriodExpired = trialPeriodExpired,
+                hasDonated = hasDonated,
 //                dataReady = dataReadyForDisplay,
                 onUpdateHomeSelectedItemIndex = { index: Int ->
                     homeViewModel.updateSelectedItemIndexOffset(index = index)
@@ -492,6 +492,9 @@ fun WeatherNavGraph(
                 },
                 onNavigateToLoginScreen = {
                     navigator.navigate(route = Login)
+                },
+                onConnectRetry = {
+                    appViewModel.billing.startBillingConnection()
                 }
             )
 
@@ -514,66 +517,6 @@ fun WeatherNavGraph(
                 onNavigateUp = navigator::goBack
             )
         }
-        /*entry<HomePane> {
-            val chartStateList = detailViewModel.hourlyChartState.map {
-                it.collectAsStateWithLifecycle().value
-            }
-            val dailyChartStateList = detailViewModel.dailyChartState.map {
-                it.collectAsStateWithLifecycle().value
-            }
-            val hourlyChartsData = detailViewModel.locationsHourlyChartData.map {
-                it.collectAsStateWithLifecycle().value
-            }
-            val dailyChartsData = detailViewModel.locationsDailyChartData.map {
-                it.collectAsStateWithLifecycle().value
-            }
-            val historicalChartStateList = detailViewModel.historicalHourlyChartState.map {
-                it.collectAsStateWithLifecycle().value
-            }
-            val historicalHourlyChartData = detailViewModel.historicalHourlyChartData.map {
-                it.collectAsStateWithLifecycle().value
-            }
-            val historicalDailyChartStateList = detailViewModel.historicalDailyChartState.map {
-                it.collectAsStateWithLifecycle().value
-            }
-            val historicalDailyChartData = detailViewModel.historicalDailyChartData.map {
-                it.collectAsStateWithLifecycle().value
-            }
-
-            HomeItemDetailPane(
-                modifier = Modifier.fillMaxSize(),
-                homeViewModel = homeViewModel,
-                detailViewModel = detailViewModel,
-                chartStateList = chartStateList,
-                dailyChartStateList = dailyChartStateList,
-                hourlyChartsData = hourlyChartsData,
-                dailyChartsData = dailyChartsData,
-                historicalHourlyChartData = historicalHourlyChartData,
-                historicalDailyChartData = historicalDailyChartData,
-                historicalChartStateList = historicalChartStateList,
-                historicalDailyChartStateList = historicalDailyChartStateList,
-//                    sharedTransitionScope = this@SharedTransitionLayout,
-//                    animatedVisibilityScope = this,
-                singlePane = singlePane,
-                permanentDrawer = permanentDrawer,
-                drawerOpen = drawerOpen,
-                appSettings = appSettings,
-                weatherDataLoadStatus = mapState.weatherDataLoadStatus,
-                onMenuButtonClick = onMenuButtonClick,
-                onNavigateToAddLocationScreen = {
-                    navigator.navigate(route = AddLocation)
-                },
-                onReloadALocationWeatherData = { location ->
-                    addLocationViewModel.loadALocationWeatherData(location)
-                },
-                onUpdateNotificationLocationId = preferenceViewModel::updateNotificationLocationId,
-                onUpdateNotificationVisibility = preferenceViewModel::updateNotificationVisibility,
-                onUpdateWidgetLocationId = preferenceViewModel::updateWidgetLocationId,
-                onNavigateToDonateScreen = {
-                    navigator.navigate(route = Donate)
-                }
-            )
-        }*/
         entry<AddLocation> {
             val locationsCount by addLocationViewModel.locationsCount.collectAsStateWithLifecycle()
             AddLocationScreen(
@@ -592,14 +535,16 @@ fun WeatherNavGraph(
                 onShowIndicatingCircle = addLocationViewModel::showIndicatingCircle,
                 onResetAddResult = addLocationViewModel::resetAddResult,
                 onUpdateShowLocationState = addLocationViewModel::updateShowLocationState,
-                onGoToMyLocation = addLocationViewModel::goToMyLocation,
+                onGoToMyLocation = {
+                    addLocationViewModel.goToMyLocation2(mainActivity)
+                },
                 onUpdateSearchQuery = addLocationViewModel::updateSearchQuery,
                 onGoToLocation = addLocationViewModel::goToLocation,
                 onUpdateSelectedLocationLatLng = addLocationViewModel::updateSelectedLocationLatLng,
                 onUpdateAddLocationDialogVisibility = addLocationViewModel::updateAddLocationDialogVisibility,
                 onAddLocationToDB = addLocationViewModel::addLocationToDB,
                 onUpdateSelectedLocationName = addLocationViewModel::updateSelectedLocationName,
-                onNavigateUp = navigator::goToStartRoute,
+                onNavigateUp = navigator::goBack,
                 onUpdateDonateDialogVisibility = addLocationViewModel::updateDonateDialogVisibility,
                 onUpdateLocationCountDialogVisibility = addLocationViewModel::updateLocationCountDialogVisibility,
                 onUpdateAddLocationHelpVisibility = preferenceViewModel::updateAddLocationHelpVisibility,
@@ -611,147 +556,61 @@ fun WeatherNavGraph(
             )
         }
         entry<Radar> {
-//            val locationListState by homeViewModel.locationsState.collectAsStateWithLifecycle()
-            RadarScreen()
+            val radarViewModel = hiltViewModel<RadarViewModel>()
+            val radarState = radarViewModel.radarState.collectAsStateWithLifecycle()
+            val internetConnected = radarViewModel.internetConnected.collectAsStateWithLifecycle()
+            val locationsBriefStates by homeViewModel.locationsBriefState.collectAsStateWithLifecycle()
+            var radarScreenWidth by rememberSaveable { mutableFloatStateOf(0f) }
+
+            RadarScreen(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onSizeChanged {
+                        radarScreenWidth = it.width.toFloat()
+                    },
+                radarRealState = radarState,
+                locationState = locationsBriefStates,
+                appSettings = appSettings,
+                internetConnected = internetConnected,
+                radarScreenWidth = radarScreenWidth,
+
+                onUpdateSelectedQuantity = radarViewModel::updateRadarQuantity,
+                onUpdateQuantityWeatherModel = radarViewModel::updateQuantityWeatherModels,
+                onUpdateQuantityDialogVisible = radarViewModel::updateQuantityDialogVisible,
+                onUpdateLoadingIndicatorVisible = radarViewModel::updateLoadingIndicatorVisible,
+                onUpdateQuantityValue = radarViewModel::updateQuantityValue,
+                onUpdateElevation = radarViewModel::updateElevation,
+                onUpdateSettingsOpen = radarViewModel::updateSettingsOpen,
+                onUpdateCrossHairVisibility = radarViewModel::updateCrossHairVisible,
+                onUpdateElevationVisibility = radarViewModel::updateElevationVisible,
+                onUpdateClockGaugeVisibility = radarViewModel::updateClockGaugeVisible,
+                onUpdateRadarClock = radarViewModel::updateClock,
+                onReloadRadarData = radarViewModel::reloadRadarData,
+
+                onUpdateVisibleDayIndex = radarViewModel::updateVisibleDayIndex,
+                onUpdateDayGaugeIndex = radarViewModel::updateDayGaugeIndex,
+                onUpdateClockGaugeRotation = radarViewModel::updateClockGaugeRotation,
+                onBalanceClockGaugeValues = radarViewModel::balanceClockGaugeValues,
+                onResetDayGauge = radarViewModel::resetDayGauge,
+                onInitializeClockGauge = remember { radarViewModel::initializeClockGauge },
+                onUpdateClockGaugeDragStopped = radarViewModel::updateClockGaugeDragStopped,
+                onUpdateNoDataWarningVisible = remember { radarViewModel::updateNoDataWarningVisible },
+                onCalculateDataIndex = remember { radarViewModel::calculateDataIndex },
+
+                onNavigateUp = navigator::goBack
+            )
         }
         entry<Settings>(
             metadata = ListDetailSceneStrategy.listPane()
         ) {
-//            val settingsState by preferenceViewModel.settingsState.collectAsStateWithLifecycle()
-//            val locationListState by homeViewModel.locationsState.collectAsStateWithLifecycle()
-//            val allLocations by homeViewModel.allLocations.collectAsStateWithLifecycle()
-
-//                val parentEntry = remember(key1 = it) { navController.getBackStackEntry<HomePane>() }
-//            val detailViewModel = hiltViewModel<DetailViewModel>(
-//                    viewModelStoreOwner = parentEntry
-//            )
-//            val chartStateList by detailViewModel.hourlyChartState.getOrElse(0) {
-//                MutableStateFlow(HourlyChartState())
-//            }.collectAsStateWithLifecycle()
-//            val hourlyChartData by detailViewModel.locationsHourlyChartData.getOrElse(0) {
-//                MutableStateFlow(emptyList())
-//            }.collectAsStateWithLifecycle()
-//
-//            val notificationHourlyChartData by appViewModel.notificationHourlyChartData
-//                .collectAsStateWithLifecycle()
-//            val notificationDailyChartData by appViewModel.notificationDailyChartData
-//                .collectAsStateWithLifecycle()
-
             MainSettingsScreen(
-                modifier = modifier,
+                modifier = Modifier.fillMaxSize(),
                 appSettings = appSettings,
                 onUpdateNotificationVisibility = preferenceViewModel::updateNotificationVisibility,
                 onNavigateUp = navigator::goToStartRoute,
                 onUpdatePaneContent = {_, _ -> },
                 onNavigateToScreen = navigator::navigate
             )
-
-            /*SettingsScreen(
-                modifier = Modifier.fillMaxSize(),
-                appSettings = appSettings,
-                settingsState = settingsState,
-                singlePane = singlePane,
-                itemState = locationListState[0],
-                hourlyChartData = hourlyChartData.toImmutableList(),
-                hourlyChartState = chartStateList,
-                notificationHourlyChartData = notificationHourlyChartData,
-                notificationDailyChartData = notificationDailyChartData,
-                allLocations = allLocations,
-                drawerOpen = drawerOpen,
-
-                onUpdateSilence = preferenceViewModel::updateSilent,
-                onUpdateVibration = preferenceViewModel::updateVibration,
-                onUpdateScreenOn = preferenceViewModel::updateScreenOn,
-                onUpdateThemeDialogVisibility = preferenceViewModel::updateThemeDialogVisibility,
-                onUpdateTheme = preferenceViewModel::updateTheme,
-                onUpdateChartTheme = detailViewModel::updateHourlyChartTheme,
-                onUpdateChartGrid = detailViewModel::updateHourlyChartGrid,
-                onUpdateDynamicTheme = preferenceViewModel::updateDynamicColor,
-                onUpdateTemperatureUnit = preferenceViewModel::updateTemperatureUnit,
-                onUpdateLengthUnit = preferenceViewModel::updateLengthUnit,
-                onUpdatePressureUnit = preferenceViewModel::updatePressureUnit,
-                onUpdateSpeedUnit = preferenceViewModel::updateSpeedUnit,
-                onUpdateTimeAxis = preferenceViewModel::updateTimeAxis,
-                onUpdateClockGaugeVisibility = preferenceViewModel::updateClockGaugeVisibility,
-                onUpdateNotificationVisibility = preferenceViewModel::updateNotificationVisibility,
-                onUpdatePaneContent = preferenceViewModel::updatePaneContent,
-                onUpdateDiagramThemeDialogVisibility = preferenceViewModel::updateDiagramThemeDialogVisibility,
-                onUpdateCardWeatherQuantities = preferenceViewModel::updateCardWeatherQuantities,
-                onUpdateHomeCardQuantityUnitsVisibility = preferenceViewModel::updateHomeCardQuantityUnitsVisibility,
-                onUpdateInitialXAxisBounds = detailViewModel::updateInitialXAxisBounds,
-                onAddYAxis = {
-                        start: Float, end: Float, diagramHeight: Float,
-                        textMeasurer: TextMeasurer, axisIndex: Int?,
-                        curveAnimatorInitialValue: Float ->
-                    detailViewModel.addYAxis(
-                        start, end, 0, diagramHeight, textMeasurer, axisIndex,
-                        curveAnimatorInitialValue, isHistoric = false
-                    )
-                },
-                onMoveHourlyDiagramAxis = {
-                    detailViewModel.moveHourlyDiagramAxis(it, 0)
-                },
-                onScaleHourlyDiagramAxis = { center, scaleX, scaleY ->
-                    detailViewModel.scaleHourlyDiagramAxis(
-                        center = center,
-                        scaleX = scaleX,
-                        scaleY = scaleY,
-                        pageIndex = 0
-                    )
-                },
-
-                onCalculateHorizontalBarSeparation = detailViewModel::calculateHorizontalBarSeparation,
-                onCalculateVerticalBarSeparation = detailViewModel::calculateVerticalBarSeparation,
-                onUpdateHourlyChartDotsOnCurveVisibility = detailViewModel::updateHourlyChartDotsOnCurveVisibility,
-                onUpdateHourlyChartCurveShadowVisibility = detailViewModel::updateHourlyChartCurveShadowVisibility,
-                onUpdateHourlyChartWeatherIconVisibility = detailViewModel::updateHourlyChartWeatherIconVisibility,
-                onUpdateHourlyChartSunRiseSetIconsVisibility = detailViewModel::updateHourlyChartSunRiseSetIconsVisibility,
-                onUpdateTimeAxisDialogVisibility = preferenceViewModel::updateTimeAxisDialogVisibility,
-                onUpdateGridDialogVisibility = preferenceViewModel::updateDiagramGridDialogVisibility,
-                onUpdateCurvesColor = detailViewModel::updateCurvesColor,
-                onUpdateWholeCurvesColor = detailViewModel::updateCurvesColor,
-                onSaveCurvesColor = detailViewModel::saveCurvesColor,
-                onUpdateCurvesSmoothness = detailViewModel::updateCurveSmoothness,
-                onSaveCurvesSmoothness = detailViewModel::saveCurveSmoothness,
-                onAddRemoveQuantity = { quantity, addRemove ->
-                    if (addRemove)
-                        detailViewModel.addChartQuantity(quantity, 0, isHistoric = false)
-                    else
-                        detailViewModel.removeChartQuantity(quantity, 0, isHistoric = false)
-                },
-                onUpdateNotificationCurrentQuantities =
-                    preferenceViewModel::updateNotificationCurrentWeatherQuantities,
-
-                onUpdateNotificationHourlyDiagramIconsVisibility =
-                    preferenceViewModel::updateNotificationHourlyDiagramIconsVisibility,
-                onUpdateNotificationHourlyQuantities =
-                    preferenceViewModel::updateNotificationHourlyQuantities,
-                onUpdateNotificationCurveShadowVisibility =
-                    preferenceViewModel::updateNotificationHourlyCurveShadowVisibility,
-                onSaveNotificationCurvesColor = preferenceViewModel::updateNotificationCurvesColor,
-                onUpdateWholeNotificationCurvesColor = preferenceViewModel::updateNotificationCurvesColor,
-                onUpdateNotificationTimeAxisDialogVisibility =
-                    preferenceViewModel::updateNotificationTimeAxisDialogVisibility,
-                onUpdateNotificationTimeAxis = preferenceViewModel::updateNotificationTimeAxis,
-                onUpdateNotificationDailyWeatherIconsVisible =
-                    preferenceViewModel::updateNotificationDailyWeatherIconsVisible,
-                onUpdateNotificationDailyQuantity = preferenceViewModel::updateNotificationDailyQuantity,
-                onUpdateDailyNotificationGridDialogVisibility =
-                    preferenceViewModel::updateNotificationDiagramGridDialogVisibility,
-                onUpdateDailyNotificationChartGrid = preferenceViewModel::updateNotificationDailyChartGrid,
-                onUpdateLocationDialogVisibility =
-                    preferenceViewModel::updateNotificationLocationDialogVisibility,
-                onUpdateNotificationWeatherIconVisibility =
-                    preferenceViewModel::updateNotificationWeatherIconVisible,
-                onUpdateNotificationDateTimeDialogVisibility =
-                    preferenceViewModel::updateNotificationDateTimeDialogVisibility,
-                onUpdateNotificationDateTime = preferenceViewModel::updateNotificationDateTime,
-                onUpdateNotificationLocationDialogVisibility =
-                    preferenceViewModel::updateNotificationLocationDialogVisibility,
-                onUpdateNotificationLocationId = preferenceViewModel::updateNotificationLocationId,
-
-                onNavigateUp = navigator::goBack,
-            )*/
         }
         entry<SettingsGeneral>(
             metadata = ListDetailSceneStrategy.detailPane()
@@ -759,7 +618,7 @@ fun WeatherNavGraph(
         {
             val settingsState by preferenceViewModel.settingsState.collectAsStateWithLifecycle()
             GeneralSettingsScreen(
-                modifier = modifier,
+                modifier = Modifier.fillMaxSize(),
                 appSettings = appSettings,
                 singlePane = singlePane,
                 settingsState = settingsState,
@@ -780,7 +639,7 @@ fun WeatherNavGraph(
         ) {
 //            val locationListState by homeViewModel.locationsState.collectAsStateWithLifecycle()
             HomeCardWeatherQuantityScreen(
-                modifier = modifier,
+                modifier = Modifier.fillMaxSize(),
                 itemState = locationListState.value[0],
                 appSettings = appSettings,
                 onUpdateHomeCardQuantityUnitsVisibility = preferenceViewModel::updateHomeCardQuantityUnitsVisibility,
@@ -793,7 +652,7 @@ fun WeatherNavGraph(
             metadata = ListDetailSceneStrategy.detailPane()
         ) {
             UnitSettingsScreen(
-                modifier = modifier,
+                modifier = Modifier.fillMaxSize(),
                 appSettings = appSettings,
                 singlePane = singlePane,
                 onUpdateLengthUnit = preferenceViewModel::updateLengthUnit,
@@ -815,7 +674,7 @@ fun WeatherNavGraph(
             val settingsState by preferenceViewModel.settingsState.collectAsStateWithLifecycle()
 
             HourlyDiagramCurvesScreen(
-                modifier = modifier,
+                modifier = Modifier.fillMaxSize(),
                 appSettings = appSettings,
                 singlePane = singlePane,
                 hourlyChartData = hourlyChartData.toImmutableList(),
@@ -887,7 +746,7 @@ fun WeatherNavGraph(
             val allLocations by homeViewModel.allLocations.collectAsStateWithLifecycle()
 
             NotificationSettingsScreen(
-                modifier = modifier,
+                modifier = Modifier.fillMaxSize(),
                 appSettings = appSettings,
                 singlePane = singlePane,
                 settingsState = settingsState,
@@ -930,9 +789,7 @@ fun WeatherNavGraph(
         }
         entry<Donate> {
 //                val parentEntry = remember(key1 = it) { navController.getBackStackEntry<Donate>() }
-            val donateViewModel = hiltViewModel<DonateViewModel>(
-                viewModelStoreOwner = rememberViewModelStoreOwner()
-            )
+            val donateViewModel = hiltViewModel<DonateViewModel>()
             val donateState by donateViewModel.donateState.collectAsStateWithLifecycle()
             val billingState by appViewModel.billing.billingState.collectAsStateWithLifecycle()
             val activity = LocalActivity.current as MainActivity
@@ -946,7 +803,7 @@ fun WeatherNavGraph(
                 drawerOpen = drawerOpen,
 
                 onNavigateUp = {
-                    navigator.goToStartRoute()
+                    navigator.goBack()
                     donateViewModel.updatePaneContent(DonatePaneContent.MOTIVATION)
                 },
                 onNavigateToPay = {
@@ -968,25 +825,38 @@ fun WeatherNavGraph(
         entry<Login>(
 //            metadata = ListDetailSceneStrategy.detailPane()
         ){
-            val loginViewModel = hiltViewModel<LoginViewModel>(
-                viewModelStoreOwner = rememberViewModelStoreOwner()
-            )
+            val loginViewModel = hiltViewModel<LoginViewModel>()
             val loginState by loginViewModel.loginState.collectAsStateWithLifecycle()
             Login(
                 modifier = Modifier.fillMaxSize(),
                 loginState = loginState,
                 user = loginViewModel.user,
+                theme = appSettings.theme,
 
                 onNavigateUp = navigator::goBack,
                 onUpdateLoginState = loginViewModel::updateLoginState,
             )
         }
+        entry<ContactUs>{
+            ContactUsScreen(
+                modifier = Modifier.fillMaxSize(),
+                onNavigateUp = navigator::goBack,
+            )
+        }
+        entry<Support>{
+            SupportScreen(
+                modifier = Modifier.fillMaxSize(),
+                onNavigateUp = navigator::goBack,
+            )
+        }
     }
 
     val springStiffness = Spring.StiffnessLow
+
     NavDisplay(
         entries = navigationState.toEntries(entryProvider),
-        sceneStrategy = rememberListDetailSceneStrategy(singlePane),
+        modifier = modifier,
+        sceneStrategies = listOf( rememberListDetailSceneStrategy(singlePane) ),
         onBack = { navigator.goBack() },
         transitionSpec = {
             ContentTransform(

@@ -32,6 +32,7 @@ private val DarkCustomColorScheme = CustomColorsPalette(
     appThemeDiagramSurfaceColor = DiagramDarkTheme,
     appThemeDiagramOnSurfaceColor = OnDiagramDarkTheme,
     paneSpacerColor = Gray40,
+    warning = WarningDark,
 )
 private val LightCustomColorScheme = CustomColorsPalette(
     searchbarSurface = Color.White,
@@ -48,6 +49,7 @@ private val LightCustomColorScheme = CustomColorsPalette(
     appThemeDiagramSurfaceColor = DiagramLightTheme,
     appThemeDiagramOnSurfaceColor = OnDiagramLightTheme,
     paneSpacerColor = Gray20,
+    warning = WarningLight,
 )
 
 val DarkColorScheme = darkColorScheme(

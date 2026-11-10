@@ -116,7 +116,7 @@ fun Widget2ConfigurationScreen(
             )
             SettingsRow1(
                 modifier = Modifier.fillMaxWidth(),
-                icon = R.drawable.clock_icon,
+                icon = R.drawable.globe_clock_24dp,
                 title = "Date & Time",
                 subTitle = stringResource(appSettings.widgetDateTime.title),
                 onClick = { timeClockDialogVisible = true },

@@ -193,7 +193,7 @@ fun GeneralSettingsScreen(
             SettingsRow1(
                 modifier = Modifier.fillMaxWidth(),
                 icon = R.drawable.clock_icon,
-                title = "Time manipulator",
+                title = "Time machine",
                 subTitle = if (appSettings.clockGaugeVisibility) "Visible" else "Invisible",
                 onClick = { onUpdateClockGaugeVisibility(!appSettings.clockGaugeVisibility) },
                 content = {

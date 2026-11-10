@@ -4,6 +4,8 @@
     <string name="loading">Loading</string>
     <string name="retry">Retry</string>
     <string name="settings">Settings</string>
+    <string name="quantity">Quantity</string>
+    <string name="weather_provider">Provider</string>
 
     <string name="show_weather_condition">Show weather condition</string>
     <string name="hide_weather_condition">Hide weather condition</string>
@@ -26,6 +28,7 @@
     <string name="rain">Rain</string>
     <string name="showers">Showers</string>
     <string name="snowfall">Snowfall</string>
+    <string name="snowfall_water_equivalent">Snowfall water equivalent</string>
     <string name="cloud_cover">Cloud coverage</string>
     <string name="weather_code">Weather condition</string>
     <string name="surface_pressure">Surface pressure</string>
@@ -34,6 +37,7 @@
     <string name="wind_direction">Wind direction</string>
     <string name="wind">Wind</string>
     <string name="uv_index">UV index</string>
+    <string name="uv_index_clear_sky">UV index clear sky</string>
     <string name="freezing_level_height">Freezing level height</string>
     <string name="direct_radiation">Direct radiation</string>
     <string name="direct_normal_irradiance">Direct normal irradiance</string>
@@ -134,8 +138,36 @@
     <string name="add_location_help_text">Press and hold any location on the map to add it to your favorite list.</string>
 
     <string name="free_trial">Start your 7-day free trial</string>
+    <string name="free_trial_expired">Your 7-day free trial has expired</string>
 
-    <string name="sign_in_title">Sign in to preserve your donation across your devices</string>
+    <string name="sign_in_title">Sign In to Restore Your Donation on Your Other Devices</string>
+    <string name="contact_us_title">Help Us Improve iWeather by Sending Your Suggestions, Feedback, and Bug Reports</string>
+    <string name="support_us_title">Support iWeather by Rating It 5 Stars and Sharing It with Family and Friends</string>
 
+    <string name="app_name_and_version">
+        iWeather: v%1$s
+        \nAndroid OS: %2$s
+        \nDevice: %3$s
+        \n
+    </string>
+
+    <string name="rate_iWeather">Rate iWeather</string>
+    <string name="share">Share</string>
+    <string name="introduce_app_subj">iWeather Application</string>
+    <string name="introduce_app_text">
+        introduce introduce introduce introduce introduce
+    </string>
+
+
+    <string name="hide_cross_hair">Hide crosshair</string>
+    <string name="show_cross_hair">Show crosshair</string>
+    <string name="hide_elevation">Hide elevation</string>
+    <string name="show_elevation">Show elevation</string>
+    <string name="hide_clock_gauge">Hide time machine</string>
+    <string name="show_clock_gauge">Show time machine</string>
+    <string name="time_zone">Time zone</string>
+    <string name="go_to">Go to</string>
+
+    <string name="no_data_for_selected_time">No radar data for selected time</string>
 
 </resources>

@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -74,7 +75,8 @@ fun ChooseDiagramThemeDialog(
 @Composable
 fun DialogMultiChoiceRow(
     modifier: Modifier = Modifier,
-    text: String,
+    text: String? = null,
+    annotatedText: AnnotatedString? = null,
     isSelected: Boolean,
     onSelect: () -> Unit
 ) {
@@ -91,10 +93,16 @@ fun DialogMultiChoiceRow(
             onClick =  onSelect
         )
         Spacer(modifier = Modifier.width(24.dp))
-        Text(
-            text = text,
-            fontFamily = FontFamily.Default
-        )
+        if (text != null)
+            Text(
+                text = text,
+                fontFamily = FontFamily.Default
+            )
+        else
+            Text(
+                text = annotatedText!!,
+                fontFamily = FontFamily.Default
+            )
     }
 }
 

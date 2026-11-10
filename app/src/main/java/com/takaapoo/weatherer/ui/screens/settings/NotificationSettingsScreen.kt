@@ -1223,7 +1223,7 @@ fun Header2Settings(
         )
         SettingsRow1(
             modifier = Modifier.fillMaxWidth(),
-            icon = R.drawable.clock_icon,
+            icon = R.drawable.globe_clock_24dp,
             title = "Time axis clock",
             subTitle = stringResource(appSettings.notificationHourlyDiagramTime.title),
             onClick = { onUpdateNotificationTimeAxisDialogVisibility(true) },
@@ -1432,7 +1432,7 @@ fun SmallNotificationSettings(
         )
         SettingsRow1(
             modifier = Modifier.fillMaxWidth(),
-            icon = R.drawable.clock_icon,
+            icon = R.drawable.globe_clock_24dp,
             title = "Date & Time",
             subTitle = stringResource(appSettings.notificationDateTime.title),
             onClick = { onUpdateNotificationDateTimeDialogVisibility(true) },

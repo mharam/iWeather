@@ -1,10 +1,13 @@
 package com.takaapoo.weatherer.utility
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.content.IntentSender
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Point
 import android.graphics.Typeface
+import android.location.Location
 import android.os.Build
 import android.text.Spannable
 import android.text.SpannableString
@@ -18,6 +21,8 @@ import android.util.Size
 import android.util.TypedValue
 import android.view.View
 import android.view.WindowManager
+import androidx.activity.result.IntentSenderRequest
+import androidx.annotation.IntRange
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.LocalTextStyle
@@ -43,6 +48,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextMeasurer
@@ -57,6 +63,7 @@ import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -65,7 +72,13 @@ import androidx.core.graphics.createBitmap
 import androidx.core.graphics.get
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.LatLng
+import com.takaapoo.weatherer.MainActivity
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.LocalDailyWeather
 import com.takaapoo.weatherer.data.local.LocalHourlyWeather
@@ -80,11 +93,14 @@ import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.indicesOf
 import com.takaapoo.weatherer.ui.theme.Cmu
 import com.takaapoo.weatherer.ui.theme.DarkColorScheme
 import com.takaapoo.weatherer.ui.theme.LightColorScheme
+import com.takaapoo.weatherer.ui.theme.Transparent
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.SerialName
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.acos
@@ -92,6 +108,8 @@ import kotlin.math.atan2
 import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.pow
+import kotlin.math.round
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.reflect.KProperty1
@@ -174,20 +192,6 @@ fun Float.mToUnit(unit: Length) = when (unit) {
     Length.IMPERIAL -> this * 3.28084f
 }
 
-/*fun Float.toAppropriateUnit(quantity: HourlyWeatherQuantity, appSettings: AppSettings): Float = when (quantity){
-    HourlyWeatherQuantity.TEMPERATURE, HourlyWeatherQuantity.DEWPOINT, HourlyWeatherQuantity.APPARENTTEMP ->
-        this.celsiusToUnit(appSettings.temperatureUnit)
-    HourlyWeatherQuantity.PRECIPITATION, HourlyWeatherQuantity.RAIN, HourlyWeatherQuantity.SHOWERS ->
-        this.mmToUnit(appSettings.lengthUnit)
-    HourlyWeatherQuantity.SNOWFALL -> this.cmToUnit(appSettings.lengthUnit)
-    HourlyWeatherQuantity.SURFACEPRESSURE -> this.paToUnit(appSettings.pressureUnit)
-    HourlyWeatherQuantity.VISIBILITY -> this.kmToUnit(appSettings.lengthUnit)
-    HourlyWeatherQuantity.WINDSPEED -> this.kmphToUnit(appSettings.speedUnit)
-    HourlyWeatherQuantity.FREEZINGLEVELHEIGHT -> this.mToUnit(appSettings.lengthUnit)
-//    WeatherQuantity.DIRECTRADIATION -> TODO()
-//    WeatherQuantity.DIRECTNORMALIRRADIANCE -> TODO()
-    else -> this
-}*/
 
 fun Color.darker(factor: Float): Color {
     require(factor in 0f..1f) { "Lightness factor must be between 0 and 1" }
@@ -263,6 +267,12 @@ operator fun Color.plus(other: Color): Color {
         blue = (this.blue + other.blue).coerceIn(0f, 1f)
     )
 }
+
+fun clockGaugeWidth(screenWidth: Float, density: Density) =
+    (900.dp).coerceAtMost(screenWidth.toDp(density) / sin(PI/6).toFloat())
+
+fun clockRotationCoefficient(clockGaugeWidth: Float) =
+    360 / (PI.toFloat() * clockGaugeWidth)
 
 @Composable
 fun BorderedText(
@@ -707,6 +717,14 @@ fun Color.mostContrastColor(): Color {
     val luminance = 0.2126f * red + 0.7152f * green + 0.0722f * blue
     return if (luminance > 0.5f) Color.Black else Color.White
 }
+fun Color.invert(): Color {
+    return Color(
+        red = 1f - red,
+        green = 1f - green,
+        blue = 1f - blue,
+        alpha = alpha
+    )
+}
 
 fun String.localToUtcTime(utcOffset: Long?) =
     LocalDateTime.parse(this).minusMinutes(utcOffset ?: 0).toString()
@@ -964,4 +982,105 @@ fun Float.isEqualTo(number: Float): Boolean {
 
 fun Duration.toCustomString(): String {
     return "${if (isNegative) "-" else "+"}(${abs(toDaysPart())}D ${abs(toHoursPart())}H ${abs(toMinutesPart())}M)"
+}
+
+fun getDeviceName(): String {
+    val manufacturer = Build.MANUFACTURER
+    val model = Build.MODEL
+    return if (model.lowercase(Locale.getDefault()).startsWith(manufacturer.lowercase(Locale.getDefault()))) {
+        capitalize(model)
+    } else {
+        capitalize(manufacturer) + " " + model
+    }
+}
+private fun capitalize(s: String?): String {
+    if (s.isNullOrEmpty()) return ""
+
+    val first = s[0]
+    return if (Character.isUpperCase(first)) {
+        s
+    } else {
+        Character.toUpperCase(first).toString() + s.substring(1)
+    }
+}
+
+fun lerpMultipleColors(colors: List<Color>, fraction: Float): Color {
+    val boundedFraction = fraction.coerceIn(0f, 1f)
+    return when (colors.size){
+        0 -> Transparent
+        1 -> colors[0]
+        2 -> lerp(colors[0], colors[1], boundedFraction)
+        else -> {
+            if (boundedFraction == 1f) colors.last()
+            else {
+                val index1 = (boundedFraction * (colors.size - 1)).toInt()
+                val index2 = index1 + 1
+                lerp(colors[index1], colors[index2], boundedFraction * (colors.size - 1) - index1)
+            }
+        }
+    }
+}
+
+fun Float.roundToDecimalDigits(@IntRange(from = 0, to = 10) digitCount: Int): Float {
+    require(digitCount in 0..10)
+    val multiplier = 10.0.pow(digitCount)
+    return (round(this * multiplier) / multiplier).toFloat()
+}
+
+@SuppressLint("MissingPermission")
+suspend fun getMyLocation(context: Context): Location? {
+    val locationRequest = LocationRequest.Builder(10000)
+        .setMinUpdateIntervalMillis(10000)
+        .setPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY)
+        .build()
+
+    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+    val settingsClient = LocationServices.getSettingsClient(context)
+    val builder = LocationSettingsRequest.Builder().addLocationRequest(locationRequest)
+
+    try {
+        settingsClient.checkLocationSettings(builder.build()).await()
+        return fusedLocationClient
+            .getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
+            .await()
+    } catch (e: ResolvableApiException) {
+        // caller must handle the resolution dialog
+        throw e
+    } catch (e: Exception) {
+        println(e.message)
+        return null
+    }
+}
+
+suspend fun getMyLocationResolvable(
+    mainActivity: MainActivity,
+    pendingLocationActionCode: Int,
+    onLocationResult: (Double, Double) -> Unit
+) {
+    try {
+        getMyLocation(mainActivity)?.let { myLocation ->
+            onLocationResult(myLocation.latitude, myLocation.longitude)
+        }
+    } catch (e: Exception) {
+        if (e is ResolvableApiException){
+            try {
+                mainActivity.pendingLocationSettingsAction = pendingLocationActionCode
+                mainActivity.locationSettingsLauncher.launch(
+                    IntentSenderRequest.Builder(e.resolution).build()
+                )
+            } catch (_: IntentSender.SendIntentException) {
+                // The resolution could not be launched.
+            }
+        }
+    }
+}
+
+fun Double.roundTo(decimalDigits: Int): Double {
+    val multiplier = 10.0.pow(decimalDigits)
+    return (this * multiplier).roundToInt() / multiplier
+}
+
+fun Float.roundTo(decimalDigits: Int): Float {
+    val multiplier = 10.0.pow(decimalDigits).toFloat()
+    return (this * multiplier).roundToInt() / multiplier
 }

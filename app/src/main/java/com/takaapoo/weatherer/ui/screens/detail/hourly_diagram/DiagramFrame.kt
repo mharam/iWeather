@@ -184,7 +184,7 @@ fun DrawScope.diagramFrame(
             )
         }
         ChartTheme.DAYNIGHT -> {
-            val colorStops = sunRiseSetX.flatMap { (sunRise, sunSet) ->
+            /*val colorStops = sunRiseSetX.flatMap { (sunRise, sunSet) ->
                 (if (sunRise != null) {
                     listOf(
                         (sunRise - xAxisRange.start) / xAxisLength to DiagramDarkTheme,
@@ -223,6 +223,24 @@ fun DrawScope.diagramFrame(
                     size = Size(diagramRectangle.width, diagramRectangle.height),
                     cornerRadius = CornerRadius(cornerRadius, cornerRadius)
                 )
+            }*/
+
+            clipPath(path = diagramBounds) {
+                drawRect(
+                    color = DiagramDarkTheme,
+                    topLeft = Offset(diagramRectangle.left, diagramRectangle.top),
+                    size = Size(diagramRectangle.width, diagramRectangle.height),
+                )
+                sunRiseSetX.forEach { (sunRise, sunSet) ->
+                    if (sunRise == null || sunSet == null) return@forEach
+                    val leftSide = ((sunRise - xAxisRange.start) / xAxisLength) * diagramWidth + horizontalPadding
+                    val rectWidth = ((sunSet - sunRise) / xAxisLength) * diagramWidth
+                    drawRect(
+                        color = DiagramLightTheme,
+                        topLeft = Offset(leftSide, diagramRectangle.top),
+                        size = Size(rectWidth, diagramRectangle.height),
+                    )
+                }
             }
         }
     }

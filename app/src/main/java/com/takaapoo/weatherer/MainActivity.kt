@@ -12,14 +12,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.LocationManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.provider.Settings
 import android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS
 import android.provider.Settings.EXTRA_APP_PACKAGE
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -35,17 +33,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.datastore.dataStore
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import com.google.android.gms.location.LocationSettingsStates
 import com.takaapoo.weatherer.domain.model.AppSettingsSerializer
 import com.takaapoo.weatherer.main.DataRefreshReceiver
 import com.takaapoo.weatherer.main.LocationProviderChangeReceiver
 import com.takaapoo.weatherer.ui.screens.AppScreen
-import com.takaapoo.weatherer.ui.screens.add_location.REQUEST_CHECK_SETTINGS
 import com.takaapoo.weatherer.ui.screens.updateAllWidgets
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
@@ -55,7 +52,6 @@ import com.takaapoo.weatherer.ui.viewModels.PreferenceViewModel
 import com.takaapoo.weatherer.utility.getWindowSize
 import com.takaapoo.weatherer.utility.readMoonPhaseBinFromAssets
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import java.util.Calendar
@@ -87,31 +83,44 @@ class MainActivity : ComponentActivity() {
 
     private val permissionRequestLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-            val fineLocationPermission = permissions.getOrDefault(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                null
-            )
-            val coarseLocationPermission = permissions.getOrDefault(
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-                null
-            )
+//            val fineLocationPermission = permissions.getOrDefault(
+//                Manifest.permission.ACCESS_FINE_LOCATION,
+//                null
+//            )
+//            val coarseLocationPermission = permissions.getOrDefault(
+//                Manifest.permission.ACCESS_COARSE_LOCATION,
+//                null
+//            )
             val notificationPermission = permissions.getOrDefault(
                 Manifest.permission.POST_NOTIFICATIONS,
                 null
             )
 
-            if (fineLocationPermission == true || coarseLocationPermission == true) {
-                addLocationViewModel.updateLocationPermissionGranted(true)
-                addLocationViewModel.goToMyLocation(this)
-            }
-            if (fineLocationPermission == false && coarseLocationPermission == false) {
-                addLocationViewModel.updateLocationPermissionGranted(false)
-                Toast.makeText(this, "Location Permission NOT Granted!", Toast.LENGTH_LONG).show()
-            }
+//            if (fineLocationPermission == true || coarseLocationPermission == true) {
+//                addLocationViewModel.updateLocationPermissionGranted(true)
+//                addLocationViewModel.goToMyLocation(this)
+//            }
+//            if (fineLocationPermission == false && coarseLocationPermission == false) {
+//                addLocationViewModel.updateLocationPermissionGranted(false)
+//                Toast.makeText(this, "Location Permission NOT Granted!", Toast.LENGTH_LONG).show()
+//            }
             if (notificationPermission == false) {
                 preferenceViewModel.updateNotificationVisibility(false)
             } else if (notificationPermission == true) {
                 preferenceViewModel.updateDisplayNotificationTrigger()
+            }
+        }
+    var pendingLocationSettingsAction: Int? = null
+    val locationSettingsLauncher =
+        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                when (pendingLocationSettingsAction) {
+                    1 -> lifecycleScope.launch {
+                        addLocationViewModel.goToMyLocation2(this@MainActivity)
+                    }
+                    2 -> {}
+                }
+
             }
         }
 
@@ -208,6 +217,7 @@ class MainActivity : ComponentActivity() {
                             preferenceViewModel = preferenceViewModel,
                             appSettings = appSettings,
                             locationListState = locationListState,
+                            locationAdded = locationListState.value.isNotEmpty()
                         )
                     }
                 }
@@ -261,7 +271,7 @@ class MainActivity : ComponentActivity() {
         unregisterReceiver(locationChangeReceiver)
     }
 
-    @Deprecated("For Resolving Location Settings")
+    /*@Deprecated("For Resolving Location Settings")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         val locationSettingsStates = data?.let { LocationSettingsStates.fromIntent(it) }
@@ -269,13 +279,13 @@ class MainActivity : ComponentActivity() {
             REQUEST_CHECK_SETTINGS -> {
                 if (resultCode == RESULT_OK){
                     lifecycleScope.launch {
-                        delay(150)
+                        delay(150.milliseconds)
                         addLocationViewModel.goToMyLocation(this@MainActivity)
                     }
                 }
             }
         }
-    }
+    }*/
 
 //    override fun onRequestPermissionsResult(
 //        requestCode: Int,
@@ -346,7 +356,7 @@ class MainActivity : ComponentActivity() {
     fun goToAlarmSettings(){
         goneToAlarmPermissionSettings = true
         val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-            data = Uri.parse("package:${packageName}")
+            data = "package:${packageName}".toUri()
             flags = Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         startActivity(intent)

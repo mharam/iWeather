@@ -1,5 +1,5 @@
 [versions]
-agp = "9.3.0"
+agp = "9.3.3"
 constraintlayout-compose-version = "1.1.1"
 core-splashscreen = "1.2.0"
 foundation = "1.11.4"
@@ -8,8 +8,8 @@ foundation = "1.11.4"
 hilt-android = "2.60.1"
 #hilt-compiler = "2.57.2"
 hilt-navigation-compose = "1.4.0"
-kotlin = "2.3.21"
-core-ktx = "1.18.0"
+kotlin = "2.4.20"
+core-ktx = "1.19.0"
 junit = "4.13.2"
 androidx-test-ext-junit = "1.1.5"
 espresso-core = "3.5.1"
@@ -17,8 +17,8 @@ kotlinStdlib = "2.3.21"
 kotlinx-serialization-json = "1.11.0"
 lifecycle-runtime-ktx = "2.11.0"
 activity-compose = "1.13.0"
-compose-bom = "2026.06.01"
-maps-compose = "8.3.0"
+compose-bom = "2026.09.00"
+maps-compose = "8.6.0"
 material-icons-extended = "1.6.8"
 navigation-compose = "2.9.8"
 okhttp = "5.4.0"
@@ -26,8 +26,8 @@ play-services-location = "21.3.0"
 retrofit = "3.0.0"
 retrofit2-kotlinx-serialization-converter = "1.0.0"
 play-services-maps = "20.0.0"
-material3 = "1.5.0-alpha19"
-appcompat = "1.7.1"
+material3 = "1.5.0-beta01"
+appcompat = "1.8.0"
 material = "1.12.0"
 rules = "1.5.0"
 truth = "1.4.5"
@@ -53,12 +53,12 @@ composeAnimationGraphics = "1.11.1"
 composeAdaptive = "1.2.0"
 
 # Navigation3
-nav3Core = "1.0.0"
+nav3Core = "1.1.5"
 lifecycleViewmodelNav3 = "2.11.0"
-kotlinSerialization = "2.3.21"
+kotlinSerialization = "2.4.10"
 kotlinxSerializationCore = "1.11.0"
 coroutines_version = "1.11.0"
-material3AdaptiveNav3 = "1.3.0-beta01"
+material3AdaptiveNav3 = "1.3.0-rc01"
 
 # Glance
 glance = "1.2.0-rc01"
@@ -91,8 +91,16 @@ rebugger = "1.0.1"
 backdrop = "2.0.0"
 
 # Credential Manager
-credential = "1.7.0-alpha02"
+credential = "1.7.0-alpha03"
 googleid = "1.2.0"
+reviewKtx = "2.0.2"
+
+# jetpack webkit
+webkit = "1.16.0"
+locationbuttonCompose = "1.0.0-alpha01"
+
+# coroutine version of play service location finder
+kotlinxCoroutinesPlayServices = "1.11.0"
 
 
 [libraries]
@@ -217,6 +225,14 @@ backdrop = { group = "io.github.kyant0", name = "backdrop", version.ref = "backd
 credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credential" }
 credentials-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credential" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
+review-ktx = { group = "com.google.android.play", name = "review-ktx", version.ref = "reviewKtx" }
+
+# jetpack Webkit
+jetpack-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
+androidx-locationbutton-compose = { group = "androidx.core.locationbutton", name = "locationbutton-compose", version.ref = "locationbuttonCompose" }
+
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutinesPlayServices" }
+
 
 
 

@@ -92,10 +92,19 @@ class AppViewModel @Inject constructor(
     }
 
     init {
+//        viewModelScope.launch {
+//            preferenceRepository.apply {
+//                setUserId(null)
+//                setUserName(null)
+//                setUserPicture(null)
+//            }
+//        }
+        billing.startBillingConnection()
+
         internetConnected
             .onEach { isConnected ->
                 if (isConnected) {
-                    billing.startBillingConnection()
+//                    billing.startBillingConnection()
                     user.initialize()
                 }
             }

@@ -110,6 +110,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
+import kotlin.time.Duration.Companion.milliseconds
 
 var detailScreenWidth = 0
 const val bitmapWidth = 1248
@@ -134,6 +135,7 @@ fun DetailPagerScreen(
     appSettings: AppSettings = AppSettings(),
     initialLandscape: Bitmap,
     trialPeriodExpired: Boolean?,
+    hasDonated: Boolean?,
 
 //    dataReady: Boolean = true,
 //    sharedTransitionScope: SharedTransitionScope,
@@ -143,6 +145,7 @@ fun DetailPagerScreen(
     onNavigateToAQDetail: (Int, Int) -> Unit,
     onNavigateToDonateScreen: () -> Unit,
     onNavigateToLoginScreen: () -> Unit,
+    onConnectRetry: () -> Unit,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -215,7 +218,7 @@ fun DetailPagerScreen(
         }
     }
     LaunchedEffect(key1 = pageNumber){
-        delay(100)
+        delay(100.milliseconds)
         launch {
             if (scrollState.value == 0) {
                 scrollState.animateScrollTo(
@@ -349,7 +352,17 @@ fun DetailPagerScreen(
                                 )
                             }
                             DetailTabs.History -> {
-                                if (appSettings.hasDonated) {
+                                IconButton(
+                                    onClick = {
+                                        infoBottomSheetVisible = !infoBottomSheetVisible
+                                    }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.info_24px),
+                                        contentDescription = "information"
+                                    )
+                                }
+                                if (hasDonated == true || trialPeriodExpired == false) {
                                     HistoricHourlyDiagramSettingsOptions(
                                         hourlyChartState = hourlyChartState.value,
                                         settingsOpen = detailState.hourlyDiagramSettingOpen,
@@ -374,16 +387,6 @@ fun DetailPagerScreen(
                                         onUpdateChartTheme = remember(pageNumber) {
                                             detailViewModel::updateHourlyChartTheme
                                         }
-                                    )
-                                }
-                                IconButton(
-                                    onClick = {
-                                        infoBottomSheetVisible = !infoBottomSheetVisible
-                                    }
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.info_24px),
-                                        contentDescription = "information"
                                     )
                                 }
                             }
@@ -516,6 +519,7 @@ fun DetailPagerScreen(
                         detailViewModel.historicInitialXAxisEnd,
                 backdrop = backdrop,
                 trialPeriodExpired = trialPeriodExpired,
+                hasDonated = hasDonated,
 //                timeAlpha = timeAlpha,
                 onAddYAxis = remember(pageNumber) {
                     {
@@ -730,7 +734,8 @@ fun DetailPagerScreen(
                     { detailViewModel.reloadHistoricalDailyData(updatingPageNumber) }
                 },
                 onNavigateToDonateScreen = onNavigateToDonateScreen,
-                onNavigateToLoginScreen = onNavigateToLoginScreen
+                onNavigateToLoginScreen = onNavigateToLoginScreen,
+                onConnectRetry = onConnectRetry
 //                sharedTransitionScope = sharedTransitionScope,
 //                animatedContentScope = animatedContentScope
             )
@@ -899,11 +904,13 @@ fun DetailPagerScreenPreview() {
 //                    scrollState = rememberScrollState(),
                     initialLandscape = createBitmap(bitmapWidth, bitmapHeight),
                     trialPeriodExpired = null,
+                    hasDonated = false,
                     onResetScrollStates = {},
                     onNavigateUp = { _ -> },
                     onNavigateToAQDetail = { _, _ -> },
                     onNavigateToDonateScreen = {},
-                    onNavigateToLoginScreen = {}
+                    onNavigateToLoginScreen = {},
+                    onConnectRetry = {}
 //                    sharedTransitionScope = this@SharedTransitionLayout,
 //                    animatedContentScope = this
                 )

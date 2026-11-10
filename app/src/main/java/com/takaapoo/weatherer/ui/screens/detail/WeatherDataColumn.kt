@@ -64,8 +64,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.ColorUtils
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
@@ -93,12 +91,12 @@ import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.HourlyChart
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.HourlyDiagramLegend
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.QuantityChooserRail
+import com.takaapoo.weatherer.ui.screens.donate.Error
 import com.takaapoo.weatherer.ui.theme.DiagramGrid
 import com.takaapoo.weatherer.ui.theme.OnDiagramDarkTheme
 import com.takaapoo.weatherer.ui.theme.OnDiagramLightTheme
 import com.takaapoo.weatherer.ui.theme.Transparent10
 import com.takaapoo.weatherer.ui.theme.customColorScheme
-import com.takaapoo.weatherer.ui.viewModels.DonatePromotionViewModel
 import com.takaapoo.weatherer.utility.drawThickText
 import com.takaapoo.weatherer.utility.toDp
 import com.takaapoo.weatherer.utility.toPx
@@ -132,6 +130,7 @@ fun WeatherDataColumn(
     historicInitialXAxisRange: ClosedFloatingPointRange<Float>,
     backdrop: LayerBackdrop,
     trialPeriodExpired: Boolean?,
+    hasDonated: Boolean?,
 
     onAddYAxis: (start: Float, end: Float, diagramHeight: Float, textMeasurer: TextMeasurer, axisIndex: Int?, curveAnimatorInitialValue: Float, isHistoric: Boolean) -> Unit,
     onUpdateDailyYAxis: (quantity: DailyWeatherQuantity, curveAnimatorInitialValue: Float, isHistoric: Boolean) -> Unit,
@@ -161,6 +160,7 @@ fun WeatherDataColumn(
     onAnimateDailyDiagramAxis: (time: LocalDate) -> Unit,
     onNavigateToDonateScreen: () -> Unit,
     onNavigateToLoginScreen: () -> Unit,
+    onConnectRetry: () -> Unit,
 ) {
     val activity = LocalActivity.current
     val density = LocalDensity.current
@@ -427,7 +427,7 @@ fun WeatherDataColumn(
                         )
                     }
                     DetailTabs.History -> {
-                        if(appSettings.hasDonated) {
+                        if(hasDonated == true || trialPeriodExpired == false) {
                             HistoricalWeather(
                                 modifier = Modifier,
                                 historicalChartState = historicalChartState.copy(
@@ -516,21 +516,21 @@ fun WeatherDataColumn(
                                 onAnimateDailyDiagramAxis = onAnimateDailyDiagramAxis,
                                 onReloadHistoricalDailyData = onReloadHistoricalDailyData,
                             )
-                        } else {
-                            val donatePromotionViewModel = hiltViewModel<DonatePromotionViewModel>(
-                                viewModelStoreOwner = rememberViewModelStoreOwner()
+                        }
+                        else if(hasDonated == null) {
+                            Error(
+                                modifier = modifier,
+                                text = "Connecting to Play store failed!",
+                                onConnectRetry = onConnectRetry
                             )
+                        }
+                        else {
                             DonatePromotion(
                                 modifier = Modifier,
                                 columnHeight = columnHeight,
                                 trialPeriodExpired = trialPeriodExpired,
-//                                maxScroll = context.windowHeight.toFloat() + headerHeight,
-//                                scrollState = detailState.scrollState,
                                 onNavigateToDonateScreen = onNavigateToDonateScreen,
                                 onNavigateToLoginScreen = onNavigateToLoginScreen
-//                                onVerifyIdToken = remember {
-//                                    donatePromotionViewModel::verifyIdToken
-//                                }
                             )
                         }
                     }

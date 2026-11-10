@@ -1,0 +1,3 @@
+- [x] Implement Fast Supersession in `waitForWeatherTilesLoaded` function in `RadarData.kt`
+- [x] Implement Immediate Cleanup in `updateWeatherLayer` function in `RadarData.kt`
+- [x] Verify the changes with manual testing and log monitoring

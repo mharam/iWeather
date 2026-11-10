@@ -105,6 +105,7 @@ import kotlin.math.log10
 import kotlin.math.log2
 import kotlin.math.pow
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -251,7 +252,7 @@ class DetailViewModel @Inject constructor(
             launch(defaultDispatcher) {
                 while (detailStateUpdatePermission) {
                     updateDetailState()
-                    delay(600_000)
+                    delay(30_000.milliseconds)
                 }
             }
             launch(defaultDispatcher) {
@@ -268,7 +269,7 @@ class DetailViewModel @Inject constructor(
                             }
                         }
                     }
-                    delay(400_000)
+                    delay(4_000.milliseconds)
                 }
             }
             initializeSliderThumbPositions()
@@ -401,7 +402,7 @@ class DetailViewModel @Inject constructor(
                         )
                     }
                 }
-                .debounce(100)
+                .debounce(100.milliseconds)
                 .distinctUntilChangedBy {
                     HistoricHourlyChartStatePart(
                         chartQuantities = it.chartQuantities,
@@ -427,7 +428,7 @@ class DetailViewModel @Inject constructor(
                     val weatherQuantities = it.chartQuantities
                     if (weatherQuantities.isNotEmpty()) {
                         runCatching {
-                            withTimeout(30_000) {
+                            withTimeout(30_000.milliseconds) {
                                 allLocations.getOrNull(index)?.let { location ->
                                     Log.i("data1", "historicalHourlyChartDataUseCase called")
                                     historicalHourlyChartDataUseCase(
@@ -477,7 +478,7 @@ class DetailViewModel @Inject constructor(
                         )
                     }
                 }
-                .debounce(100)
+                .debounce(100.milliseconds)
                 .distinctUntilChanged(),
             settingsFlow,
             _detailState.map { it.getOrNull(index)?.detailPagerIndex }.distinctUntilChanged()
@@ -494,7 +495,7 @@ class DetailViewModel @Inject constructor(
                 if (index == it.detailPagerIndex) {
                     updateDailySettingsStatus(it.appSettings.toSettingsUnits() == settingsUnits)
                     runCatching {
-                        withTimeout(30_000) {
+                        withTimeout(30_000.milliseconds) {
                             allLocations.getOrNull(index)?.let { location ->
                                 historicalDailyChartDataUseCase(
                                     location = location,
@@ -549,7 +550,7 @@ class DetailViewModel @Inject constructor(
     fun reInitialize(){
         viewModelScope.launch {
             while (!initializedCompleted)
-                delay(20)
+                delay(20.milliseconds)
 
             val newAllLocations = locationRepository.getAllLocationsList()
             if (newAllLocations.size <= allLocations.size) return@launch
@@ -665,7 +666,7 @@ class DetailViewModel @Inject constructor(
 //            historicalDailyChartData = MutableList(size = allLocations.size){ i ->
 //                historicDailyChartDataFlow(i)
 //            }
-            delay(1000)
+            delay(1000.milliseconds)
             _dataReadyForDisplay.value = true
             _locationsHourlyChartData.removeLastOrNull()
             _locationsDailyChartData.removeLastOrNull()
@@ -759,7 +760,7 @@ class DetailViewModel @Inject constructor(
             // This while is used to make curve and thumb reposition synced when modifying diagram
             // time axis clock.
             while (diagramTime != null && diagramTime != preferenceRepository.getSettings().hourlyDiagramTime)
-                delay(1)
+                delay(1.milliseconds)
 
             val hourlyDiagramTime =
                 diagramTime ?: preferenceRepository.getSettings().hourlyDiagramTime
@@ -2019,7 +2020,7 @@ class DetailViewModel @Inject constructor(
         historicInitialXAxisStart = middleXAxis - historicHourlyXAxisLength * 24 / 2
         historicInitialXAxisEnd = middleXAxis + historicHourlyXAxisLength * 24 / 2
 
-        _historicalDailyChartState.forEachIndexed { index, stateFlow ->
+        _historicalDailyChartState.forEachIndexed { _, stateFlow ->
             stateFlow.update { chartState ->
                 chartState.copy(
                     initialDailyXAxisStart = middleDailyXAxis - (historicDailyXAxisLength / 2).roundToInt() - 0.5f,

@@ -17,6 +17,7 @@ data class UserAuthResponse(
     @SerialName("email") val email: String? = null,
     @SerialName("name") val name: String? = null,
     @SerialName("picture") val picture: String? = null,
+    @SerialName("trial_expired") val trialExpired: Boolean = true,
     @SerialName("message") val message: String? = null
 )
 

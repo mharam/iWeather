@@ -76,6 +76,7 @@ import com.takaapoo.weatherer.ui.theme.Gray60
 import com.takaapoo.weatherer.ui.theme.WeatherGaugeBackground
 import com.takaapoo.weatherer.ui.theme.WeatherGaugeHandle
 import com.takaapoo.weatherer.utility.BorderedText
+import com.takaapoo.weatherer.utility.lerpMultipleColors
 import com.takaapoo.weatherer.utility.toPx
 import kotlinx.collections.immutable.ImmutableList
 import kotlin.math.PI
@@ -144,12 +145,12 @@ fun AirQualityCurrentCondition(
             targetX = targetX
         )
     }*/
-    val molarVolume = 22.4 * (currentTemperature / 273) / (currentPressure / 1000)
+    val molarVolume = 22.4f * (currentTemperature / 273) / (currentPressure / 1000)
     val quantityLevels = when(quantity){
-        HourlyWeatherQuantity.AQI -> listOf(50, 100, 150, 200, 300, 500)
-        HourlyWeatherQuantity.PM10 -> listOf(54, 154, 254, 354, 424, 604)
-        HourlyWeatherQuantity.PM2_5 -> listOf(12, 35, 55, 150, 250, 500)
-        else -> quantity.quantityBreakPoints().map { (it * quantity.molWeight() / molarVolume).toInt() }
+        HourlyWeatherQuantity.AQI -> listOf(50f, 100f, 150f, 200f, 300f, 500f)
+        HourlyWeatherQuantity.PM10 -> listOf(55f, 155f, 255f, 355f, 425f, 605f)
+        HourlyWeatherQuantity.PM2_5 -> listOf(9f, 35.5f, 55.5f, 125.5f, 225.5f, 500f)
+        else -> quantity.quantityBreakPoints().map { (it * quantity.molWeight() / molarVolume) }
     }
 
     val quantityName = buildAnnotatedString {
@@ -262,9 +263,13 @@ fun AirQualityCurrentCondition(
                                     360f
                                 )
                             }
-                            (listOf(0) + quantityLevels).forEachIndexed { index, value ->
-                                val text = if (quantity == HourlyWeatherQuantity.CO)
-                                    "%.1f".format(value / 1000f) else value.toString()
+                            (listOf(0f) + quantityLevels).forEachIndexed { index, value ->
+                                val text = quantity.quantityValueText(
+                                    quantityValue = value,
+                                    appSettings = appSettings,
+                                    unitVisible = false
+                                ).toString() /*if (quantity == HourlyWeatherQuantity.CO)
+                                    "%.1f".format(value / 1000f) else value.toString()*/
                                 paint.getTextPath(text, 0, text.length, 0f, 0f, textPath)
                                 textPath.computeBounds(bounds, true)
                                 drawIntoCanvas {
@@ -289,8 +294,8 @@ fun AirQualityCurrentCondition(
             val rotation = when (index) {
                 6 -> 0f
                 -1 -> 285f
-                else -> index * 45 + (quantityValue!! - quantityLevels.getOrElse(index-1) { 0 }) * 45f /
-                        (quantityLevels[index] - quantityLevels.getOrElse(index-1) { 0 })
+                else -> index * 45 + (quantityValue!! - quantityLevels.getOrElse(index-1) { 0f }) * 45f /
+                        (quantityLevels[index] - quantityLevels.getOrElse(index-1) { 0f })
             }
             Image(
                 modifier = Modifier
@@ -459,16 +464,6 @@ fun AirQualityCurrentCondition2(
 
     val firstPointX = 0f
     val lastPointX = detailState.currentDayHourlyAirQuality.size.toFloat() - 1
-//    val data = quantityData(
-//        weatherData = detailState.currentDayHourlyWeather,
-//        airData = detailState.currentDayHourlyAirQuality,
-//        weatherQuantity = quantity
-//    )
-//    val (controlPoints1, controlPoints2) = quantityControlPoints(
-//        weatherData = detailState.currentDayHourlyWeather,
-//        airData = detailState.currentDayHourlyAirQuality,
-//        weatherQuantity = quantity
-//    )
     var quantityValue = weatherCurveXtoY(
         quantity = quantity,
         appSettings = appSettings,
@@ -478,29 +473,14 @@ fun AirQualityCurrentCondition2(
         lastPointX = lastPointX,
         targetX = detailState.targetX
     )
-        /*when (quantity.graphType()){
-        GraphTypes.CUBIC -> cubicCurveXtoY(
-            data = data,
-            controlPoints1 = controlPoints1,
-            controlPoints2 = controlPoints2,
-            firstPointX = firstPointX,
-            lastPointX = lastPointX,
-            targetX = detailState.targetX
-        )
-        else -> linearCurveXtoY(
-            data = data,
-            firstPointX = firstPointX,
-            lastPointX = lastPointX,
-            targetX = detailState.targetX
-        )
-    }*/
+
     if (quantity == HourlyWeatherQuantity.CO)
         quantityValue = quantityValue?.div(1000)
-    val molarVolume = 22.4f * (currentTemperature / 273) / (currentPressure / 1000)
+    val molarVolume = 22.45f * (currentTemperature / 273) / (currentPressure / 1000)
     val quantityLevels = when(quantity){
         HourlyWeatherQuantity.AQI -> listOf(50f, 100f, 150f, 200f, 300f, 500f)
-        HourlyWeatherQuantity.PM10 -> listOf(54f, 154f, 254f, 354f, 424f, 604f)
-        HourlyWeatherQuantity.PM2_5 -> listOf(12f, 35f, 55f, 150f, 250f, 500f)
+        HourlyWeatherQuantity.PM10 -> listOf(55f, 155f, 255f, 355f, 425f, 605f)
+        HourlyWeatherQuantity.PM2_5 -> listOf(9f, 35.5f, 55.5f, 125.5f, 225.5f, 500f)
         HourlyWeatherQuantity.CO -> quantity.quantityBreakPoints().map { it * quantity.molWeight() / (1000 * molarVolume) }
         else -> quantity.quantityBreakPoints().map { it * quantity.molWeight() / molarVolume }
     }

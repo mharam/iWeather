@@ -13,12 +13,15 @@ import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartGrids
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
+import com.takaapoo.weatherer.ui.screens.radar.RadarClocks
 import com.takaapoo.weatherer.ui.theme.NotifCurveGreen
 import com.takaapoo.weatherer.ui.theme.NotifCurveRed
 import com.takaapoo.weatherer.ui.theme.curveBlue
 import com.takaapoo.weatherer.ui.theme.curveGreen
 import com.takaapoo.weatherer.ui.theme.curveOrange
 import com.takaapoo.weatherer.ui.theme.curvePink
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
@@ -146,7 +149,12 @@ data class AppSettings(
     ),
 
     val addLocationHelpVisible: Boolean = true,
-)
+    val radarCrossHairVisible: Boolean = true,
+    val radarElevationVisible: Boolean = true,
+    val radarClockGaugeVisible: Boolean = true,
+    val radarClock: RadarClocks = RadarClocks.UTC,
+
+    )
 
 data class SettingsState(
     val themeDialogVisibility: Boolean = false,
@@ -191,11 +199,13 @@ object AppSettingsSerializer : Serializer<AppSettings> {
     }
 
     override suspend fun writeTo(t: AppSettings, output: OutputStream) {
-        output.write(
-            Json.encodeToString(
-                serializer = AppSettings.serializer(),
-                value = t
-            ).encodeToByteArray()
-        )
+        withContext(Dispatchers.IO) {
+            output.write(
+                Json.encodeToString(
+                    serializer = AppSettings.serializer(),
+                    value = t
+                ).encodeToByteArray()
+            )
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.takaapoo.weatherer.ui.screens.home
 
+//import com.theapache64.rebugger.Rebugger
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
@@ -88,7 +89,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
@@ -136,7 +136,6 @@ import com.takaapoo.weatherer.ui.theme.timeFontFamily
 import com.takaapoo.weatherer.utility.drawThickText
 import com.takaapoo.weatherer.utility.measureText
 import com.takaapoo.weatherer.utility.toPx
-//import com.theapache64.rebugger.Rebugger
 import java.io.File
 import kotlin.math.PI
 import kotlin.math.acos
@@ -1033,10 +1032,12 @@ fun TemperatureData2(
                             .drawWithContent {
                                 drawContent()
                                 val minTemperature = minTemperatureProvider()
-                                val text =
-                                    if (minTemperature != null) AnnotatedString("${minTemperature}°")
-                                    else AnnotatedString("?")
-
+                                val text = HourlyWeatherQuantity.TEMPERATURE.quantityValueText(
+                                    quantityValue = minTemperature,
+                                    appSettings = appSettings,
+                                    unitVisible = false,
+                                    degreeSignVisible = true
+                                )
                                 drawThickText(
                                     textMeasurer = textMeasurer,
                                     textCenter = size.width / 2,
@@ -1106,10 +1107,12 @@ fun TemperatureData2(
                             .drawWithContent {
                                 drawContent()
                                 val maxTemperature = maxTemperatureProvider()
-                                val text =
-                                    if (maxTemperature != null) AnnotatedString("${maxTemperature}°")
-                                    else AnnotatedString("?")
-
+                                val text = HourlyWeatherQuantity.TEMPERATURE.quantityValueText(
+                                    quantityValue = maxTemperature,
+                                    appSettings = appSettings,
+                                    unitVisible = false,
+                                    degreeSignVisible = true
+                                )
                                 drawThickText(
                                     textMeasurer = textMeasurer,
                                     textCenter = size.width / 2,
@@ -1160,17 +1163,24 @@ fun TemperatureData2(
                         minTemperature,
                         maxTemperature
                     )
-                    val currentTempString = currentTemperature?.let { "%.1f".format(it) }
-                    val text = if (currentTemperature != null)
-                        AnnotatedString(
-                            "${currentTempString}${
-                                HourlyWeatherQuantity.TEMPERATURE.unit(
-                                    appSettings
-                                )
-                            }"
-                        )
-                    else AnnotatedString("?")
 
+//                    val currentTempString = currentTemperature?.let { "%.1f".format(it) }
+//                    val text = if (currentTemperature != null)
+//                        AnnotatedString(
+//                            "${currentTempString}${
+//                                HourlyWeatherQuantity.TEMPERATURE.unit(
+//                                    appSettings
+//                                )
+//                            }"
+//                        )
+//                    else AnnotatedString("?")
+
+                    val text = HourlyWeatherQuantity.TEMPERATURE.quantityValueText(
+                        quantityValue = currentTemperature,
+                        appSettings = appSettings,
+                        unitVisible = false,
+                        degreeSignVisible = true
+                    )
                     drawThickText(
                         textMeasurer = textMeasurer,
                         textCenter = size.width / 2,

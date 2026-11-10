@@ -1,29 +1,32 @@
 package com.takaapoo.weatherer.ui.screens.settings
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.takaapoo.weatherer.R
@@ -86,7 +89,40 @@ fun UnitSettingsScreen(
                 title = "Length",
                 subTitle = stringResource(appSettings.lengthUnit.description),
                 content = {
-                    SingleChoiceSegmentedButtonRow(
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                    ) {
+                        val items = Length.entries
+                        items.forEachIndexed { index, unit ->
+                            val shapes = when (index) {
+                                0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                items.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                            }
+                            val isSelected = unit == appSettings.lengthUnit
+                            ToggleButton(
+                                checked = isSelected,
+                                onCheckedChange = {
+                                    if (it) onUpdateLengthUnit(unit)
+                                },
+                                shapes = shapes,
+                            ) {
+                                Text(
+                                    modifier = Modifier.widthIn(min = 24.dp),
+                                    textAlign = TextAlign.Center,
+                                    text = unit.title,
+                                    fontFamily = FontFamily.Default,
+                                    fontWeight = FontWeight.W500,
+                                    fontSize = 14.sp,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+
+
+                /*    SingleChoiceSegmentedButtonRow(
                         modifier = Modifier.padding(horizontal = 8.dp)
                     ) {
                         val items = Length.entries
@@ -105,6 +141,7 @@ fun UnitSettingsScreen(
                             }
                         }
                     }
+                */
                 }
             )
             SettingsRow2(
@@ -113,7 +150,39 @@ fun UnitSettingsScreen(
                 title = "Temperature",
                 subTitle = stringResource(appSettings.temperatureUnit.description),
                 content = {
-                    SingleChoiceSegmentedButtonRow(
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                    ) {
+                        val items = Temperature.entries
+                        items.forEachIndexed { index, unit ->
+                            val shapes = when (index) {
+                                0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                items.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                            }
+                            val isSelected = unit == appSettings.temperatureUnit
+                            ToggleButton(
+                                checked = isSelected,
+                                onCheckedChange = {
+                                    if (it) onUpdateTemperatureUnit(unit)
+                                },
+                                shapes = shapes,
+                            ) {
+                                Text(
+                                    modifier = Modifier.widthIn(min = 24.dp),
+                                    textAlign = TextAlign.Center,
+                                    text = unit.title,
+                                    fontFamily = FontFamily.Default,
+                                    fontWeight = FontWeight.W500,
+                                    fontSize = 14.sp,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+
+                /*    SingleChoiceSegmentedButtonRow(
                         modifier = Modifier.padding(horizontal = 8.dp)
                     ){
                         val items = Temperature.entries
@@ -132,6 +201,7 @@ fun UnitSettingsScreen(
                             }
                         }
                     }
+                */
                 }
             )
             SettingsRow2(
@@ -140,7 +210,39 @@ fun UnitSettingsScreen(
                 title = "Pressure",
                 subTitle = stringResource(appSettings.pressureUnit.description),
                 content = {
-                    SingleChoiceSegmentedButtonRow(
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                    ) {
+                        val items = Pressure.entries
+                        items.forEachIndexed { index, unit ->
+                            val shapes = when (index) {
+                                0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                items.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                            }
+                            val isSelected = unit == appSettings.pressureUnit
+                            ToggleButton(
+                                checked = isSelected,
+                                onCheckedChange = {
+                                    if (it) onUpdatePressureUnit(unit)
+                                },
+                                shapes = shapes,
+                            ) {
+                                Text(
+                                    modifier = Modifier.widthIn(min = 24.dp),
+                                    textAlign = TextAlign.Center,
+                                    text = unit.title,
+                                    fontFamily = FontFamily.Default,
+                                    fontWeight = FontWeight.W500,
+                                    fontSize = 14.sp,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+
+                    /*SingleChoiceSegmentedButtonRow(
                         modifier = Modifier.padding(horizontal = 8.dp)
                     ){
                         val items = Pressure.entries
@@ -159,6 +261,7 @@ fun UnitSettingsScreen(
                             }
                         }
                     }
+                    */
                 }
             )
             SettingsRow2(
@@ -167,7 +270,39 @@ fun UnitSettingsScreen(
                 title = "Speed",
                 subTitle = stringResource(appSettings.speedUnit.description),
                 content = {
-                    SingleChoiceSegmentedButtonRow(
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                    ) {
+                        val items = Speed.entries
+                        items.forEachIndexed { index, unit ->
+                            val shapes = when (index) {
+                                0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                items.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                            }
+                            val isSelected = unit == appSettings.speedUnit
+                            ToggleButton(
+                                checked = isSelected,
+                                onCheckedChange = {
+                                    if (it) onUpdateSpeedUnit(unit)
+                                },
+                                shapes = shapes,
+                            ) {
+                                Text(
+                                    modifier = Modifier.widthIn(min = 24.dp),
+                                    textAlign = TextAlign.Center,
+                                    text = unit.title,
+                                    fontFamily = FontFamily.Default,
+                                    fontWeight = FontWeight.W500,
+                                    fontSize = 14.sp,
+                                    maxLines = 1,
+                                )
+                            }
+                        }
+                    }
+
+                    /*SingleChoiceSegmentedButtonRow(
                         modifier = Modifier.padding(horizontal = 8.dp)
                     ){
                         val items = Speed.entries
@@ -186,6 +321,7 @@ fun UnitSettingsScreen(
                             }
                         }
                     }
+                    */
                 }
             )
         }

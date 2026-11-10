@@ -80,7 +80,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -98,6 +97,8 @@ import com.takaapoo.weatherer.ui.screens.home.dialogs.EditDialog
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.customColorScheme
 import com.takaapoo.weatherer.ui.viewModels.DialogType
+import com.takaapoo.weatherer.utility.clockGaugeWidth
+import com.takaapoo.weatherer.utility.clockRotationCoefficient
 import com.takaapoo.weatherer.utility.swap
 import com.takaapoo.weatherer.utility.toDp
 import com.takaapoo.weatherer.utility.toPx
@@ -112,8 +113,7 @@ import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.io.File
-import kotlin.math.PI
-import kotlin.math.sin
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class DragValue { Left, Center, Right }
 val DRAG_MAX_DISPLACE = 130.dp
@@ -272,9 +272,9 @@ fun HomeScreen(
     )
 
     val clockGaugeWidth by remember(key1 = homeScreenWidth) {
-        mutableStateOf((900.dp).coerceAtMost(homeScreenWidth.toDp(density) / sin(PI/6).toFloat()))
+        mutableStateOf(clockGaugeWidth(homeScreenWidth, density))
     }
-    val clockGaugeRotationCoefficient = 360 / (PI.toFloat() * clockGaugeWidth.toPx(density))
+    val clockGaugeRotationCoefficient = clockRotationCoefficient(clockGaugeWidth.toPx(density))
 
     var cardAlpha by rememberSaveable { mutableStateOf(zoom.value > 1f) }
     var selectedItemIndex by remember { mutableIntStateOf(homeState.selectedItemIndex) }
@@ -518,117 +518,6 @@ fun HomeScreen(
                         content = { }
                     )
                 }
-                /*TopAppBar(
-                    modifier = Modifier
-//                        .onSizeChanged { size -> topAppBarHeight = size.height.toDp(density) }
-                    ,
-                    title = {
-                        SearchBarAdam(
-                            modifier = Modifier
-                                .fillMaxWidth()
-//                                    .padding(top = 4.dp, end = 16.dp)
-                            ,
-                            query = homeState.filterText,
-                            onQueryChange = onUpdateFilterText,
-                            onSearch = {},
-                            active = false,
-                            hasResultTable = false,
-                            permanentDrawer = permanentDrawer,
-                            onBackPressed = {
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                            },
-                            placeholder = {
-                                Text(
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.customColorScheme.lowEmphasisText,
-                                    text = "Filter here!"
-                                )
-                            },
-                            leadingIcon = if (!permanentDrawer) {
-                                {
-                                    IconButton(
-                                        onClick = {
-                                            if (searchbarIsFocused) {
-                                                focusManager.clearFocus()
-                                                keyboardController?.hide()
-                                                onUpdateFilterText("")
-                                            } else onMenuButtonClick()
-                                        }
-                                    ) {
-                                        if (searchbarIsFocused)
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Close"
-                                            )
-                                        else
-                                            Icon(
-                                                imageVector = Icons.Default.Menu,
-                                                contentDescription = "Drawer"
-                                            )
-
-                                    }
-                                }
-                            } else if (searchbarIsFocused) {
-                                {
-                                    IconButton(
-                                        onClick = {
-                                            focusManager.clearFocus()
-                                            keyboardController?.hide()
-                                            onUpdateFilterText("")
-                                        }
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Close"
-                                        )
-                                    }
-                                }
-                            } else null,
-                            trailingIcon = {
-                                Row(
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-//                                        with(sharedTransitionScope){
-                                    SmallFloatingActionButton(
-                                        onClick = {
-                                            onNavigateToAddLocationScreen()
-                                        },
-//                                                modifier = Modifier.sharedBounds(
-//                                                    sharedContentState = rememberSharedContentState(
-//                                                        key = FAB_EXPLODE_KEY
-//                                                    ),
-//                                                    animatedVisibilityScope = animatedVisibilityScope
-//                                                ),
-                                        shape = CircleShape,
-                                        content = {
-                                            Icon(
-                                                painter = painterResource(R.drawable.add_location_24px),
-                                                contentDescription = "Add Location"
-                                            )
-                                        }
-                                    )
-//                                        }
-                                }
-                            },
-                            standardHeight = 48.dp,
-                            interactionSource = searchbarInteractionSource,
-                            content = { }
-                        )
-                    },
-                    scrollBehavior = scrollBehavior,
-                    windowInsets = WindowInsets(
-                        left = 0,
-                        top = TopAppBarDefaults.windowInsets.getTop(density),
-                        right = 0,
-                        bottom = 0
-                    ),
-                    contentPadding = PaddingValues(horizontal = 0.dp),
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Transparent,
-                        scrolledContainerColor = MaterialTheme.customColorScheme.statusBarScrimColor
-                    )
-                )*/
             },
             bottomBar = {
                 if (appSettings.clockGaugeVisibility) {
@@ -646,23 +535,14 @@ fun HomeScreen(
 //                            val dayGaugeImage = ImageBitmap.imageResource(dayGaugeResource)
                         ClockManipulator(
                             gaugeSize = clockGaugeWidth,
-//                                dayGaugeResource = dayGaugeResource,
                             dayGaugeProvider = { dayGauge },
                             homeState = homeRealState,
-//                                clockGaugeRotation = homeState.clockGaugeRotation.value,
-//                                clockGaugeNaturalRotation = homeState.clockGaugeNaturalRotation,
                             clockGaugeRotationCoefficient = clockGaugeRotationCoefficient,
-//                                dayListState = homeState.dayListState,
-//                                dayGaugeIndex = homeState.dayGaugeIndex,
-//                                dayGaugeNaturalIndex = homeState.dayGaugeNaturalIndex,
-//                                visibleDayIndex = homeState.visibleDayIndex,
-//                                clockGaugeLock = homeState.clockGaugeLock,
                             silent = appSettings.silent,
                             vibration = appSettings.vibration,
 
                             onUpdateVisibleDayIndex = remember { onUpdateVisibleDayIndex },
                             onUpdateDayGaugeIndex = remember { onUpdateDayGaugeIndex },
-//                                onHandleClickSound = remember { onHandleClickSound },
                             onUpdateClockGaugeRotation = remember { onUpdateClockGaugeRotation },
                             onStopRotation = remember {
                                 { coroutineScope.launch { homeState.clockGaugeRotation.stop() } }
@@ -1059,7 +939,7 @@ fun HomeScreen(
                                         { locationId, picId ->
                                             coroutineScope.launch(Dispatchers.IO) {
                                                 onDeleteLocation(locationId)
-                                                delay(2000)
+                                                delay(2000.milliseconds)
                                                 val success = File(
                                                     context.filesDir,
                                                     "pictures/pic${picId}"
@@ -1218,7 +1098,7 @@ fun navigateToHomeScreenItem(
                     animationSpec = tween(durationMillis = 700)
                 )
                 onResetDayGauge()
-                delay(200)
+                delay(200.milliseconds)
             }
 
             joinAll(scrollJob, gaugeRotateJob)

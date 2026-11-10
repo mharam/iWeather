@@ -50,6 +50,7 @@ fun DetailScreen(
     detailViewModel: DetailViewModel,
     singlePane: Boolean = true,
     trialPeriodExpired: Boolean?,
+    hasDonated: Boolean?,
 //    dataReady: Boolean = true,
 //    sharedTransitionScope: SharedTransitionScope,
 //    animatedContentScope: AnimatedContentScope,
@@ -57,7 +58,8 @@ fun DetailScreen(
     onNavigateUp: (pageNumber: Int) -> Unit,
     onNavigateToAQDetail: (pageNumber: Int, scrollValue: Int) -> Unit,
     onNavigateToDonateScreen: () -> Unit,
-    onNavigateToLoginScreen: () -> Unit
+    onNavigateToLoginScreen: () -> Unit,
+    onConnectRetry: () -> Unit,
 ) {
 
     var offsetY by remember { mutableFloatStateOf(0f) }
@@ -191,6 +193,7 @@ fun DetailScreen(
             appSettings = appSettings,
             initialLandscape = detailViewModel.initialLandScape,
             trialPeriodExpired = trialPeriodExpired,
+            hasDonated = hasDonated,
 //            dataReady = dataReady,
 
             onResetScrollStates = {
@@ -205,7 +208,8 @@ fun DetailScreen(
             onNavigateUp = remember { onNavigateUp },
             onNavigateToAQDetail = remember { onNavigateToAQDetail },
             onNavigateToDonateScreen = remember { onNavigateToDonateScreen },
-            onNavigateToLoginScreen = remember { onNavigateToLoginScreen }
+            onNavigateToLoginScreen = remember { onNavigateToLoginScreen },
+            onConnectRetry = remember { onConnectRetry }
 //            sharedTransitionScope = sharedTransitionScope,
 //            animatedContentScope = animatedContentScope
         )

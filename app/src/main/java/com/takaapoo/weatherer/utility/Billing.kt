@@ -29,7 +29,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -38,7 +42,7 @@ class Billing @Inject constructor(
     @param:ApplicationContext private val context: Context,
     val preferenceRepository: PreferenceRepository,
 ) {
-    var hasDonated: Boolean? = null
+//    var hasDonated: Boolean? = null
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val oneTimeProductsIds = listOf("donate_03", "donate_05", "donate_10")
     private val subscriptionProductsIds = listOf("donate_03_year", "donate_05_year")
@@ -47,6 +51,19 @@ class Billing @Inject constructor(
 
     private val _billingState = MutableStateFlow(BillingState())
     val billingState = _billingState.asStateFlow()
+
+    val hasDonated = combine(
+        flow =_billingState.map { it.hasDonatedINAPP },
+        flow2 = _billingState.map { it.hasDonatedSUBS }
+    ) { inApp, subs ->
+        if (inApp == true || subs == true) true
+        else if (inApp == false && subs == false) false
+        else null
+    }.stateIn(
+        coroutineScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
 
     private var connectRetryCount = 0
 
@@ -70,6 +87,7 @@ class Billing @Inject constructor(
     val billingClient = BillingClient.newBuilder(context)
         .setListener(purchasesUpdatedListener)
         .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
+        .enableAutoServiceReconnection()
         .build()
 
 
@@ -94,16 +112,18 @@ class Billing @Inject constructor(
     }
 
     fun queryPurchases() {
+        Log.i("purchase2", "queryPurchases Starts!")
         purchasedProductsIds.clear()
         val queryInAppPurchaseParams = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.INAPP)
             .build()
         billingClient.queryPurchasesAsync(queryInAppPurchaseParams){ billingResult: BillingResult, purchases: List<Purchase?> ->
+            Log.i("purchase2", "Response listener!")
             if (billingResult.responseCode == BillingResponseCode.OK) {
                 coroutineScope.launch {
-                    if (purchases.isEmpty() && hasDonated != null) {
+                    if (purchases.isEmpty()) {
                         preferenceRepository.updateDonateState(state = false)
-                        hasDonated = false
+                        updateHasDonatedINAPP(false)
                     }
                     purchases.forEach { purchase ->
                         purchasedProductsIds.addAll(purchase?.products ?: emptyList())
@@ -122,9 +142,9 @@ class Billing @Inject constructor(
         billingClient.queryPurchasesAsync(querySubscriptionPurchaseParams){ billingResult: BillingResult, purchases: List<Purchase?> ->
             if (billingResult.responseCode == BillingResponseCode.OK) {
                 coroutineScope.launch {
-                    if (purchases.isEmpty() && hasDonated != null) {
+                    if (purchases.isEmpty()) {
                         preferenceRepository.updateDonateState(state = false)
-                        hasDonated = false
+                        updateHasDonatedSUBS(false)
                     }
                     purchases.forEach { purchase ->
                         purchasedProductsIds.addAll(purchase?.products ?: emptyList())
@@ -136,6 +156,7 @@ class Billing @Inject constructor(
                 }
             }
         }
+        Log.i("purchase2", "queryPurchases Ends!")
     }
 
     fun processPurchases() {
@@ -203,7 +224,10 @@ class Billing @Inject constructor(
         if (purchase.purchaseState == PurchaseState.PURCHASED) {
             coroutineScope.launch {
                 preferenceRepository.updateDonateState(state = true)
-                hasDonated = true
+                if (oneTimeProductsIds.containsAny(purchase.products))
+                    updateHasDonatedINAPP(true)
+                if (subscriptionProductsIds.containsAny(purchase.products))
+                    updateHasDonatedSUBS(true)
 
                 /*purchase.products.forEach { id ->
                     if (oneTimeProductsIds.contains(id)){
@@ -220,7 +244,7 @@ class Billing @Inject constructor(
                 }*/
                 Log.i("purchase1", "isAcknowledged = ${purchase.isAcknowledged}")
                 if (!purchase.isAcknowledged){
-                    if (oneTimeProductsIds.containsAny(purchase.products) &&
+                    if (oneTimeProductsIds.containsAny(purchase.products) ||
                         subscriptionProductsIds.containsAny(purchase.products)) {
                         val acknowledgeParams = AcknowledgePurchaseParams.newBuilder()
                             .setPurchaseToken(purchase.purchaseToken)
@@ -244,8 +268,6 @@ class Billing @Inject constructor(
                             updatePurchaseSuccessDialogVisibility(true)
                         }
                     }*/
-                } else {
-
                 }
             }
         }
@@ -309,6 +331,17 @@ class Billing @Inject constructor(
             it.copy(
                 purchaseSuccessDialogVisibility = visible
             )
+        }
+    }
+
+    fun updateHasDonatedINAPP(donated: Boolean?){
+        _billingState.update {
+            it.copy(hasDonatedINAPP = donated)
+        }
+    }
+    fun updateHasDonatedSUBS(donated: Boolean?){
+        _billingState.update {
+            it.copy(hasDonatedSUBS = donated)
         }
     }
 }

@@ -19,7 +19,7 @@ plugins {
 
 kotlin {
     compilerOptions {
-        jvmTarget = JvmTarget.JVM_11
+        jvmTarget = JvmTarget.JVM_17
     }
 }
 composeCompiler {
@@ -50,7 +50,7 @@ composeCompiler {
 
     defaultConfig {
         applicationId = "com.takaapoo.weatherer"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 37
         versionCode = 2
         versionName = "0.0"
@@ -87,8 +87,8 @@ composeCompiler {
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     buildFeatures {
@@ -113,11 +113,15 @@ composeCompiler {
 //}
 
 dependencies {
+    val composeBom = platform(libs.compose.bom)
+    implementation(composeBom)
+    testImplementation(composeBom)
+    androidTestImplementation(composeBom)
 
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.activity.compose)
-    implementation(platform(libs.compose.bom))
+    implementation(libs.review.ktx)
     implementation(libs.ui)
     implementation(libs.ui.graphics)
     implementation(libs.ui.tooling.preview)
@@ -125,6 +129,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-core:1.7.7")
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.appcompat)
+    implementation(libs.androidx.locationbutton.compose)
 
     // AnchoredDraggable
     implementation(libs.androidx.foundation)
@@ -246,6 +251,9 @@ dependencies {
     implementation(libs.bundles.navigation3)
     implementation(libs.kotlinx.serialization.core)
 
+    // Jetpack Webkit
+    implementation(libs.jetpack.webkit)
+
 
 
     // Rebugger
@@ -259,7 +267,8 @@ dependencies {
     implementation(libs.credentials.play.services)
     implementation(libs.googleid)
 
-
+    // Kotlin Coroutine for play service location finder
+    implementation(libs.kotlinx.coroutines.play.services)
 
 
 
@@ -269,7 +278,6 @@ dependencies {
 
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
-    androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)

@@ -13,6 +13,7 @@ import com.takaapoo.weatherer.ui.screens.detail.DailyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.HourlyWeatherQuantity
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartGrids
 import com.takaapoo.weatherer.ui.screens.detail.hourly_diagram.ChartTheme
+import com.takaapoo.weatherer.ui.screens.radar.RadarClocks
 import kotlinx.coroutines.flow.Flow
 
 interface PreferenceRepository {
@@ -64,9 +65,13 @@ interface PreferenceRepository {
     suspend fun setWidgetDateTime(time: HourlyDiagramTime)
     suspend fun setWidgetHourlyDiagramQuantities(quantities: List<HourlyWeatherQuantity>)
     suspend fun setAddLocationHelpVisible(visible: Boolean)
-    suspend fun setUserId(userId: String)
+    suspend fun setUserId(userId: String?)
     suspend fun setUserName(userName: String?)
     suspend fun setUserPicture(userPicture: String?)
+    suspend fun setRadarCrossHairVisible(visible: Boolean)
+    suspend fun setRadarElevationVisible(visible: Boolean)
+    suspend fun setRadarClockGaugeVisible(visible: Boolean)
+    suspend fun setRadarClock(clock: RadarClocks)
 
 
 //    suspend fun setNotificationCount(count: Int)

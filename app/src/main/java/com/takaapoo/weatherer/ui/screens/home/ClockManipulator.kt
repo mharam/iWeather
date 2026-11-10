@@ -1,7 +1,6 @@
 package com.takaapoo.weatherer.ui.screens.home
 
 import android.media.MediaPlayer
-import androidx.annotation.VisibleForTesting
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.VectorConverter
@@ -103,6 +102,7 @@ import java.time.Duration
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.sign
+import kotlin.time.Duration.Companion.milliseconds
 
 val dayList = listOf("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
 
@@ -132,9 +132,8 @@ fun ClockManipulator(
     onStopRotation: () -> Unit,
     onDecayRotation: (velocity: Float) -> Unit,
     onUpdateClockGaugeLock: (lock: Boolean) -> Unit,
-    onUndoButtonPressed: () -> Unit,
-
-    ) {
+    onUndoButtonPressed: () -> Unit
+) {
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val context = LocalContext.current
@@ -436,8 +435,8 @@ fun TenseText(
     }
 }
 
-@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-internal suspend fun playClick(
+//@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+suspend fun playClick(
     clickSound: List<MediaPlayer>,
     clickStarted: MutableList<Boolean>,
     hapticFeedback: HapticFeedback,
@@ -453,7 +452,7 @@ internal suspend fun playClick(
     repeat(clickCount) { i ->
         if (!silent) clickSound[toBePlayedIndices[i]].start()
         if (vibration) hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        delay(20)
+        delay(20.milliseconds)
         clickStarted[toBePlayedIndices[i]] = false
     }
 }
@@ -497,7 +496,6 @@ fun DayGauge(
                 .clip(DayGaugeShape()),
             state = dayListState,
             flingBehavior = rememberSnapFlingBehavior(lazyListState = dayListState)
-
         ) {
             items(count = Int.MAX_VALUE){ dayIndex ->
                 Text(

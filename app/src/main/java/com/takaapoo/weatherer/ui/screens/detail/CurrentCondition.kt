@@ -137,16 +137,6 @@ fun CurrentCondition(
             hourlyWeatherQuantity.forEachIndexed { index, quantity ->
                 val quantityName =
                     quantity.title ?: AnnotatedString(stringResource(id = quantity.nameId!!))
-//                val (controlPoints1, controlPoints2) = quantityControlPoints(
-//                    weatherData = detailState.currentDayHourlyWeather,
-//                    airData = detailState.currentDayHourlyAirQuality,
-//                    weatherQuantity = quantity
-//                )
-//                val data = quantityData(
-//                    weatherData = currentDayHourlyWeather,
-//                    airData = currentDayHourlyAirQuality,
-//                    weatherQuantity = quantity
-//                )
                 val quantityValue = weatherCurveXtoY(
                     quantity = quantity,
                     appSettings = appSettings,
@@ -156,44 +146,7 @@ fun CurrentCondition(
                     lastPointX = lastPointX,
                     targetX = targetX
                 )
-
-
-                    /*when (quantity.graphType()){
-//                    GraphTypes.CUBIC -> cubicCurveXtoY(
-//                        data = data,
-//                        controlPoints1 = controlPoints1,
-//                        controlPoints2 = controlPoints2,
-//                        firstPointX = firstPointX,
-//                        lastPointX = lastPointX,
-//                        targetX = detailState.targetX
-//                    )?.coerceAtLeast(
-//                        if (quantity == WeatherQuantity.DEWPOINT || quantity == WeatherQuantity.FREEZINGLEVELHEIGHT)
-//                            -Float.MAX_VALUE
-//                        else 0f
-//                    )
-                    GraphTypes.CUBIC, GraphTypes.LINEAR -> linearCurveXtoY(
-                        data = data,
-                        firstPointX = firstPointX,
-                        lastPointX = lastPointX,
-                        targetX = targetX
-                    )
-                    GraphTypes.STEP -> stepCurveXtoY(
-                        data = data,
-                        firstPointX = firstPointX,
-                        lastPointX = lastPointX,
-                        targetX = targetX
-                    )
-                }*//*?.toAppropriateUnit(quantity, appSettings)*/
                 val quantityValueText = quantity.quantityValueText(quantityValue, appSettings)
-                    /*buildAnnotatedString {
-                    append(
-                        if (quantityValue != null) {
-                            if (quantityValue == 0f) "0"
-                            else "%.${quantity.floatingPointDigits(appSettings)}f".format(quantityValue)
-                        } else "?"
-                    )
-                    append(quantity.unit(appSettings = appSettings))
-                }*/
 
                 val isOnSeparateRow = 4*textMiddleX[index] > (boxWidth - spaceOccupiedByValue)
                 if (isOnSeparateRow) {

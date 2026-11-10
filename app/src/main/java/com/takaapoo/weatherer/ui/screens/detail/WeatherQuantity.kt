@@ -3,7 +3,6 @@ package com.takaapoo.weatherer.ui.screens.detail
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -23,17 +22,24 @@ import com.takaapoo.weatherer.ui.theme.BarOrange
 import com.takaapoo.weatherer.ui.theme.BarRed
 import com.takaapoo.weatherer.ui.theme.BarYellow
 import com.takaapoo.weatherer.ui.theme.Cmu
-import com.takaapoo.weatherer.ui.theme.Transparent
-import com.takaapoo.weatherer.ui.theme.UVGreen
-import com.takaapoo.weatherer.ui.theme.UVMagenta
-import com.takaapoo.weatherer.ui.theme.UVOrange
-import com.takaapoo.weatherer.ui.theme.UVRed
-import com.takaapoo.weatherer.ui.theme.UVYellow
+import com.takaapoo.weatherer.ui.theme.UVGreen1
+import com.takaapoo.weatherer.ui.theme.UVGreen2
+import com.takaapoo.weatherer.ui.theme.UVGreen3
+import com.takaapoo.weatherer.ui.theme.UVMagenta1
+import com.takaapoo.weatherer.ui.theme.UVOrange1
+import com.takaapoo.weatherer.ui.theme.UVOrange2
+import com.takaapoo.weatherer.ui.theme.UVRed1
+import com.takaapoo.weatherer.ui.theme.UVRed2
+import com.takaapoo.weatherer.ui.theme.UVRed3
+import com.takaapoo.weatherer.ui.theme.UVYellow1
+import com.takaapoo.weatherer.ui.theme.UVYellow2
+import com.takaapoo.weatherer.ui.theme.UVYellow3
 import com.takaapoo.weatherer.ui.theme.curveBlue
 import com.takaapoo.weatherer.ui.theme.curveGreen
 import com.takaapoo.weatherer.ui.theme.curveMagenta
 import com.takaapoo.weatherer.ui.theme.curveOrange
 import com.takaapoo.weatherer.ui.theme.curvePink
+import com.takaapoo.weatherer.utility.lerpMultipleColors
 import kotlin.math.abs
 import kotlin.math.pow
 
@@ -326,6 +332,7 @@ enum class HourlyWeatherQuantity(
     override fun floatingPointDigits(appSettings: AppSettings) =
         when (this@HourlyWeatherQuantity){
             TEMPERATURE, DEWPOINT, APPARENTTEMP, VISIBILITY, UVINDEX, PM10, PM2_5, NO2, SO2, Ozone -> 1
+            CO -> 2
             PRECIPITATION, RAIN, SHOWERS -> when (appSettings.lengthUnit){
                 Length.SI -> 1
                 Length.IMPERIAL -> 3
@@ -346,7 +353,8 @@ enum class HourlyWeatherQuantity(
     fun quantityValueText(
         quantityValue: Float?,
         appSettings: AppSettings,
-        unitVisible: Boolean = true
+        unitVisible: Boolean = true,
+        degreeSignVisible: Boolean = false,
     ): AnnotatedString {
         val modifiedValue = when (this) {
             HUMIDITY, PRECIPITATIONPROBABILITY, CLOUDCOVER -> quantityValue?.coerceIn(0f, 100f)
@@ -366,6 +374,8 @@ enum class HourlyWeatherQuantity(
             )
             if (unitVisible)
                 append(this@HourlyWeatherQuantity.unit(appSettings = appSettings))
+            else if (degreeSignVisible && this@HourlyWeatherQuantity == TEMPERATURE)
+                append("°")
         }
     }
 
@@ -444,8 +454,8 @@ enum class DailyWeatherQuantity(
         nameId = R.string.uv_index_MAX,
         iconId = R.drawable.uv,
         brushColors = listOf(
-            UVGreen, UVGreen, UVGreen, UVYellow, UVYellow, UVYellow, UVOrange, UVOrange,
-            UVRed, UVRed, UVRed, UVMagenta
+            UVGreen1, UVGreen2, UVGreen3, UVYellow1, UVYellow2, UVYellow3, UVOrange1, UVOrange2,
+            UVRed1, UVRed2, UVRed3, UVMagenta1
         ),
         historicalState = HistoricalState.FORECAST_ONLY
     ),
@@ -518,22 +528,6 @@ enum class DailyWeatherQuantity(
             )
             if (unitVisible)
                 append(this@DailyWeatherQuantity.unit(appSettings = appSettings))
-        }
-    }
-}
-
-fun lerpMultipleColors(colors: List<Color>, fraction: Float): Color {
-    return when (colors.size){
-        0 -> Transparent
-        1 -> colors[0]
-        2 -> lerp(colors[0], colors[1], fraction)
-        else -> {
-            if (fraction == 1f) colors.last()
-            else {
-                val index1 = (fraction * (colors.size - 1)).toInt()
-                val index2 = index1 + 1
-                lerp(colors[index1], colors[index2], fraction * (colors.size - 1) - index1)
-            }
         }
     }
 }
