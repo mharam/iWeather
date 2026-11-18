@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.util.Log
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.animation.AnimatedVisibility
@@ -29,7 +31,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -99,18 +100,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.model.AppSettings
-import com.takaapoo.weatherer.domain.model.AppTheme
 import com.takaapoo.weatherer.domain.model.LocationsBriefState
 import com.takaapoo.weatherer.domain.model.RadarState
 import com.takaapoo.weatherer.domain.unit.Length
 import com.takaapoo.weatherer.ui.screens.radar.RadarWeatherQuantity.Companion.applyUnit
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.customColorScheme
+import com.takaapoo.weatherer.ui.theme.isDarkTheme
 import com.takaapoo.weatherer.utility.BorderedText
 import com.takaapoo.weatherer.utility.clockGaugeWidth
 import com.takaapoo.weatherer.utility.clockRotationCoefficient
@@ -164,6 +166,7 @@ fun RadarScreen(
     onBalanceClockGaugeValues: () -> Unit,
     onResetDayGauge: () -> Unit,
     onInitializeClockGauge: () -> Unit,
+    onUpdateClockGaugeTime: () -> Unit,
     onUpdateClockGaugeDragStopped: (Boolean) -> Unit,
     onUpdateNoDataWarningVisible: (visible: Boolean) -> Unit,
     onCalculateDataIndex: (weatherModel: WeatherModels) -> Int?,
@@ -211,8 +214,10 @@ fun RadarScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
+    onInitializeClockGauge()
+    val isDark = MaterialTheme.isDarkTheme
+
     LaunchedEffect(Unit) {
-        onInitializeClockGauge()
         onUpdateElevation(null)
         onUpdateQuantityValue(null)
         titleAnimationState = TitleState.OneTitle
@@ -251,7 +256,6 @@ fun RadarScreen(
     ) {
         if (isPageReady && (quantityChangeSuccessful || modelChangeSuccessful) && currentServerName != null) {
             onCalculateDataIndex(selectedModel)?.let { timeIndex ->
-                Log.i("vel1", "timeIndex = $timeIndex , time = ${radarState.clockGaugeTime}")
                 if (timeIndex == -1) {
                     onUpdateQuantityValue(null)
                     titleAnimationState = TitleState.OldTitleExit
@@ -263,7 +267,8 @@ fun RadarScreen(
                     webView = webView,
                     variable = currentServerName!!,
                     weatherModel = selectedModel.serverName,
-                    timeIndex = timeIndex
+                    timeIndex = timeIndex,
+                    dark = isDark
                 )
             }
         }
@@ -271,6 +276,8 @@ fun RadarScreen(
     LaunchedEffect(
         radarState.clockGaugeRotation.isRunning,
         dayListState.isScrollInProgress,
+        radarState.clockGaugeNaturalRotation,
+        radarState.dayGaugeNaturalIndex
     ) {
         if (!radarState.clockGaugeRotation.isRunning && !dayListState.isScrollInProgress &&
             radarState.clockGaugeDragStopped && isPageReady && currentServerName != null)
@@ -281,7 +288,7 @@ fun RadarScreen(
                 .plusHours((-radarState.clockGaugeRotation.value / 15).roundToLong())
 
             if (clockGaugeTime != radarState.clockGaugeTime) {
-                onInitializeClockGauge()
+                onUpdateClockGaugeTime()
                 val timeIndex = onCalculateDataIndex(selectedModel) ?: return@LaunchedEffect
                 onUpdateNoDataWarningVisible(timeIndex == -1)
                 onUpdateLoadingIndicatorVisible(timeIndex != -1)
@@ -290,7 +297,8 @@ fun RadarScreen(
                     webView = webView,
                     variable = currentServerName!!,
                     weatherModel = selectedModel.serverName,
-                    timeIndex = timeIndex
+                    timeIndex = timeIndex,
+                    dark = isDark
                 )
             }
         }
@@ -307,7 +315,8 @@ fun RadarScreen(
                     webView = webView,
                     variable = currentServerName!!,
                     weatherModel = selectedModel.serverName,
-                    timeIndex = timeIndex
+                    timeIndex = timeIndex,
+                    dark = isDark
                 )
             }
         }
@@ -321,16 +330,6 @@ fun RadarScreen(
 
             onDismissRequest = { onUpdateQuantityDialogVisible(false) },
             onConfirmation = { quantity, model ->
-                if (selectedQuantity != quantity) {
-                    quantityChangeSuccessful = true
-                    selectedQuantity = quantity
-                    titleAnimationState = TitleState.NewTitleEnter
-                }
-                if (selectedModel != model) {
-                    modelChangeSuccessful = true
-                    selectedModel = model
-                    modelAnimationState = TitleState.NewTitleEnter
-                }
                 if (selectedQuantity == quantity && selectedModel == model) {
                     onCalculateDataIndex(model)?.let { timeIndex ->
                         if (timeIndex == -1) {
@@ -342,14 +341,27 @@ fun RadarScreen(
                             webView = webView,
                             variable = currentServerName!!,
                             weatherModel = model.serverName,
-                            timeIndex = timeIndex
+                            timeIndex = timeIndex,
+                            dark = isDark
                         )
+                    }
+                } else {
+                    if (selectedQuantity != quantity) {
+                        quantityChangeSuccessful = true
+                        selectedQuantity = quantity
+                        titleAnimationState = TitleState.NewTitleEnter
+                    }
+                    if (selectedModel != model) {
+                        modelChangeSuccessful = true
+                        selectedModel = model
+                        modelAnimationState = TitleState.NewTitleEnter
                     }
                 }
             },
         )
     }
 
+    val dayGauge = !MaterialTheme.isDarkTheme
     when (radarState.radarInitializationStatus) {
         is MyResult.Error -> {
             RadarErrorScreen(
@@ -427,7 +439,8 @@ fun RadarScreen(
                                 IconButton(onClick = onNavigateUp) {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "Back"
+                                        contentDescription = "Back",
+                                        tint = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }
@@ -467,11 +480,6 @@ fun RadarScreen(
                                 .fillMaxWidth()
                                 .padding(bottom = 8.dp)
                         ) {
-                            val dayGauge = when (appSettings.theme) {
-                                AppTheme.LIGHT -> true
-                                AppTheme.DARK -> false
-                                AppTheme.SYSTEM -> !isSystemInDarkTheme()
-                            }
                             RadarClockManipulator(
                                 gaugeSize = clockGaugeWidth,
                                 dayListState = dayListState,
@@ -526,11 +534,18 @@ fun RadarScreen(
                 val topPadding = paddingValues.calculateTopPadding()
                 val borderColor = MaterialTheme.colorScheme.primaryContainer
                 val surfaceColor = MaterialTheme.colorScheme.surface
+                val webViewOrigin = "https://appassets.androidplatform.net"
 
                 Box(modifier = Modifier.fillMaxSize()) {
                     AndroidView(
                         modifier = Modifier.fillMaxSize(),
                         factory = { _ ->
+                            val assetLoader = WebViewAssetLoader.Builder()
+                                .addPathHandler(
+                                    "/assets/",
+                                    WebViewAssetLoader.AssetsPathHandler(context)
+                                )
+                                .build()
                             webView.apply {
                                 webChromeClient = object : WebChromeClient() {
                                     override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
@@ -545,16 +560,15 @@ fun RadarScreen(
                                     }
                                 }
                                 webViewClient = object : WebViewClient() {
-                                    override fun onPageFinished(view: WebView?, url: String?) {
-                                        super.onPageFinished(view, url)
-                                        isPageReady = true
-
-//                                Log.i("WebViewConsole1", "onPageFinished(): serverName = ${currentServerName}")
-                                        // Execute any pending update
-//                                currentServerName?.let { variable ->
-//                                    updateWeatherLayer(view!!, variable)
-//                                }
-                                    }
+//                                    override fun onPageFinished(view: WebView?, url: String?) {
+//                                        super.onPageFinished(view, url)
+//                                        isPageReady = true
+//                                        Log.i("send1", "onPageFinished!")
+//                                    }
+                                    override fun shouldInterceptRequest(
+                                        view: WebView,
+                                        request: WebResourceRequest
+                                    ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
                                 }
                                 settings.javaScriptEnabled = true
                                 settings.domStorageEnabled = true
@@ -589,11 +603,13 @@ fun RadarScreen(
                                             )
                                         }
                                     },
+                                    onPageReady = { isPageReady = true },
                                 )
+
                                 val adoptedBorderColor = borderColor.toArgb().toHexString().substring(2)
                                 val adoptedSurfaceColor = surfaceColor.toArgb().toHexString().substring(2)
                                 loadDataWithBaseURL(
-                                    "https://maps.open-meteo.com/", // Base URL context to fix domain relative checks
+                                    "$webViewOrigin/assets/", // Base URL context to fix domain relative checks
                                     radarMap.replace(
                                         oldValue = "top: 100px !important;",
                                         newValue = "top: ${topPadding.value + valueBarHeight.value}px !important;"
@@ -606,10 +622,16 @@ fun RadarScreen(
                                     ).replace(
                                         oldValue = "background-color: #ff0000",
                                         newValue = "background-color: #$adoptedSurfaceColor"
+                                    ).replace(
+                                        oldValue = "filter: invert(1);",
+                                        newValue = "filter: invert(${if (dayGauge) 0 else 1});"
+                                    ).replace(
+                                        oldValue = "style: style",
+                                        newValue = "style: ${if (isDark) "darkStyle" else "lightStyle"}"
                                     ),
                                     "text/html",
                                     "UTF-8",
-                                    "https://maps.open-meteo.com/"
+                                    "$webViewOrigin/assets/"
                                 )
 //                        clearCache(true)
                             }
@@ -865,6 +887,7 @@ fun TitleContent(
                     modifier = Modifier,
                     text = stringResource(quantity.nameId),
                     style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                     autoSize = TextAutoSize.StepBased(
                         minFontSize = 16.sp,
                         maxFontSize = 20.sp,
@@ -876,6 +899,7 @@ fun TitleContent(
                     modifier = Modifier,
                     text = quantity.title!!,
                     style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                     autoSize = TextAutoSize.StepBased(
                         minFontSize = 16.sp,
                         maxFontSize = 20.sp,
@@ -900,7 +924,10 @@ private fun ValueBar(
     ) {
         var colorBarWidth by remember { mutableStateOf(0.dp) }
         val colorBreakPoints = RadarWeatherQuantity.colorBreakpoints(radarState.quantity)
-        val colorScale = RadarWeatherQuantity.colorScale(radarState.quantity)
+        val colorScale = RadarWeatherQuantity.colorScale(
+            quantity = radarState.quantity,
+            isDark = MaterialTheme.isDarkTheme
+        )
 //        var boxColor = MaterialTheme.colorScheme.surface
 
         /*radarState.quantityValue?.let { quantityValue ->
@@ -1152,10 +1179,16 @@ private fun NoDataWarning(
 
 }
 
-fun updateWeatherLayer(webView: WebView, variable: String, weatherModel: String, timeIndex: Int) {
+fun updateWeatherLayer(
+    webView: WebView,
+    variable: String,
+    weatherModel: String,
+    timeIndex: Int,
+    dark: Boolean,
+) {
     webView.evaluateJavascript(
         """
-            window.updateWeatherLayer('$variable', '$weatherModel', '$timeIndex', 1)
+            window.updateWeatherLayer('$variable', '$weatherModel', '$timeIndex', 1, $dark)
                 .then(function(result) {
                     console.log(result);
                 })
@@ -1193,12 +1226,18 @@ private fun addWebMessageListener(
     onUpdateTitleAnimationState: (TitleState) -> Unit,
     onRevertSelectedQuantity: () -> Unit,
     onDisplaySnackbarMessage: (message: String) -> Unit,
+    onPageReady: () -> Unit,
 ) {
+    val webViewOrigin = "https://appassets.androidplatform.net"
     if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+        WebViewCompat.removeWebMessageListener(webView, "AndroidBridge")
+        WebViewCompat.removeWebMessageListener(webView, "AndroidQuantityBridge")
+        WebViewCompat.removeWebMessageListener(webView, "AndroidSnackbarBridge")
+
         WebViewCompat.addWebMessageListener(
             webView,
             "AndroidBridge",
-            setOf("https://maps.open-meteo.com")
+            setOf(webViewOrigin)
         ) { _, wMessageCompat, _, _, _ ->
             try {
                 val jsonData = JSONObject(wMessageCompat.data ?: "{}")
@@ -1229,6 +1268,10 @@ private fun addWebMessageListener(
                             onUpdateElevation(elevation)
                         }
                     }
+                    "pageReady" -> {
+                        onPageReady()
+                        Log.i("send1", "Page is ready!")
+                    }
                     else -> Log.w("WebView", "Unknown function: $function")
                 }
 
@@ -1239,7 +1282,7 @@ private fun addWebMessageListener(
         WebViewCompat.addWebMessageListener(
             webView,
             "AndroidQuantityBridge",
-            setOf("https://maps.open-meteo.com")
+            setOf(webViewOrigin)
         ) { _, wMessageCompat, _, _, _ ->
             try {
                 val jsonData = JSONObject(wMessageCompat.data ?: "{}")
@@ -1256,7 +1299,7 @@ private fun addWebMessageListener(
         WebViewCompat.addWebMessageListener(
             webView,
             "AndroidSnackbarBridge",
-            setOf("https://maps.open-meteo.com")
+            setOf(webViewOrigin)
         ) { _, wMessageCompat, _, _, _ ->
             try {
                 val jsonData = JSONObject(wMessageCompat.data ?: "{}")

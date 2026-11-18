@@ -91,7 +91,7 @@ class RadarViewModel @Inject constructor(
                 initializeClockGauge()
                 flow<Unit> {
                     while (isConnected) {
-                        updateRadarSpecs()
+                        this@launch.updateRadarSpecs()
                         delay(30.minutes)
                     }
                 }
@@ -102,7 +102,7 @@ class RadarViewModel @Inject constructor(
     private suspend fun CoroutineScope.updateRadarSpecs() {
         val specsResultDeferred =  WeatherModels.entries.map {
             async {
-                radarRepository.getRadarSpecs(it.serverName)
+                radarRepository.getRadarSpecs(it.metadata)
             }
         }
         try {
@@ -136,9 +136,6 @@ class RadarViewModel @Inject constructor(
                 clockGaugeNaturalRotation = - (utcNow.toLocalTime().hour + utcOffset + 1) * 15f,
                 dayGaugeNaturalIndex = Int.MAX_VALUE / 2 + now.dayOfWeek.value - 1 +
                         (now.toLocalTime().hour + 1) / 24,
-                clockGaugeTime = utcNow.truncatedTo(ChronoUnit.HOURS).plusHours(1)
-                    .plusDays(_radarState.value.dayGaugeIndex.toLong())
-                    .plusHours((-_radarState.value.clockGaugeRotation.value / 15).roundToLong())
             )
         }
     }
@@ -304,6 +301,16 @@ class RadarViewModel @Inject constructor(
         _radarState.update {
             it.copy(
                 noDataWarningVisible = visible
+            )
+        }
+    }
+    fun updateClockGaugeTime() {
+        val utcNow = LocalDateTime.now(utcClock)
+        _radarState.update {
+            it.copy(
+                clockGaugeTime = utcNow.truncatedTo(ChronoUnit.HOURS).plusHours(1)
+                    .plusDays(_radarState.value.dayGaugeIndex.toLong())
+                    .plusHours((-_radarState.value.clockGaugeRotation.value / 15).roundToLong())
             )
         }
     }

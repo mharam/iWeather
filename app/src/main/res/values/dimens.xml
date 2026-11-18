@@ -78,5 +78,6 @@
     <dimen name="widget1_circle_radius">36dp</dimen>
     <dimen name="widget_corner_radius">24dp</dimen>
 
+    <dimen name="dialog_multi_choice_row_height">48dp</dimen>
 
 </resources>

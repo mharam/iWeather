@@ -593,6 +593,7 @@ fun WeatherNavGraph(
                 onBalanceClockGaugeValues = radarViewModel::balanceClockGaugeValues,
                 onResetDayGauge = radarViewModel::resetDayGauge,
                 onInitializeClockGauge = remember { radarViewModel::initializeClockGauge },
+                onUpdateClockGaugeTime = remember { radarViewModel::updateClockGaugeTime },
                 onUpdateClockGaugeDragStopped = radarViewModel::updateClockGaugeDragStopped,
                 onUpdateNoDataWarningVisible = remember { radarViewModel::updateNoDataWarningVisible },
                 onCalculateDataIndex = remember { radarViewModel::calculateDataIndex },

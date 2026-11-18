@@ -3,6 +3,7 @@ package com.takaapoo.weatherer.ui.screens.radar
 enum class WeatherModels(
     val title: String,
     val serverName: String,
+    val metadata: String = serverName,
     val global: Boolean
 ) {
     CAMS_GLOBAL(
@@ -13,15 +14,16 @@ enum class WeatherModels(
 
     CHMI_EUROPE(
         title = "CHMI (Europe)",
-        serverName = "chmi_aladin_central_europe_2km",
+        serverName = "chmi_seamless",
+        metadata = "chmi_aladin_central_europe_2km",
         global = false,
     ),
 
-    CHMI_CZECH(
-        title = "CHMI (Czech Republic)",
-        serverName = "chmi_aladin_cz_1km",
-        global = false,
-    ),
+//    CHMI_CZECH(
+//        title = "CHMI (Czech Republic)",
+//        serverName = "chmi_aladin_cz_1km",
+//        global = false,
+//    ),
 
     DMI_DENMARK(
         title = "DMI (Europe)",
@@ -31,7 +33,8 @@ enum class WeatherModels(
 
     DWD_GLOBAL(
         title = "DWD ICON",
-        serverName = "dwd_icon",
+        serverName = "dwd_icon_seamless",
+        metadata = "dwd_icon",
         global = true,
     ),
 
@@ -41,11 +44,11 @@ enum class WeatherModels(
         global = true,
     ),
 
-    DWD_EUROPE(
-        title = "DWD ICON (Europe)",
-        serverName = "dwd_icon_eu",
-        global = false,
-    ),
+//    DWD_EUROPE(
+//        title = "DWD ICON (Europe)",
+//        serverName = "dwd_icon_eu",
+//        global = false,
+//    ),
 
     DWD_EUROPE_ENSEMBLE(
         title = "DWD ICON Ensemble (Europe)",
@@ -53,11 +56,11 @@ enum class WeatherModels(
         global = false,
     ),
 
-    DWD_D2(
-        title = "DWD ICON (Germany)",
-        serverName = "dwd_icon_d2",
-        global = false,
-    ),
+//    DWD_D2(
+//        title = "DWD ICON (Germany)",
+//        serverName = "dwd_icon_d2",
+//        global = false,
+//    ),
 
     DWD_D2_ENSEMBLE(
         title = "DWD ICON Ensemble (Germany)",
@@ -67,7 +70,8 @@ enum class WeatherModels(
 
     NOAA_GFS_025(
         title = "NOAA GFS (0.25°)",
-        serverName = "ncep_gfs025",
+        serverName = "ncep_gfs_seamless",
+        metadata = "ncep_gfs025",
         global = true,
     ),
 
@@ -78,7 +82,7 @@ enum class WeatherModels(
     ),
 
     NOAA_GFS_025_ENSEMBLE(
-        title = "NOAA GFS Ensemble (0.25°)",
+        title = "NOAA GFS (0.25°)",
         serverName = "ncep_gefs025",
         global = true,
     ),
@@ -90,7 +94,7 @@ enum class WeatherModels(
     ),
 
     ECMWF_IFS_025_ENSEMBLE(
-        title = "ECMWF IFS Ensemble (0.25°)",
+        title = "ECMWF IFS (0.25°)",
         serverName = "ecmwf_ifs025_ensemble",
         global = true,
     ),
@@ -103,12 +107,13 @@ enum class WeatherModels(
 
     GEM_GLOBAL(
         title = "GEM",
-        serverName = "cmc_gem_gdps_15km",
+        serverName = "cmc_gem_seamless",
+        metadata = "cmc_gem_gdps_15km",
         global = true,
     ),
 
     GEM_GLOBAL_ENSEMBLE(
-        title = "GEM Ensemble",
+        title = "GEM",
         serverName = "cmc_gem_geps",
         global = true,
     ),
@@ -126,28 +131,30 @@ enum class WeatherModels(
     ),
 
     JMA_MSM(
-        title = "JMA MSM (Japan)",
-        serverName = "jma_msm",
+        title = "JMA",
+        serverName = "jma_seamless",
+        metadata = "jma_gsm",
         global = false,
     ),
 
     METEOFRANCE_ARPEGE_WORLD(
         title = "ARPEGE Météo-France",
-        serverName = "meteofrance_arpege_world025",
+        serverName = "meteofrance_seamless",
+        metadata = "meteofrance_arpege_world025",
         global = true,
     ),
 
-    METEOFRANCE_ARPEGE_EUROPE(
-        title = "ARPEGE Météo-France (Europe)",
-        serverName = "meteofrance_arpege_europe",
-        global = false,
-    ),
+//    METEOFRANCE_ARPEGE_EUROPE(
+//        title = "ARPEGE Météo-France (Europe)",
+//        serverName = "meteofrance_arpege_europe",
+//        global = false,
+//    ),
 
-    METEOFRANCE_AROME_FRANCE(
-        title = "ARPEGE Météo-France (France)",
-        serverName = "meteofrance_arome_france_hd",
-        global = false,
-    ),
+//    METEOFRANCE_AROME_FRANCE(
+//        title = "ARPEGE Météo-France (France)",
+//        serverName = "meteofrance_arome_france_hd",
+//        global = false,
+//    ),
 
     METNO_NORDIC(
         title = "MET Nordic Norway",
@@ -156,32 +163,17 @@ enum class WeatherModels(
     ),
 
     KNMI_HARMONIE_NETHERLANDS(
-        title = "KNMI HARMONIE-AROME (Netherlands)",
-        serverName = "knmi_harmonie_arome_netherlands",
-        global = false,
-    ),
-
-    METEOSWISS_ICON_CH1(
-        title = "MeteoSwiss ICON-CH1",
-        serverName = "meteoswiss_icon_ch1",
-        global = false,
-    ),
-
-    METEOSWISS_ICON_CH2(
-        title = "MeteoSwiss ICON-CH2",
-        serverName = "meteoswiss_icon_ch2",
+        title = "KNMI HARMONIE-AROME (Europe)",
+        serverName = "knmi_seamless",
+        metadata = "knmi_harmonie_arome_europe",
         global = false,
     ),
 
     UKMO_GLOBAL(
         title = "UK Met Office",
-        serverName = "ukmo_global_deterministic_10km",
+        serverName = "ukmo_seamless",
+        metadata = "ukmo_global_deterministic_10km",
         global = true,
     ),
 
-    UKMO_UK(
-        title = "UK Met Office (UK)",
-        serverName = "ukmo_uk_deterministic_2km",
-        global = false,
-    )
 }

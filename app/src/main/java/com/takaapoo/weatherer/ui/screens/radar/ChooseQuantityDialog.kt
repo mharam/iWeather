@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,6 +29,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
@@ -38,7 +41,9 @@ import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.remote.RadarSpecs
 import com.takaapoo.weatherer.ui.screens.detail.DialogMultiChoiceRow
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
+import com.takaapoo.weatherer.utility.toPx
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChooseQuantityDialog(
     modifier: Modifier = Modifier,
@@ -49,6 +54,10 @@ fun ChooseQuantityDialog(
     onDismissRequest: () -> Unit,
     onConfirmation: (quantity: RadarWeatherQuantity, model: WeatherModels) -> Unit,
 ) {
+    val density = LocalDensity.current
+    val savedSelectedQuantity = rememberSaveable { selectedQuantity }
+    val savedSelectedWeatherModel = rememberSaveable { quantityWeatherModels[selectedQuantity]!! }
+
     var chosenQuantity by rememberSaveable { mutableStateOf(selectedQuantity) }
     var chosenModel by rememberSaveable { mutableStateOf(quantityWeatherModels[chosenQuantity]!!) }
 
@@ -58,6 +67,18 @@ fun ChooseQuantityDialog(
     }.map {
         it.key
     }
+    val availableWeatherQuantities = RadarWeatherQuantity.entries
+        .filter { radarWeatherQuantity->
+            radarSpecs.filter {
+                it.value.variables.contains(radarWeatherQuantity.serverName) ||
+                        it.value.variables.contains(radarWeatherQuantity.serverName2)
+            }.isNotEmpty()
+        }
+    val quantityScrollState = rememberScrollState(
+        initial = (availableWeatherQuantities.indexOf(selectedQuantity).coerceAtLeast(0) *
+                dimensionResource(R.dimen.dialog_multi_choice_row_height).toPx(density)).toInt()
+    )
+
     Dialog(
         onDismissRequest = { onDismissRequest() },
         properties = DialogProperties(
@@ -87,9 +108,9 @@ fun ChooseQuantityDialog(
                     modifier = Modifier.fillMaxWidth()
                         .padding(horizontal = 24.dp)
                         .height(220.dp)
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(quantityScrollState)
                 ) {
-                    RadarWeatherQuantity.entries.forEach { quantity ->
+                    availableWeatherQuantities.forEach { quantity ->
                         DialogMultiChoiceRow(
                             modifier = Modifier.fillMaxWidth(),
                             text = quantity.nameId?.let { stringResource(it) },
@@ -171,8 +192,8 @@ fun ChooseQuantityDialog(
                         }
                     ) {
                         Text(
-                            text = if (chosenQuantity == selectedQuantity &&
-                                chosenModel == quantityWeatherModels[selectedQuantity]) "Reload"
+                            text = if (chosenQuantity == savedSelectedQuantity &&
+                                chosenModel == savedSelectedWeatherModel) "Reload"
                             else "Load",
                             fontFamily = FontFamily.Default
                         )

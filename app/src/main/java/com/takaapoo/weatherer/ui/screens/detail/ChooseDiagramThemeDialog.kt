@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -83,7 +84,7 @@ fun DialogMultiChoiceRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .height(dimensionResource(R.dimen.dialog_multi_choice_row_height))
             .clip(RoundedCornerShape(percent = 50))
             .clickable { onSelect() },
         verticalAlignment = Alignment.CenterVertically,

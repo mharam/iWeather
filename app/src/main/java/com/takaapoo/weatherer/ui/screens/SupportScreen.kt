@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +49,7 @@ import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.customColorScheme
 import com.takaapoo.weatherer.ui.theme.gerdFontFamily
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SupportScreen(
     modifier: Modifier = Modifier,

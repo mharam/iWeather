@@ -2,7 +2,6 @@ package com.takaapoo.weatherer.ui.screens.detail.historical
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -35,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.domain.model.AppTheme
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
+import com.takaapoo.weatherer.ui.theme.isDarkTheme
 import com.takaapoo.weatherer.ui.theme.timeFontFamily
 import com.takaapoo.weatherer.utility.BorderedText
 import java.time.LocalDate
@@ -55,14 +55,8 @@ fun DatePicker(
     val startYear = 1940
     val gaugeBorderRadius = 4.dp
     val gaugeHeight = 32.dp
-    val dayGaugeResource = when (theme) {
-        AppTheme.LIGHT -> R.drawable.day_gauge_light
-        AppTheme.DARK -> R.drawable.day_gauge_dark
-        AppTheme.SYSTEM -> {
-            if (isSystemInDarkTheme()) R.drawable.day_gauge_dark
-            else R.drawable.day_gauge_light
-        }
-    }
+    val dayGaugeResource = if (MaterialTheme.isDarkTheme) R.drawable.day_gauge_dark
+        else R.drawable.day_gauge_light
 
     Row(
         modifier = modifier.fillMaxSize().padding(16.dp),

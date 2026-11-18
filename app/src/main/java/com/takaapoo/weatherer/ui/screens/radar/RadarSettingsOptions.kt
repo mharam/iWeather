@@ -207,7 +207,8 @@ fun RadarSettingsOptions(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.settings_24px),
-                    contentDescription = stringResource(id = R.string.settings)
+                    contentDescription = stringResource(id = R.string.settings),
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
         }

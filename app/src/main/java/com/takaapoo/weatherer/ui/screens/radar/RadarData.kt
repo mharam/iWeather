@@ -9,12 +9,9 @@ val radarMap =
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link
         rel="stylesheet"
-        href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css"
+        href="https://unpkg.com/maplibre-gl@6.18.0/dist/maplibre-gl.css"
     />
-    <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-    <!-- x-release-please-start-version -->
-    <script src="https://unpkg.com/@openmeteo/weather-map-layer@0.0.20/dist/index.js"></script>
-    <!-- x-release-please-end -->
+
     <style>
         html,
         body {
@@ -47,16 +44,27 @@ val radarMap =
         .maplibregl-ctrl-group button + button {
             border-top: 1px solid #ff0000 !important;
         }
+        .maplibregl-ctrl-group .maplibregl-ctrl-icon {
+            filter: invert(1);
+        }
 
     </style>
 </head>
 <body>
 <div id="map"></div>
-<script>
-    maplibregl.setRTLTextPlugin(
-        'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js',
-        true
+<script type="module">
+    import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.18.0/dist/maplibre-gl.mjs';
+    maplibregl.setWorkerUrl(
+        'https://appassets.androidplatform.net/assets/maplibre-gl-worker.mjs?v=6.18.0'
     );
+    const OMWeatherMapLayer = await import(
+        'https://unpkg.com/@openmeteo/weather-map-layer@0.3.2/dist/index.mjs' // x-release-please-version
+    );
+    
+//    maplibregl.setRTLTextPlugin(
+//        'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js',
+//        true
+//    );
     const customColorScales = {
         temperature_2m: {
             type: 'breakpoint',
@@ -65,50 +73,96 @@ val radarMap =
                 -80, -65, -50, -40, -32, -28, -24, -20, -17.5, -15, -12.5, -10, -8, -6, -4, -2,
                 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50
             ],
-            colors: [
-                [74, 13, 0, 1],
-                [130, 1, 29, 1],
-                [185, 4, 114, 1],
-                [221, 6, 193, 1],
-                [207, 6, 241, 1],
-                [163, 5, 243, 1],
-                [118, 4, 246, 1],
-                [71, 3, 249, 1],
-                [41, 2, 250, 1],
-                [11, 1, 252, 1],
-                [1, 22, 253, 1],
-                [0, 52, 255, 1],
-                [35, 99, 251, 1],
-                [69, 139, 247, 1],
-                [102, 171, 245, 1],
-                [134, 197, 245, 1],
-                [114, 232, 165, 1],
-                [78, 232, 133, 1],
-                [40, 233, 96, 1],
-                [17, 220, 61, 1],
-                [9, 191, 36, 1],
-                [4, 160, 15, 1],
-                [0, 128, 0, 1],
-                [40, 160, 0, 1],
-                [96, 192, 0, 1],
-                [167, 223, 0, 1],
-                [255, 255, 0, 1],
-                [255, 237, 0, 1],
-                [255, 219, 0, 1],
-                [255, 201, 0, 1],
-                [255, 183, 0, 1],
-                [255, 165, 0, 1],
-                [255, 138, 0, 1],
-                [255, 110, 0, 1],
-                [255, 83, 0, 1],
-                [255, 55, 0, 1],
-                [255, 27, 0, 1],
-                [255, 0, 0, 1],
-                [228, 0, 10, 1],
-                [201, 0, 18, 1],
-                [174, 0, 23, 1],
-                [147, 0, 26, 1]
-            ]
+            colors: {
+                light: [
+                    [74, 13, 0, 1],
+                    [130, 1, 29, 1],
+                    [185, 4, 114, 1],
+                    [221, 6, 193, 1],
+                    [207, 6, 241, 1],
+                    [163, 5, 243, 1],
+                    [118, 4, 246, 1],
+                    [71, 3, 249, 1],
+                    [41, 2, 250, 1],
+                    [11, 1, 252, 1],
+                    [1, 22, 253, 1],
+                    [0, 52, 255, 1],
+                    [35, 99, 251, 1],
+                    [69, 139, 247, 1],
+                    [102, 171, 245, 1],
+                    [134, 197, 245, 1],
+                    [114, 232, 165, 1],
+                    [78, 232, 133, 1],
+                    [40, 233, 96, 1],
+                    [17, 220, 61, 1],
+                    [9, 191, 36, 1],
+                    [4, 160, 15, 1],
+                    [0, 128, 0, 1],
+                    [40, 160, 0, 1],
+                    [96, 192, 0, 1],
+                    [167, 223, 0, 1],
+                    [255, 255, 0, 1],
+                    [255, 237, 0, 1],
+                    [255, 219, 0, 1],
+                    [255, 201, 0, 1],
+                    [255, 183, 0, 1],
+                    [255, 165, 0, 1],
+                    [255, 138, 0, 1],
+                    [255, 110, 0, 1],
+                    [255, 83, 0, 1],
+                    [255, 55, 0, 1],
+                    [255, 27, 0, 1],
+                    [255, 0, 0, 1],
+                    [228, 0, 10, 1],
+                    [201, 0, 18, 1],
+                    [174, 0, 23, 1],
+                    [147, 0, 26, 1]
+                ],
+                dark: [
+                    [255, 0, 207, 1],
+                    [220, 0, 191, 1],
+                    [190, 0, 163, 1],
+                    [159, 0, 138, 1],
+                    [148, 0, 173, 1],
+                    [115, 0, 174, 1],
+                    [82, 0, 175, 1],
+                    [49, 0, 176, 1],
+                    [28, 0, 176, 1],
+                    [7, 0, 177, 1],
+                    [0, 15, 178, 1],
+                    [0, 36, 178, 1],
+                    [0, 59, 200, 1],
+                    [0, 87, 221, 1],
+                    [0, 117, 243, 1],
+                    [10, 149, 255, 1],
+                    [0, 242, 105, 1],
+                    [0, 217, 78, 1],
+                    [0, 191, 55, 1],
+                    [0, 166, 36, 1],
+                    [0, 140, 21, 1],
+                    [0, 115, 8, 1],
+                    [0, 90, 0, 1],
+                    [28, 112, 0, 1],
+                    [67, 134, 0, 1],
+                    [117, 156, 0, 1],
+                    [178, 178, 0, 1],
+                    [178, 166, 0, 1],
+                    [178, 153, 0, 1],
+                    [178, 141, 0, 1],
+                    [178, 128, 0, 1],
+                    [178, 116, 0, 1],
+                    [178, 97, 0, 1],
+                    [178, 77, 0, 1],
+                    [178, 58, 0, 1],
+                    [178, 38, 0, 1],
+                    [178, 19, 0, 1],
+                    [178, 0, 0, 1],
+                    [188, 0, 15, 1],
+                    [203, 0, 20, 1],
+                    [229, 0, 33, 1],
+                    [255, 0, 51, 1]
+                ]
+            }
         },
         relative: {
             type: 'breakpoint',
@@ -183,19 +237,34 @@ val radarMap =
             type: 'breakpoint',
             unit: '%',
             breakpoints: [ 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100 ],
-            colors: [
-                [11, 18, 32, 0],
-				[31, 43, 64, 0.141],
-				[59, 71, 89, 0.4],
-				[89, 100, 116, 0.475],
-				[120, 131, 148, 0.55],
-				[156, 163, 175, 0.625],
-				[177, 183, 193, 0.7],
-				[198, 203, 210, 0.775],
-				[214, 219, 226, 0.85],
-				[226, 232, 239, 0.925],
-				[241, 245, 249, 1]
-            ]
+            colors: {
+                light: [
+                    [11, 18, 32, 0],
+                    [31, 43, 64, 0.141],
+                    [59, 71, 89, 0.4],
+                    [89, 100, 116, 0.475],
+                    [120, 131, 148, 0.55],
+                    [156, 163, 175, 0.625],
+                    [177, 183, 193, 0.7],
+                    [198, 203, 210, 0.775],
+                    [214, 219, 226, 0.85],
+                    [226, 232, 239, 0.925],
+                    [241, 245, 249, 1]
+                ],
+                dark: [
+                    [255, 255, 255, 0],
+                    [249, 251, 253, 0.141],
+                    [244, 247, 250, 0.4],
+                    [233, 239, 244, 0.475],
+                    [220, 226, 233, 0.55],
+                    [209, 213, 219, 0.625],
+                    [188, 193, 202, 0.7],
+                    [166, 173, 184, 0.775],
+                    [138, 147, 162, 0.85],
+                    [84, 85, 93, 0.925],
+                    [31, 35, 33, 1]
+                ]
+            }
         },
         visibility: {
             type: 'breakpoint',
@@ -408,31 +477,6 @@ val radarMap =
     maplibregl.addProtocol(
         'om',
         (params, abortController) => {
-//            const signal = abortController.signal;
-//            const startedAt = performance.now();
-//        
-//            console.log( '[OM] START', params.url, startedAt.toFixed(0) );
-//        
-//            signal.addEventListener('abort', () => {
-//                console.warn('[OM] Request ABORTED:', params.url, 'after', (performance.now() - startedAt).toFixed(0), 'ms');
-//            }, { once: true });
-            
-//            const promise = OMWeatherMapLayer.omProtocol(
-//                params,
-//                abortController,
-//                omProtocolOptions
-//            );
-//            return promise.then(result => {
-//                console.log(
-//                    '[OM] COMPLETE',
-//                    params.url,
-//                    'after',
-//                    (performance.now() - startedAt).toFixed(0),
-//                    'ms'
-//                );
-//                return result;
-//            });
-        
             return OMWeatherMapLayer.omProtocol(
                 params,
                 abortController,
@@ -440,10 +484,13 @@ val radarMap =
             );
         }
     );
+    const lightStyle = 'https://api.maptiler.com/maps/019fdc79-7a46-7267-8fcc-a695ba0577bb/style.json?key=FsJPLZYGDXzXfTCZDwyf';
+    const darkStyle = 'https://api.maptiler.com/maps/01a1e2c8-5097-73cf-bf7c-8b105b516c36/style.json?key=FsJPLZYGDXzXfTCZDwyf';
+    
     window.map = new maplibregl.Map({
         container: 'map',
         projection: 'globe',
-        style: 'https://api.maptiler.com/maps/019fdc79-7a46-7267-8fcc-a695ba0577bb/style.json?key=yFS62h2HFTzTc42NXpWu',
+        style: style,
         hash: true,
         center: [ 44.384, 33.308 ],
         zoom: 3,
@@ -466,104 +513,62 @@ val radarMap =
     window.updateElevationVisible = function(visible) {
         window.elevationVisible = visible;
     }    
-    
-//    function waitForWeatherTilesLoaded(sourceId, requestId) {
-//        return new Promise((resolve, reject) => {
-//            let finished = false;
-//            const cleanup = () => {
-//                if (finished) return;
-//                
-//                finished = true;
-//                window.map.off('sourcedata', onSourceData);
-//                window.map.off('idle', onIdle);
-//                window.map.off('error', onError);
-//            };
-//            const check = () => {
-//                if (finished) return;
-//                if (requestId !== window.weatherLayerRequestId) {
-//                    cleanup();
-//                    resolve(false);
-//                    return;
-//                }
-//                const source = window.map.getSource(sourceId);
-//                if (!source) {
-//                    cleanup();
-//                    reject(new Error('Source was removed: ' + sourceId));
-//                    return;
-//                }
-//                if ( window.map.isSourceLoaded(sourceId) && window.map.areTilesLoaded() ) {
-//                    cleanup();
-//                    resolve(true);
-//                }
-//            };
-//            const onSourceData = event => {
-//                check();
-//            };
-//
-//            const onIdle = () => {
-//                check();
-//            };
-//
-//            const onError = event => {
-//                if (event && event.sourceId === sourceId) {
-//                    cleanup();
-//                    reject(
-//                        event.error || new Error('Error loading source: ' + sourceId)
-//                    );
-//                }
-//            };
-//
-//            window.map.on('sourcedata', onSourceData);
-//            window.map.on('idle', onIdle);
-//            window.map.on('error', onError);
-//
-//            check();
-//        });
-//    }
+    window.setDarkStyle = function() {
+        window.map.setStyle( darkStyle );
+    }
     
     function waitForWeatherTilesLoaded(sourceId, requestId, timeoutMs = 90000) {
+        console.log('[Weather] Waiting started:', sourceId);
         return new Promise((resolve, reject) => {
             let finished = false;
             let timeoutId;
             let checkIntervalId;
-    
+
             const cleanup = () => {
-                if (finished) return;
-                finished = true;
-    
                 clearTimeout(timeoutId);
                 clearInterval(checkIntervalId);
-    
+
                 window.map.off('sourcedata', onSourceData);
                 window.map.off('idle', onIdle);
                 window.map.off('error', onError);
                 window.removeEventListener('offline', onOffline);
             };
 
+            const finish = (success, value) => {
+                console.log('[Weather] Promise settled:', sourceId, success, value, finished);
+                if (finished) return;
+
+                finished = true;
+                cleanup();
+
+                if (success) {
+                    resolve(value);
+                } else {
+                    reject(value);
+                }
+            };
+
             const check = () => {
                 if (finished) return;
 
                 if (requestId !== window.weatherLayerRequestId) {
-                    cleanup();
-                    resolve(false);
+                    finish(true, false);
                     return;
                 }
 
                 if (navigator.onLine === false) {
-                    cleanup();
-                    reject(new Error('No network connection'));
+                    finish(false, new Error('No network connection'));
                     return;
                 }
 
                 if (!window.map.getSource(sourceId)) {
-                    cleanup();
-                    reject(new Error('Source was removed'));
+                    finish(false, new Error('Source was removed'));
                     return;
                 }
 
                 if ( window.map.isSourceLoaded(sourceId) && window.map.areTilesLoaded() ) {
-                    cleanup();
-                    resolve(true);
+                    finish(true, true);
+                    return;
                 }
             };
 
@@ -575,20 +580,14 @@ val radarMap =
 
             const onError = event => {
                 if (event && event.sourceId === sourceId) {
-                    cleanup();
-                    reject(
-                        event.error ||
-                        new Error('Error loading source')
-                    );
+                    finish( false, event.error || new Error('Error loading source') );
                 }
             };
 
             const onOffline = () => {
-                cleanup();
-                reject(new Error('Network connection lost'));
+                finish(false, new Error('Network connection lost'));
             };
 
-            // Fail immediately if already offline.
             if (navigator.onLine === false) {
                 reject(new Error('No network connection'));
                 return;
@@ -600,21 +599,14 @@ val radarMap =
             window.addEventListener('offline', onOffline);
 
             timeoutId = setTimeout(() => {
-                cleanup();
-                reject( new Error('Timed out waiting for weather tiles') );
+                console.error( '[Weather] Timeout reached:', sourceId, requestId );
+                finish( false, new Error('Timed out waiting for weather tiles') );
             }, timeoutMs);
 
-            checkIntervalId = setInterval(() => {
-                if (requestId !== window.weatherLayerRequestId) {
-                    cleanup();
-                    resolve(false);
-                }
-            }, 1000); 
-            
+            checkIntervalId = setInterval(check, 1000);
             check();
         });
     }
-    
     
     window.removeWeatherLayer = function( layerId, sourceId ) {
         if ( layerId && window.map.getLayer(layerId) ) {
@@ -625,15 +617,23 @@ val radarMap =
         }
     }
     
-    window.updateWeatherLayer = function(variable, model, index, opacity) {
-        console.log('updateWeatherLayer: ', variable, model, index);
+    let darkMode
+    window.updateWeatherLayer = function(variable, model, index, opacity, dark) {
+        console.log('updateWeatherLayer: ', variable, model, dark);        
         return new Promise((resolve, reject) => {
 //            console.log('Promise variable: ', variable, model);
             const requestId = ++window.weatherLayerRequestId;
+            
+            // If an earlier request was mid-transition, keep the currently displayed layer visible
+            // while this request loads its tiles.
+            if (window.currentLayerId && window.map.getLayer(window.currentLayerId) &&
+                window.currentWeatherOpacity !== undefined) {
+                window.map.setPaintProperty(window.currentLayerId, 'raster-opacity', window.currentWeatherOpacity);
+            }
             const newOmUrl =
                 'https://openmeteo.s3.amazonaws.com/data_spatial/' + encodeURIComponent(model) + '/latest.json' +
                 '?time_step=valid_times_' + encodeURIComponent(index) + '&variable=' + encodeURIComponent(variable) +
-                '&color_blend=true';
+                '&color_blend=true' + (dark ? '&dark=true' : '');
                 
             const newSourceId = 'omSource_' + variable + '_' + requestId;
             const newLayerId = 'omLayer_' + variable + '_' + requestId;
@@ -679,16 +679,32 @@ val radarMap =
                         resolve( 'Request superseded' );
                         return;
                     }
-                    window.map.setPaintProperty(
-                        newLayerId,
-                        'raster-opacity',
-                        opacity
-                    );
-                    removeWeatherLayer( window.currentLayerId, window.currentSourceId );
+                    const previousLayerId = window.currentLayerId;
+                    const previousSourceId = window.currentSourceId;
+                    const transitionDuration = 400;
+                    window.map.setPaintProperty(newLayerId, 'raster-opacity-transition', {
+                        duration: transitionDuration
+                    });
+                    window.map.setPaintProperty(newLayerId, 'raster-opacity', opacity);
+                    if (previousLayerId && window.map.getLayer(previousLayerId)) {
+                        window.map.setPaintProperty(previousLayerId, 'raster-opacity-transition', {
+                            duration: transitionDuration
+                        });
+                        window.map.setPaintProperty(previousLayerId, 'raster-opacity', 0);
+                    }
+                    await new Promise(resolveTransition => setTimeout(resolveTransition, transitionDuration));
+                    if (requestId !== window.weatherLayerRequestId) {
+                        // A newer request owns the transition now; remove only this request's layer.
+                        removeWeatherLayer(newLayerId, newSourceId);
+                        resolve('Request superseded');
+                        return;
+                    }
+                    removeWeatherLayer(previousLayerId, previousSourceId);
                     window.currentLayerId = newLayerId;
                     window.currentSourceId = newSourceId;
                     window.currentOmUrl = newOmUrl;
-                    window.map.triggerRepaint();
+                    window.currentWeatherOpacity = opacity;
+//                    window.map.triggerRepaint();
                     updateAndroidQuantity(variable);
                     resolve( 'Weather layer updated to: ' + variable );
                 } catch (error) {
@@ -702,19 +718,17 @@ val radarMap =
                     reject(error);
                 }
             };
-            if (window.map.loaded()) {
+            if (window.map.isStyleLoaded()) {
                 executeUpdate();
             } else {
-                window.map.once( 'styledata', () => {
-                    executeUpdate()
-                });
+                window.map.once('styledata', executeUpdate);
             }
         });
     };
     
-//    map.on( "idle", () => {
-//        sendToAndroid( "updateLoadingIndicatorVisible", false );
-//    });
+    map.on( "idle", () => {
+        sendToAndroid( "updateLoadingIndicatorVisible", false );
+    });
 //    map.on( "sourcedataloading", (event) => {
 //        if ( event.sourceId && event.sourceId.startsWith('omSource_') ) {
 //            sendToAndroid( "updateLoadingIndicatorVisible", true );
@@ -746,8 +760,12 @@ val radarMap =
     // make tiles in this new zoom ready
     map.on( 'zoomend', onLoad );
     
-    window.map.addControl(
-        new maplibregl.NavigationControl(),
+    map.addControl(
+        new maplibregl.NavigationControl({
+            visualizePitch: false,
+            showZoom: true,
+            showCompass: false
+        }),
         'top-right'
     );
     const onDrag = async () => {
@@ -770,8 +788,7 @@ val radarMap =
         window.map.setProjection({
             type: 'globe'
         });
-    });
-    
+    });    
     map.on( 'moveend', async () => {
         try {
             quantityValue(12, result => {
@@ -781,6 +798,7 @@ val radarMap =
             console.error( 'Error in getMapElevation:', error );
         }
     });
+    
     
     function sendToAndroid( functionName, value, elevation = null ) {
         const message = {
@@ -885,7 +903,7 @@ val radarMap =
     }
     function getTerrainTileUrl(z, x, y) {
 //        return `https://tiles.mapterhorn.com/${z}/${x}/${y}.webp`;
-        return `https://api.maptiler.com/tiles/terrain-rgb-v2/${z}/${x}/${y}.webp?key=yFS62h2HFTzTc42NXpWu`;
+        return `https://api.maptiler.com/tiles/terrain-rgb-v2/${z}/${x}/${y}.webp?key=FsJPLZYGDXzXfTCZDwyf`;
     }
     function terrariumToElevation(r, g, b) {
         return (r * 256 + g + b / 256) - 32768;
@@ -1027,6 +1045,8 @@ val radarMap =
         return elevation;
     }
     
+    
+    sendToAndroid( "pageReady", null );    
     
 </script>
 </body>

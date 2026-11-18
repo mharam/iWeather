@@ -16,7 +16,6 @@ import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -87,7 +86,6 @@ import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.model.AppSettings
-import com.takaapoo.weatherer.domain.model.AppTheme
 import com.takaapoo.weatherer.domain.model.HomeState
 import com.takaapoo.weatherer.domain.model.LocationsBriefState
 import com.takaapoo.weatherer.domain.model.LocationsState
@@ -96,6 +94,7 @@ import com.takaapoo.weatherer.ui.screens.home.dialogs.DeleteAlertDialog
 import com.takaapoo.weatherer.ui.screens.home.dialogs.EditDialog
 import com.takaapoo.weatherer.ui.theme.Transparent
 import com.takaapoo.weatherer.ui.theme.customColorScheme
+import com.takaapoo.weatherer.ui.theme.isDarkTheme
 import com.takaapoo.weatherer.ui.viewModels.DialogType
 import com.takaapoo.weatherer.utility.clockGaugeWidth
 import com.takaapoo.weatherer.utility.clockRotationCoefficient
@@ -527,11 +526,7 @@ fun HomeScreen(
                             .graphicsLayer { translationY = clockGaugeYAnimatable.value }
                             .padding(bottom = 8.dp)
                     ) {
-                        val dayGauge = when (appSettings.theme) {
-                            AppTheme.LIGHT -> true
-                            AppTheme.DARK -> false
-                            AppTheme.SYSTEM -> !isSystemInDarkTheme()
-                        }
+                        val dayGauge = !MaterialTheme.isDarkTheme
 //                            val dayGaugeImage = ImageBitmap.imageResource(dayGaugeResource)
                         ClockManipulator(
                             gaugeSize = clockGaugeWidth,

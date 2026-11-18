@@ -13,7 +13,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -343,7 +342,7 @@ fun MySelectableDropdownMenuItem(
         index = itemIndex,
         count = totalItemCount
     )
-    SelectableDropdownMenuItem(
+    DropdownMenuItem(
         modifier = modifier
 //            .background(
 //                color = if (selected) MaterialTheme.colorScheme.tertiaryContainer else Transparent,

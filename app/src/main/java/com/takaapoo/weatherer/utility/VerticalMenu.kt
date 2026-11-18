@@ -6,13 +6,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuBoxScope
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.SelectableDropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -117,7 +116,7 @@ fun <T> VerticalMenu(
                     shadowElevation = 0.dp
                     ) {
                         menuItems.forEachIndexed { itemIndex, item ->
-                            SelectableDropdownMenuItem(
+                            DropdownMenuItem(
                                 selected = item.value == selectedItem,
                                 onClick = {
                                     onItemSelected(item.value)
@@ -142,21 +141,6 @@ fun <T> VerticalMenu(
                                     leadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                     selectedLeadingIconColor = MaterialTheme.colorScheme.onTertiaryContainer
                                 ),
-                                leadingIcon = item.leadingIcon?.let { painter ->
-                                    {
-                                        Icon(
-                                            painter = painter,
-                                            contentDescription = null,
-                                        )
-                                    }
-                                },
-                                trailingContent = item.trailingLabel?.let { text ->
-                                    {
-                                        MenuDefaults.DropdownMenuItemTrailingLabel {
-                                            Text(text = text, fontFamily = FontFamily.Default)
-                                        }
-                                    }
-                                },
                                 enabled = item.enabled
                             )
                         }

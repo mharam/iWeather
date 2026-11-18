@@ -4,7 +4,6 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,10 +50,11 @@ import com.takaapoo.weatherer.ui.theme.Gray20
 import com.takaapoo.weatherer.ui.theme.WeathererTheme
 import com.takaapoo.weatherer.ui.theme.customColorScheme
 import com.takaapoo.weatherer.ui.theme.gerdFontFamily
+import com.takaapoo.weatherer.ui.theme.isDarkTheme
 import com.takaapoo.weatherer.utility.User
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun Login(
     modifier: Modifier = Modifier,
@@ -133,16 +134,11 @@ fun Login(
                     .background(Gray20)
             )
             Spacer(Modifier.height(48.dp))
-            val buttonResource = when (theme) {
-                AppTheme.LIGHT -> R.drawable.sign_in_button_light
-                AppTheme.DARK -> R.drawable.sign_in_button_dark
-                AppTheme.SYSTEM -> {
-                    if (isSystemInDarkTheme()) R.drawable.sign_in_button_dark
-                    else R.drawable.sign_in_button_light
-                }
-            }
             Image(
-                painter = painterResource(id = buttonResource),
+                painter = painterResource(
+                    id = if (MaterialTheme.isDarkTheme) R.drawable.sign_in_button_dark
+                    else R.drawable.sign_in_button_light
+                ),
                 contentDescription = "sign in button",
                 contentScale = ContentScale.FillHeight,
                 modifier = Modifier

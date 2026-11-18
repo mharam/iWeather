@@ -526,7 +526,7 @@ fun HourlyDiagramCurvesScreen(
                             Slider(
                                 modifier = Modifier.fillMaxWidth(),
 //                                value = hourlyChartState.curvesSmoothness[quantity]!!,
-                                state = sliderState,
+                                value = sliderState.value,
                                 onValueChange = {
                                     sliderState.value = it
                                     onUpdateCurvesSmoothness(quantity, it)

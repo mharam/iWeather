@@ -178,7 +178,7 @@ fun AppScreen(
     val drawerWidthPx = dimensionResource(R.dimen.drawer_width).toPx(density)
     val navigationState = rememberNavigationState(
         startRoute = Home,
-        topLevelRoutes = setOf(Start, Home, Settings, AddLocation, Radar)
+        topLevelRoutes = setOf(Start, Home, Settings, Radar, Donate, ContactUs, Support)
     )
     val navigator = remember { Navigator(navigationState) }
 
