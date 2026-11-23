@@ -1,17 +1,15 @@
 package com.takaapoo.weatherer.domain.model
 
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapType
 import com.google.maps.android.compose.MapUiSettings
 import com.takaapoo.weatherer.data.remote.Location
 import com.takaapoo.weatherer.domain.MyResult
-import com.takaapoo.weatherer.utility.MapStyle
 
 data class MapState(
     val properties: MapProperties = MapProperties(
-        mapStyleOptions = MapStyleOptions(MapStyle.gowallaStyle),
+//        mapStyleOptions = MapStyleOptions(MapStyle.gowallaStyleLight),
         mapType = MapType.NORMAL
     ),
     val uiSettings: MapUiSettings = MapUiSettings(

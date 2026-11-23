@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -96,7 +94,7 @@ fun EditDialog(
                     },
                     trailingIcon = {
                         if (nameAlreadyExists){
-                            Icon(imageVector = Icons.Filled.Warning, contentDescription = null)
+                            Icon(painter = painterResource(R.drawable.warning), contentDescription = null)
                         }
                     },
                     keyboardOptions = KeyboardOptions(
@@ -105,7 +103,7 @@ fun EditDialog(
                         imeAction = ImeAction.Done
                     ),
                     keyboardActions = KeyboardActions(
-                        onDone = { if (locationName.isNotEmpty()) onConfirmation() }
+                        onDone = { if (locationName.isNotEmpty() && !nameAlreadyExists) onConfirmation() }
                     )
                 )
                 Spacer(Modifier.height(24.dp))
@@ -125,7 +123,7 @@ fun EditDialog(
                     Spacer(Modifier.width(8.dp))
                     TextButton(
                         onClick = { onConfirmation() },
-                        enabled = locationName.isNotEmpty()
+                        enabled = locationName.isNotEmpty() && !nameAlreadyExists
                     ) {
                         Text(
                             text = "Change",

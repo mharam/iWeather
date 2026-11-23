@@ -48,6 +48,7 @@ import com.takaapoo.weatherer.utility.toPx
 fun ChooseQuantityDialog(
     modifier: Modifier = Modifier,
     selectedQuantity: RadarWeatherQuantity,
+    selectedModel: WeatherModels,
     quantityWeatherModels: Map<RadarWeatherQuantity, WeatherModels>,
     radarSpecs: Map<WeatherModels, RadarSpecs>,
 
@@ -56,10 +57,10 @@ fun ChooseQuantityDialog(
 ) {
     val density = LocalDensity.current
     val savedSelectedQuantity = rememberSaveable { selectedQuantity }
-    val savedSelectedWeatherModel = rememberSaveable { quantityWeatherModels[selectedQuantity]!! }
+    val savedSelectedWeatherModel = rememberSaveable { selectedModel }
 
     var chosenQuantity by rememberSaveable { mutableStateOf(selectedQuantity) }
-    var chosenModel by rememberSaveable { mutableStateOf(quantityWeatherModels[chosenQuantity]!!) }
+    var chosenModel by rememberSaveable { mutableStateOf(selectedModel) }
 
     val availableWeatherModels = radarSpecs.filter {
         it.value.variables.contains(chosenQuantity.serverName) ||
@@ -118,7 +119,8 @@ fun ChooseQuantityDialog(
                             isSelected = quantity == chosenQuantity,
                             onSelect = {
                                 chosenQuantity = quantity
-                                chosenModel = quantityWeatherModels[chosenQuantity]!!
+                                chosenModel = if (quantity == selectedQuantity) selectedModel
+                                else quantityWeatherModels[chosenQuantity]!!
                             }
                         )
                     }
@@ -211,6 +213,7 @@ private fun ChooseQuantityDialogPreview() {
         ChooseQuantityDialog(
             modifier = Modifier.fillMaxSize(),
             selectedQuantity = RadarWeatherQuantity.TEMPERATURE,
+            selectedModel = WeatherModels.NOAA_GFS_013,
             onDismissRequest = {},
             onConfirmation = {_, _ ->},
             quantityWeatherModels = emptyMap(),

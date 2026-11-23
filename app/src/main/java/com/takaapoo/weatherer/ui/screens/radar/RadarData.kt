@@ -1,5 +1,12 @@
 package com.takaapoo.weatherer.ui.screens.radar
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.core.graphics.blue
+import androidx.core.graphics.green
+import androidx.core.graphics.red
+import java.util.Locale
+
 val radarMap =
     $$"""<!doctype html>
 <html lang="en">
@@ -61,174 +68,31 @@ val radarMap =
         'https://unpkg.com/@openmeteo/weather-map-layer@0.3.2/dist/index.mjs' // x-release-please-version
     );
     
-//    maplibregl.setRTLTextPlugin(
-//        'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js',
-//        true
-//    );
     const customColorScales = {
         temperature_2m: {
             type: 'breakpoint',
             unit: '°C',
-            breakpoints: [
-                -80, -65, -50, -40, -32, -28, -24, -20, -17.5, -15, -12.5, -10, -8, -6, -4, -2,
-                0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50
-            ],
-            colors: {
-                light: [
-                    [74, 13, 0, 1],
-                    [130, 1, 29, 1],
-                    [185, 4, 114, 1],
-                    [221, 6, 193, 1],
-                    [207, 6, 241, 1],
-                    [163, 5, 243, 1],
-                    [118, 4, 246, 1],
-                    [71, 3, 249, 1],
-                    [41, 2, 250, 1],
-                    [11, 1, 252, 1],
-                    [1, 22, 253, 1],
-                    [0, 52, 255, 1],
-                    [35, 99, 251, 1],
-                    [69, 139, 247, 1],
-                    [102, 171, 245, 1],
-                    [134, 197, 245, 1],
-                    [114, 232, 165, 1],
-                    [78, 232, 133, 1],
-                    [40, 233, 96, 1],
-                    [17, 220, 61, 1],
-                    [9, 191, 36, 1],
-                    [4, 160, 15, 1],
-                    [0, 128, 0, 1],
-                    [40, 160, 0, 1],
-                    [96, 192, 0, 1],
-                    [167, 223, 0, 1],
-                    [255, 255, 0, 1],
-                    [255, 237, 0, 1],
-                    [255, 219, 0, 1],
-                    [255, 201, 0, 1],
-                    [255, 183, 0, 1],
-                    [255, 165, 0, 1],
-                    [255, 138, 0, 1],
-                    [255, 110, 0, 1],
-                    [255, 83, 0, 1],
-                    [255, 55, 0, 1],
-                    [255, 27, 0, 1],
-                    [255, 0, 0, 1],
-                    [228, 0, 10, 1],
-                    [201, 0, 18, 1],
-                    [174, 0, 23, 1],
-                    [147, 0, 26, 1]
-                ],
-                dark: [
-                    [255, 0, 207, 1],
-                    [220, 0, 191, 1],
-                    [190, 0, 163, 1],
-                    [159, 0, 138, 1],
-                    [148, 0, 173, 1],
-                    [115, 0, 174, 1],
-                    [82, 0, 175, 1],
-                    [49, 0, 176, 1],
-                    [28, 0, 176, 1],
-                    [7, 0, 177, 1],
-                    [0, 15, 178, 1],
-                    [0, 36, 178, 1],
-                    [0, 59, 200, 1],
-                    [0, 87, 221, 1],
-                    [0, 117, 243, 1],
-                    [10, 149, 255, 1],
-                    [0, 242, 105, 1],
-                    [0, 217, 78, 1],
-                    [0, 191, 55, 1],
-                    [0, 166, 36, 1],
-                    [0, 140, 21, 1],
-                    [0, 115, 8, 1],
-                    [0, 90, 0, 1],
-                    [28, 112, 0, 1],
-                    [67, 134, 0, 1],
-                    [117, 156, 0, 1],
-                    [178, 178, 0, 1],
-                    [178, 166, 0, 1],
-                    [178, 153, 0, 1],
-                    [178, 141, 0, 1],
-                    [178, 128, 0, 1],
-                    [178, 116, 0, 1],
-                    [178, 97, 0, 1],
-                    [178, 77, 0, 1],
-                    [178, 58, 0, 1],
-                    [178, 38, 0, 1],
-                    [178, 19, 0, 1],
-                    [178, 0, 0, 1],
-                    [188, 0, 15, 1],
-                    [203, 0, 20, 1],
-                    [229, 0, 33, 1],
-                    [255, 0, 51, 1]
-                ]
-            }
+            breakpoints: TEMPERATURE_breakpoints,
+            colors: TEMPERATURE_colors
         },
         relative: {
             type: 'breakpoint',
             unit: '%',
-            breakpoints: [0, 10, 20, 30, 40, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95],
-            colors: [
-                [0, 128, 0, 0],
-                [0, 128, 0, 0.1],
-                [0, 128, 0, 0.2],
-                [0, 128, 0, 0.3],
-                [0, 128, 0, 0.4],
-                [0, 128, 0, 0.5],
-                [0, 141, 28, 0.667],
-                [0, 153, 61, 0.833],
-                [0, 166, 100, 1],
-                [0, 179, 143, 1],
-                [0, 192, 192, 1],
-                [0, 163, 204, 1],
-                [0, 130, 217, 1],
-                [0, 92, 230, 1],
-                [0, 48, 242, 1]
-            ]
+            breakpoints: HUMIDITY_breakpoints,
+            colors: HUMIDITY_colors
         },
         dew_point: null,
         precipitation_probability: {
             type: 'breakpoint',
             unit: '%',
-            breakpoints: [0, 1, 5, 10, 20, 30, 45, 60, 75, 100],
-            colors: [
-                [0, 0, 0, 0],
-                [3, 47, 74, 0.2],
-                [135, 206, 250, 0.357],
-                [91, 149, 230, 0.5],
-                [63, 236, 180, 0.567],
-                [81, 245, 32, 0.633],
-                [253, 188, 18, 0.748],
-                [248, 122, 71, 0.867],
-                [247, 80, 80, 0.948],
-                [144, 0, 0, 1]
-            ]
+            breakpoints: PRECIPITATIONPROBABILITY_breakpoints,
+            colors: PRECIPITATIONPROBABILITY_colors
         },
         precipitation: {
             type: 'breakpoint',
             unit: 'mm',
-            breakpoints: [0, 0.1, 0.5, 1, 2, 3, 4.5, 6, 8, 10, 12, 16, 20, 25, 30, 40, 60, 85, 125],
-            colors: [
-                [243, 250, 255, 0],
-                [135, 206, 250, 0.4],
-                [76, 136, 251, 0.6],
-                [0, 0, 255, 0.622],
-                [4, 115, 227, 0.667],
-                [7, 200, 200, 0.711],
-                [9, 161, 47, 0.778],
-                [31, 163, 9, 0.826],
-                [87, 192, 7, 0.872],
-                [161, 223, 4, 0.911],
-                [255, 255, 0, 0.943],
-                [255, 198, 0, 0.986],
-                [255, 142, 0, 1],
-                [255, 71, 0, 1],
-                [255, 0, 0, 1],
-                [219, 0, 13, 1],
-                [147, 0, 26, 1],
-                [122, 0, 22, 1],
-                [83, 0, 15, 1]
-            ]
+            breakpoints: PRECIPITATION_breakpoints,
+            colors: PRECIPITATION_colors
         },
         rain: null,
         showers: null,
@@ -236,234 +100,68 @@ val radarMap =
         cloud_cover: {
             type: 'breakpoint',
             unit: '%',
-            breakpoints: [ 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100 ],
-            colors: {
-                light: [
-                    [11, 18, 32, 0],
-                    [31, 43, 64, 0.141],
-                    [59, 71, 89, 0.4],
-                    [89, 100, 116, 0.475],
-                    [120, 131, 148, 0.55],
-                    [156, 163, 175, 0.625],
-                    [177, 183, 193, 0.7],
-                    [198, 203, 210, 0.775],
-                    [214, 219, 226, 0.85],
-                    [226, 232, 239, 0.925],
-                    [241, 245, 249, 1]
-                ],
-                dark: [
-                    [255, 255, 255, 0],
-                    [249, 251, 253, 0.141],
-                    [244, 247, 250, 0.4],
-                    [233, 239, 244, 0.475],
-                    [220, 226, 233, 0.55],
-                    [209, 213, 219, 0.625],
-                    [188, 193, 202, 0.7],
-                    [166, 173, 184, 0.775],
-                    [138, 147, 162, 0.85],
-                    [84, 85, 93, 0.925],
-                    [31, 35, 33, 1]
-                ]
-            }
+            breakpoints: CLOUDCOVER_breakpoints,
+            colors: CLOUDCOVER_colors
         },
         visibility: {
             type: 'breakpoint',
             unit: 'm',
-            breakpoints: [0, 50, 100, 200, 500, 1000, 2000, 4000, 7000, 10000, 15000, 20000, 30000, 500000],
-            colors: [
-                [106, 62, 0, 1],
-                [121, 71, 0, 1],
-                [136, 81, 0, 1],
-                [166, 101, 0, 1],
-                [255, 165, 0, 1],
-                [241, 192, 0, 1],
-                [192, 213, 0, 1],
-                [47, 156, 0, 0.95],
-                [0, 161, 117, 0.8],
-                [0, 39, 211, 0.5],
-                [62, 154, 255, 0.25],
-                [167, 235, 255, 0],
-                [255, 255, 255, 0],
-                [255, 255, 255, 0]
-            ]
+            breakpoints: VISIBILITY_breakpoints,
+            colors: VISIBILITY_colors
         },
         wind: {
             type: 'breakpoint',
             unit: 'm/s',
-            breakpoints: [0, 0.5, 1, 2, 3, 4, 6, 8, 10, 12.5, 15, 17.5, 20, 25, 30, 40, 50, 60],
-            colors: [
-                [255, 255, 255, 0],
-                [194, 232, 255, 0.075],
-                [133, 209, 255, 0.15],
-                [12, 162, 255, 0.3],
-                [0, 198, 137, 0.4],
-                [0, 128, 0, 0.5],
-                [96, 192, 0, 0.7],
-                [255, 255, 0, 1],
-                [255, 229, 0, 1],
-                [255, 197, 0, 1],
-                [255, 165, 0, 1],
-                [242, 130, 25, 1],
-                [231, 107, 48, 1],
-                [212, 91, 91, 1],
-                [224, 63, 63, 1],
-                [255, 0, 0, 1],
-                [192, 0, 0, 1],
-                [129, 0, 0, 1]
-            ]
+            breakpoints: WIND_breakpoints,
+            colors: WIND_colors
         },
         uv: {
             type: 'breakpoint',
             unit: '',
-            breakpoints: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-            colors: [
-                [101, 141, 27, 1],
-                [132, 189, 0, 1],
-                [151, 215, 0, 1],
-                [247, 234, 72, 1],
-                [252, 227, 0, 1],
-                [255, 205, 0, 1],
-                [236, 161, 84, 1],
-                [255, 130, 0, 1],
-                [239, 51, 64, 1],
-                [218, 41, 28, 1],
-                [191, 13, 62, 1],
-                [75, 30, 136, 1],
-                [98, 53, 159, 1]
-            ]
+            breakpoints: UVINDEX_breakpoints,
+            colors: UVINDEX_colors
         },
         freezing_level_height: {
             type: 'breakpoint',
             unit: 'm',
-            breakpoints: [
-                -4800, -3600, -2400, -1600, -960, -640, -320, 0, 200, 400, 600, 800, 960, 1120, 
-                1280, 1440, 1600, 1760, 1920, 2080, 2240, 2400, 2560, 2720, 2880, 3040, 3200, 3360, 
-                3520, 3680, 3840, 4000, 4160, 4320, 4480, 4640, 4800, 4960, 5120, 5280, 5440, 5600
-            ],
-            colors: [
-                [74, 13, 0, 1],
-                [130, 1, 29, 1],
-                [185, 4, 114, 1],
-                [221, 6, 193, 1],
-                [207, 6, 241, 1],
-                [163, 5, 243, 1],
-                [118, 4, 246, 1],
-                [71, 3, 249, 1],
-                [41, 2, 250, 1],
-                [11, 1, 252, 1],
-                [1, 22, 253, 1],
-                [0, 52, 255, 1],
-                [35, 99, 251, 1],
-                [69, 139, 247, 1],
-                [102, 171, 245, 1],
-                [134, 197, 245, 1],
-                [114, 232, 165, 1],
-                [78, 232, 133, 1],
-                [40, 233, 96, 1],
-                [17, 220, 61, 1],
-                [9, 191, 36, 1],
-                [4, 160, 15, 1],
-                [0, 128, 0, 1],
-                [40, 160, 0, 1],
-                [96, 192, 0, 1],
-                [167, 223, 0, 1],
-                [255, 255, 0, 1],
-                [255, 237, 0, 1],
-                [255, 219, 0, 1],
-                [255, 201, 0, 1],
-                [255, 183, 0, 1],
-                [255, 165, 0, 1],
-                [255, 138, 0, 1],
-                [255, 110, 0, 1],
-                [255, 83, 0, 1],
-                [255, 55, 0, 1],
-                [255, 27, 0, 1],
-                [255, 0, 0, 1],
-                [228, 0, 10, 1],
-                [201, 0, 18, 1],
-                [174, 0, 23, 1],
-                [147, 0, 26, 1]
-            ]
+            breakpoints: FREEZINGLEVELHEIGHT_breakpoints,
+            colors: FREEZINGLEVELHEIGHT_colors
         },
         pm10: {
             type: 'breakpoint',
             unit: 'μg/m³',
-            breakpoints: [27.5, 105, 205, 305, 390, 515, 1052.5],
-            colors: [
-                [0, 228, 0, 1],
-                [255, 255, 0, 1],
-                [255, 126, 0, 1],
-                [255, 0, 0, 1],
-                [185, 77, 196, 1],
-                [179, 2, 51, 1],
-                [79, 0, 23, 1]   
-            ]
+            breakpoints: PM10_breakpoints,
+            colors: PM10_colors
         },
         pm2_5: {
             type: 'breakpoint',
             unit: 'μg/m³',
-            breakpoints: [4.5, 22.25, 45.5, 90.5, 175.5, 362.75, 900],
-            colors: [
-                [0, 228, 0, 1],
-                [255, 255, 0, 1],
-                [255, 126, 0, 1],
-                [255, 0, 0, 1],
-                [185, 77, 196, 1],
-                [179, 2, 51, 1],
-                [79, 0, 23, 1]
-            ]
+            breakpoints: PM2_5_breakpoints,
+            colors: PM2_5_colors
         },
         carbon_monoxide: {
             type: 'breakpoint',
             unit: 'μg/m³',
-            breakpoints: [2807.24, 8733.64, 13724.3, 17467.3, 28696.3, 50530.3],
-            colors: [
-                [0, 228, 0, 1],
-                [255, 255, 0, 1],
-                [255, 126, 0, 1],
-                [255, 0, 0, 1],
-                [185, 77, 196, 1],
-                [179, 2, 51, 1]                
-            ]
+            breakpoints: CO_breakpoints,
+            colors: CO_colors
         },
         nitrogen_dioxide: {
             type: 'breakpoint',
             unit: 'μg/m³',
-            breakpoints: [55.335, 157.807, 471.372, 1034.97, 1946.97, 3381.58],
-            colors: [
-                [0, 228, 0, 1],
-                [255, 255, 0, 1],
-                [255, 126, 0, 1],
-                [255, 0, 0, 1],
-                [185, 77, 196, 1],
-                [179, 2, 51, 1]                
-            ]
+            breakpoints: NO2_breakpoints,
+            colors: NO2_colors
         },
         sulphur_dioxide: {
             type: 'breakpoint',
             unit: 'μg/m³',
-            breakpoints: [49.9432, 156.964, 371.007, 699.205, 1298.52, 2297.39],
-            colors: [
-                [0, 228, 0, 1],
-                [255, 255, 0, 1],
-                [255, 126, 0, 1],
-                [255, 0, 0, 1],
-                [185, 77, 196, 1],
-                [179, 2, 51, 1]                
-            ]
+            breakpoints: SO2_breakpoints,
+            colors: SO2_colors
         },
         ozone: {
             type: 'breakpoint',
             unit: 'μg/m³',
-            breakpoints: [58.7973, 192.428, 310.022, 395.546, 652.116, 1079.73],
-            colors: [
-                [0, 228, 0, 1],
-                [255, 255, 0, 1],
-                [255, 126, 0, 1],
-                [255, 0, 0, 1],
-                [185, 77, 196, 1],
-                [179, 2, 51, 1]                
-            ]
+            breakpoints: Ozone_breakpoints,
+            colors: Ozone_colors
         },
         
     };
@@ -492,8 +190,8 @@ val radarMap =
         projection: 'globe',
         style: style,
         hash: true,
-        center: [ 44.384, 33.308 ],
-        zoom: 3,
+        center: [ centerLng, centerLat ],
+        zoom: 4,
         dragRotate: false,        // Disables rotation via right-click and drag
         pitchWithRotate: false,
         touchPitch: false,
@@ -621,7 +319,6 @@ val radarMap =
     window.updateWeatherLayer = function(variable, model, index, opacity, dark) {
         console.log('updateWeatherLayer: ', variable, model, dark);        
         return new Promise((resolve, reject) => {
-//            console.log('Promise variable: ', variable, model);
             const requestId = ++window.weatherLayerRequestId;
             
             // If an earlier request was mid-transition, keep the currently displayed layer visible
@@ -1052,3 +749,79 @@ val radarMap =
 </body>
 </html>
 """.trimIndent()
+
+
+fun modifiedRadarMap(
+    topPadding: Float,
+    valueBarHeight: Float,
+    borderColor: Color,
+    surfaceColor: Color,
+    isDark: Boolean,
+    centerLat: Float,
+    centerLng: Float,
+): String {
+    val adoptedBorderColor = borderColor.toArgb().toHexString().substring(2)
+    val adoptedSurfaceColor = surfaceColor.toArgb().toHexString().substring(2)
+    val darkStyle = if (isDark) "darkStyle" else "lightStyle"
+
+    var modifiedString = radarMap.replace(
+        oldValue = "top: 100px !important;",
+        newValue = "top: ${topPadding + valueBarHeight}px !important;"
+    ).replace(
+        oldValue = "border: 2px solid #ff0000",
+        newValue = "border: 2px solid #$adoptedBorderColor"
+    ).replace(
+        oldValue = "border-top: 1px solid #ff0000",
+        newValue = "border-top: 1px solid #$adoptedBorderColor"
+    ).replace(
+        oldValue = "background-color: #ff0000",
+        newValue = "background-color: #$adoptedSurfaceColor"
+    ).replace(
+        oldValue = "filter: invert(1);",
+        newValue = "filter: invert(${if (isDark) 1 else 0});"
+    ).replace(
+        oldValue = "style: style",
+        newValue = "style: $darkStyle"
+    ).replace(
+        oldValue = "centerLat",
+        newValue = "$centerLat"
+    ).replace(
+        oldValue = "centerLng",
+        newValue = "$centerLng"
+    )
+
+    RadarWeatherQuantity.entries.forEach { quantity ->
+        val breakPoints = RadarWeatherQuantity.colorBreakpoints(quantity)
+            .joinToString(",", "[", "]") {
+                "%.3f".format(Locale.US, it)
+            }
+        val lightColors = RadarWeatherQuantity.colorScale(quantity, false)
+        val darkColors = RadarWeatherQuantity.colorScale(quantity, true)
+        val colors = if (lightColors == darkColors) {
+            lightColors.joinToString(",", "[", "]") { color ->
+                val intColor = color.toArgb()
+                "[${intColor.red}, ${intColor.green}, ${intColor.blue}, ${color.alpha}]"
+            }
+        } else {
+            val light = lightColors.joinToString(",", "[", "]") { color ->
+                val intColor = color.toArgb()
+                "[${intColor.red}, ${intColor.green}, ${intColor.blue}, ${color.alpha}]"
+            }
+            val dark = darkColors.joinToString(",", "[", "]") { color ->
+                val intColor = color.toArgb()
+                "[${intColor.red}, ${intColor.green}, ${intColor.blue}, ${color.alpha}]"
+            }
+            "{ light: $light , dark: $dark }"
+        }
+
+        modifiedString = modifiedString.replace(
+            oldValue = "${quantity.name}_breakpoints",
+            newValue = breakPoints
+        ).replace(
+            oldValue = "${quantity.name}_colors",
+            newValue = colors
+        )
+    }
+
+    return modifiedString
+}

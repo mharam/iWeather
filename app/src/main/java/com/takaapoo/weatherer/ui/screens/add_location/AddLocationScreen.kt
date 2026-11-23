@@ -10,7 +10,10 @@ import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.repeatable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -18,13 +21,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,11 +41,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
@@ -52,9 +63,11 @@ import com.google.android.gms.maps.MapsInitializer
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.widgets.ScaleBar
+import com.takaapoo.weatherer.R
 import com.takaapoo.weatherer.data.local.Location
 import com.takaapoo.weatherer.domain.MyResult
 import com.takaapoo.weatherer.domain.model.AppSettings
@@ -65,6 +78,7 @@ import com.takaapoo.weatherer.ui.screens.add_location.dialogs.AddLimitDialog
 import com.takaapoo.weatherer.ui.screens.add_location.dialogs.AddLocationDialog
 import com.takaapoo.weatherer.ui.screens.add_location.dialogs.DonateDialog
 import com.takaapoo.weatherer.ui.screens.add_location.dialogs.HelpDialog
+import com.takaapoo.weatherer.utility.MapStyle
 import com.takaapoo.weatherer.utility.calculateLocationSurroundingPoints
 import com.takaapoo.weatherer.utility.toPx
 import kotlinx.coroutines.delay
@@ -199,7 +213,43 @@ fun AddLocationScreen(
     var surroundingPoints by remember{ mutableStateOf(emptyList<LatLng>()) }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    contentColor = MaterialTheme.colorScheme.onBackground,
+                    shape = RoundedCornerShape(50),
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .border(
+                            width = dimensionResource(id = R.dimen.connector_line_width),
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(50)
+                        )
+                        .shadow(
+                            elevation = 2.dp,
+                            shape = RoundedCornerShape(50)
+                        )
+                ) {
+                    Row(
+                        modifier = Modifier,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.add_location_24px),
+                            tint = MaterialTheme.colorScheme.primary,
+                            contentDescription = null
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = data.visuals.message,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            fontFamily = FontFamily.Default
+                        )
+                    }
+                }
+            }
+        },
         modifier = modifier,
         floatingActionButton = {
             LocationButton(
@@ -257,7 +307,12 @@ fun AddLocationScreen(
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
-                properties = mapState.properties,
+                properties = mapState.properties.copy(
+                    mapStyleOptions = MapStyleOptions(
+                        /*if (MaterialTheme.isDarkTheme) MapStyle.gowallaStyleDark
+                        else*/ MapStyle.gowallaStyleLight
+                    )
+                ),
                 uiSettings = mapState.uiSettings,
                 onMapLongClick = {
                     surroundingPoints = calculateLocationSurroundingPoints(

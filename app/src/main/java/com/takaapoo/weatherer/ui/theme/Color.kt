@@ -161,7 +161,7 @@ val AQGreen = Color(0xFF00E400)
 val AQYellow = Color(0xFFFFFF00)
 val AQOrange = Color(0xFFFF7E00)
 val AQRed = Color(0xFFFF0000)
-val AQPurple = Color(0xFFB94DC4)
+val AQPurple = Color(0xFFF03EFF)
 val AQMaroon = Color(0xFFB30233)
 val AQMaroonPlus = Color(0xFF4F0017)
 

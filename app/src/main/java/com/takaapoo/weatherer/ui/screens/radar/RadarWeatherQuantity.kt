@@ -37,6 +37,7 @@ import com.takaapoo.weatherer.ui.theme.UVYellow1
 import com.takaapoo.weatherer.ui.theme.UVYellow2
 import com.takaapoo.weatherer.ui.theme.UVYellow3
 import com.takaapoo.weatherer.utility.celsiusToUnit
+import com.takaapoo.weatherer.utility.darker
 import com.takaapoo.weatherer.utility.kmToUnit
 import com.takaapoo.weatherer.utility.kmphToUnit
 import com.takaapoo.weatherer.utility.mToUnit
@@ -344,6 +345,29 @@ enum class RadarWeatherQuantity(
                 )
             }
         }
+        private val windLightColorScale = listOf(
+            Color(255, 255, 255, 255),
+            Color(194, 232, 255, 255),
+            Color(133, 209, 255, 255),
+            Color(12, 162, 255, 255),
+            Color(0, 255, 175, 255),
+            Color(0, 213, 0, 255),
+            Color(139, 239, 0, 255),
+            Color(255, 255, 0, 255),
+            Color(255, 229, 0, 255),
+            Color(255, 197, 0, 255),
+            Color(255, 165, 0, 255),
+            Color(242, 130, 25, 255),
+            Color(231, 107, 48, 255),
+            Color(212, 91, 91, 255),
+            Color(224, 63, 63, 255),
+            Color(255, 0, 0, 255),
+            Color(192, 0, 0, 255),
+            Color(117, 0, 0, 255)
+        )
+        private val AQLightColorScale = listOf(
+            AQGreen, AQYellow, AQOrange, AQRed, AQPurple, AQMaroon, AQMaroonPlus
+        )
         fun colorScale(
             quantity: RadarWeatherQuantity,
             isDark: Boolean,
@@ -351,9 +375,9 @@ enum class RadarWeatherQuantity(
             return when (quantity) {
                 TEMPERATURE, DEWPOINT, FREEZINGLEVELHEIGHT -> if (isDark)
                     listOf(
-                        Color(255, 0, 207),
-                        Color(220, 0, 191),
-                        Color(190, 0, 163),
+                        Color(72, 0, 59),
+                        Color(112, 0, 98),
+                        Color(133, 0, 114),
                         Color(159, 0, 138),
                         Color(148, 0, 173),
                         Color(115, 0, 174),
@@ -390,9 +414,9 @@ enum class RadarWeatherQuantity(
                         Color(178, 19, 0),
                         Color(178, 0, 0),
                         Color(188, 0, 15),
-                        Color(203, 0, 20),
-                        Color(229, 0, 33),
-                        Color(255, 0, 51)
+                        Color(164, 0, 12),
+                        Color(129, 0, 9),
+                        Color(91, 0, 7)
                 ) else
                     listOf(
                         Color(74, 13, 0),
@@ -517,48 +541,31 @@ enum class RadarWeatherQuantity(
                             Color(241, 245, 249, 255)
                         )
                 VISIBILITY -> listOf(
-                    Color(106, 62, 0, 255),
-                    Color(121, 71, 0, 255),
-                    Color(136, 81, 0, 255),
-                    Color(166, 101, 0, 255),
+                    Color(74, 0, 136, 255),
+                    Color(120, 0, 224, 255),
+                    Color(158, 47, 255, 255),
+                    Color(227, 118, 0, 255),
                     Color(255, 165, 0, 255),
                     Color(241, 192, 0, 255),
                     Color(192, 213, 0, 255),
                     Color(47, 156, 0, 242),
-                    Color(0, 161, 117, 204),
-                    Color(0, 39, 211, 127),
-                    Color(62, 154, 255, 64),
+                    Color(0, 190, 139, 204),
+                    Color(0, 248, 179, 127),
+                    Color(99, 255, 209, 64),
                     Color(167, 235, 255, 0),
                     Color(255, 255, 255, 0),
                     Color(255, 255, 255, 0)
                 )
-                WIND -> listOf(
-                    Color(255, 255, 255, 0),
-                    Color(194, 232, 255, 19),
-                    Color(133, 209, 255, 38),
-                    Color(12, 162, 255, 76),
-                    Color(0, 198, 137, 102),
-                    Color(0, 128, 0, 127),
-                    Color(96, 192, 0, 178),
-                    Color(255, 255, 0, 255),
-                    Color(255, 229, 0, 255),
-                    Color(255, 197, 0, 255),
-                    Color(255, 165, 0, 255),
-                    Color(242, 130, 25, 255),
-                    Color(231, 107, 48, 255),
-                    Color(212, 91, 91, 255),
-                    Color(224, 63, 63, 255),
-                    Color(255, 0, 0, 255),
-                    Color(192, 0, 0, 255),
-                    Color(129, 0, 0, 255)
-                )
+                WIND -> if (isDark)
+                    windLightColorScale.map { it.darker(0.5f) } else
+                    windLightColorScale
                 UVINDEX, UVINDEXCLEARSKY -> listOf(
                     UVGreen1, UVGreen2, UVGreen3, UVYellow1, UVYellow2, UVYellow3, UVOrange1, UVOrange2,
                     UVRed1, UVRed2, UVRed3, UVMagenta1, UVMagenta2
                 )
-                PM10, PM2_5, CO, NO2, SO2, Ozone -> listOf(
-                    AQGreen, AQYellow, AQOrange, AQRed, AQPurple, AQMaroon, AQMaroonPlus
-                )
+                PM10, PM2_5, CO, NO2, SO2, Ozone -> if (isDark)
+                    AQLightColorScale.map { it.darker(0.5f) } else
+                    AQLightColorScale
             }
         }
         private val temperatureBreakPoints = listOf(
@@ -590,7 +597,7 @@ enum class RadarWeatherQuantity(
                     0f, 10f, 20f, 30f, 40f, 50f, 55f, 60f, 65f, 70f, 75f, 80f, 85f, 90f, 95f, 100f
                 )
                 PRECIPITATIONPROBABILITY -> listOf(
-                    0f, 1f, 5f, 10f, 20f, 30f, 45f, 60f, 75f, 100f
+                    0f, 3f, 6f, 10f, 20f, 30f, 45f, 60f, 75f, 100f
                 )
                 PRECIPITATION, RAIN, SHOWERS, SNOWFALL -> listOf(
                     0f, 0.1f, 0.5f, 1f, 2f, 3f, 4.5f, 6f, 8f, 10f, 12f, 16f, 20f, 25f, 30f,

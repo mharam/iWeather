@@ -86,7 +86,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -229,6 +228,7 @@ fun RadarScreen(
         if (titleAnimationState == TitleState.OldTitleExit) {
             delay(500.milliseconds)
             onUpdateSelectedQuantity(selectedQuantity)
+            onUpdateQuantityWeatherModel(selectedQuantity, selectedModel)
             delay(500.milliseconds)
             titleAnimationState = TitleState.OneTitle
         }
@@ -237,6 +237,7 @@ fun RadarScreen(
         if (modelAnimationState == TitleState.OldTitleExit) {
             delay(500.milliseconds)
             onUpdateQuantityWeatherModel(selectedQuantity, selectedModel)
+            Log.i("update1", "selectedQuantity = $selectedQuantity , selectedModel = $selectedModel")
             delay(500.milliseconds)
             modelAnimationState = TitleState.OneTitle
         }
@@ -277,7 +278,9 @@ fun RadarScreen(
         radarState.clockGaugeRotation.isRunning,
         dayListState.isScrollInProgress,
         radarState.clockGaugeNaturalRotation,
-        radarState.dayGaugeNaturalIndex
+        radarState.dayGaugeNaturalIndex,
+        isPageReady,
+        currentServerName
     ) {
         if (!radarState.clockGaugeRotation.isRunning && !dayListState.isScrollInProgress &&
             radarState.clockGaugeDragStopped && isPageReady && currentServerName != null)
@@ -325,6 +328,7 @@ fun RadarScreen(
     AnimatedVisibility(visible = radarState.quantityDialogVisible) {
         ChooseQuantityDialog(
             selectedQuantity = selectedQuantity,
+            selectedModel = currentWeatherModel,
             quantityWeatherModels = radarState.quantityWeatherModels,
             radarSpecs = radarState.radarSpecs,
 
@@ -361,7 +365,6 @@ fun RadarScreen(
         )
     }
 
-    val dayGauge = !MaterialTheme.isDarkTheme
     when (radarState.radarInitializationStatus) {
         is MyResult.Error -> {
             RadarErrorScreen(
@@ -483,7 +486,7 @@ fun RadarScreen(
                             RadarClockManipulator(
                                 gaugeSize = clockGaugeWidth,
                                 dayListState = dayListState,
-                                dayGaugeProvider = { dayGauge },
+                                dayGaugeProvider = { !isDark },
                                 radarState = radarRealState,
                                 clockGaugeRotationCoefficient = clockGaugeRotationCoefficient,
                                 silent = appSettings.silent,
@@ -572,8 +575,6 @@ fun RadarScreen(
                                 }
                                 settings.javaScriptEnabled = true
                                 settings.domStorageEnabled = true
-//                        settings.allowFileAccess = true
-//                        settings.allowContentAccess = true
 
                                 addWebMessageListener(
                                     webView = this,
@@ -606,28 +607,16 @@ fun RadarScreen(
                                     onPageReady = { isPageReady = true },
                                 )
 
-                                val adoptedBorderColor = borderColor.toArgb().toHexString().substring(2)
-                                val adoptedSurfaceColor = surfaceColor.toArgb().toHexString().substring(2)
                                 loadDataWithBaseURL(
                                     "$webViewOrigin/assets/", // Base URL context to fix domain relative checks
-                                    radarMap.replace(
-                                        oldValue = "top: 100px !important;",
-                                        newValue = "top: ${topPadding.value + valueBarHeight.value}px !important;"
-                                    ).replace(
-                                        oldValue = "border: 2px solid #ff0000",
-                                        newValue = "border: 2px solid #$adoptedBorderColor"
-                                    ).replace(
-                                        oldValue = "border-top: 1px solid #ff0000",
-                                        newValue = "border-top: 1px solid #$adoptedBorderColor"
-                                    ).replace(
-                                        oldValue = "background-color: #ff0000",
-                                        newValue = "background-color: #$adoptedSurfaceColor"
-                                    ).replace(
-                                        oldValue = "filter: invert(1);",
-                                        newValue = "filter: invert(${if (dayGauge) 0 else 1});"
-                                    ).replace(
-                                        oldValue = "style: style",
-                                        newValue = "style: ${if (isDark) "darkStyle" else "lightStyle"}"
+                                    modifiedRadarMap(
+                                        topPadding = topPadding.value,
+                                        valueBarHeight = valueBarHeight.value,
+                                        borderColor = borderColor,
+                                        surfaceColor = surfaceColor,
+                                        isDark = isDark,
+                                        centerLat = locationState.firstOrNull()?.latitude ?: 0f,
+                                        centerLng = locationState.firstOrNull()?.longitude ?: 0f
                                     ),
                                     "text/html",
                                     "UTF-8",
@@ -1285,8 +1274,8 @@ private fun addWebMessageListener(
             setOf(webViewOrigin)
         ) { _, wMessageCompat, _, _, _ ->
             try {
-                val jsonData = JSONObject(wMessageCompat.data ?: "{}")
                 onUpdateLoadingIndicatorVisible(false)
+                val jsonData = JSONObject(wMessageCompat.data ?: "{}")
                 if (jsonData.isNull("quantity")) {
                     onUpdateTitleAnimationState(TitleState.OneTitle)
                     onRevertSelectedQuantity()
